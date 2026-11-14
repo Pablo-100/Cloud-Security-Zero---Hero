@@ -16,7 +16,23 @@ for lc in LANGCODES:
     d=i18n_build.build(lc)
     if d: i18n[lc]=d
 print('i18n langs',{k:len(v) for k,v in i18n.items()})
-idata=json.dumps(i18n,ensure_ascii=False,separators=(',',':')).replace('</','<\\/')
+import glob as _g
+nchunks=len(_g.glob(W+'/content/i18n/src/*.json'))
+complete=[l for l in i18n if l!='en' and len(_g.glob(W+f'/content/i18n/out_{l}/*.json'))>=nchunks]
+contentlangs=json.dumps(['fr','en']+complete)
+import gzip,base64
+packs=''
+inline={}
+ui_keys={i18n_build.key(s) for s in json.load(open(W+'/content/i18n/ui_keys.json'))}
+for l,d in i18n.items():
+    if l=='en' or l not in complete:
+        inline[l]=d
+    else:
+        inline[l]={k:v for k,v in d.items() if k in ui_keys}
+        raw=json.dumps(d,ensure_ascii=False,separators=(',',':')).encode('utf-8')
+        packs+=f'<script type="text/plain" id="i18n-{l}">'+base64.b64encode(gzip.compress(raw,9)).decode()+'</script>\n'
+        print('pack',l,len(raw)//1024,'KB ->',len(packs)//1024,'KB total')
+idata=json.dumps(inline,ensure_ascii=False,separators=(',',':')).replace('</','<\\/')
 sdata=json.dumps(services,ensure_ascii=False,separators=(',',':')).replace('</','<\\/')
 html=f'''<!DOCTYPE html>
 <html lang="fr" dir="ltr">
@@ -35,9 +51,19 @@ html=f'''<!DOCTYPE html>
 </head>
 <body>
 <div id="app"></div>
-<script>window.I18N_DATA={idata};window.I18N_CONTENT=['fr','en'];window.COURSE_DATA={data};window.SERVICE_DATA={sdata};</script>
-<script>(function(){{
+<script>window.I18N_DATA={idata};window.I18N_CONTENT={contentlangs};window.COURSE_DATA={data};window.SERVICE_DATA={sdata};</script>
+{packs}<script type="text/plain" id="engine">(function(){{
 {js}
+}})();</script>
+<script>(async function(){{
+  var c=null; try{{c=localStorage.getItem('cloudsec-lang');}}catch(e){{}} if(!c){{try{{c=sessionStorage.getItem('cloudsec-lang');}}catch(e){{}}}}
+  if(!c){{var m=/cloudsec-lang:([\\w-]+)/.exec(window.name||''); if(m) c=m[1];}}
+  if(!c){{var nl=((navigator.languages&&navigator.languages[0])||navigator.language||'en').replace('_','-').toLowerCase(); c=nl.indexOf('zh')===0?(/tw|hk|mo|hant/.test(nl)?'zh-TW':'zh-CN'):nl.slice(0,2);}}
+  try{{ var el=document.getElementById('i18n-'+c);
+    if(el&&window.DecompressionStream){{ var b=atob(el.textContent), u=new Uint8Array(b.length); for(var i=0;i<b.length;i++) u[i]=b.charCodeAt(i);
+      var txt=await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+      window.I18N_DATA[c]=Object.assign(window.I18N_DATA[c]||{{}},JSON.parse(txt)); }} }}catch(e){{ console.warn('i18n pack',e); }}
+  var s=document.createElement('script'); s.textContent=document.getElementById('engine').textContent; document.body.appendChild(s);
 }})();</script>
 </body>
 </html>'''
