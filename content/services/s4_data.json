@@ -1,0 +1,2348 @@
+[
+ {
+  "k": "s3",
+  "name": "Amazon S3",
+  "full": "Amazon Simple Storage Service",
+  "cat": "Stockage",
+  "tagline": "Le stockage d'objets illimité, durable et privé par défaut.",
+  "role": "Service de stockage d'objets : on dépose des fichiers (objets) dans des buckets, accessibles par API HTTPS. Très durable, quasi illimité, il sert aux sauvegardes, aux logs, aux sites statiques et aux data lakes.",
+  "why": [
+   "Un bucket mal configuré est la première cause de fuite de données : Block Public Access la prévient.",
+   "Chiffrement au repos automatique (SSE-S3) ou avec ta propre clé KMS (SSE-KMS).",
+   "Versioning, MFA Delete et Object Lock protègent contre la suppression et le ransomware.",
+   "Les accès sont traçables : server access logs, CloudTrail data events."
+  ],
+  "how": "Chaque objet vit dans un bucket, adressé par une clé. L'accès est décidé par IAM, la bucket policy, les points d'accès et Block Public Access ; le trafic passe en HTTPS.",
+  "when": [
+   "Sauvegardes et archives de logs (CloudTrail, VPC Flow Logs)",
+   "Hébergement de sites statiques et de fichiers d'applications",
+   "Data lake interrogé avec Athena"
+  ],
+  "notwhen": "Pas adapté à un système de fichiers ou à un disque de base de données : utiliser EFS, FSx ou EBS.",
+  "derja": "S3, ya3ni kif l'armoire kbira fi l'idara : kol dossier fih mkhazen mte3ou. Ken thot el bab maftou7 lil koul (bucket public), ay wahed yedkhel w yechouf. Lazem nsakkar el bab w nraqeb chkoun 3andou el cle.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Application"
+   },
+   {
+    "k": "iam",
+    "t": "Policy vérifiée"
+   },
+   {
+    "k": "s3",
+    "t": "Bucket chiffré"
+   },
+   {
+    "k": "kms",
+    "t": "Clé SSE-KMS"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Accès journalisés"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ebs",
+    "d": "EBS est un disque bloc attaché à une seule instance EC2 ; S3 est du stockage objet via API."
+   },
+   {
+    "k": "efs",
+    "d": "EFS est un système de fichiers partagé (NFS) monté par plusieurs instances ; S3 n'est pas monté nativement."
+   },
+   {
+    "k": "glacier",
+    "d": "Glacier est une classe de stockage S3 d'archivage à coût réduit, avec délai de restauration."
+   }
+  ],
+  "exam": [
+   "Block Public Access peut être activé au niveau du compte et du bucket ; il l'emporte sur les policies et ACL permissives.",
+   "Les nouveaux objets sont chiffrés par défaut avec SSE-S3 ; SSE-KMS ajoute contrôle de clé et audit dans CloudTrail.",
+   "MFA Delete exige un MFA pour supprimer une version ou changer le versioning ; Object Lock donne un modèle WORM.",
+   "Accès cross-account : il faut un Allow côté bucket policy ET côté identité du compte appelant."
+  ],
+  "related": [
+   "iam",
+   "kms",
+   "cloudtrail",
+   "macie",
+   "glacier"
+  ],
+  "match": [
+   "S3",
+   "Bucket",
+   "SSE-S3",
+   "SSE-KMS",
+   "Block Public Access"
+  ]
+ },
+ {
+  "k": "glacier",
+  "name": "Amazon S3 Glacier",
+  "full": "Classes de stockage S3 Glacier (Instant, Flexible, Deep Archive)",
+  "cat": "Stockage",
+  "tagline": "Le sous-sol d'archives : peu cher, mais on attend pour récupérer.",
+  "role": "Ensemble de classes de stockage S3 destinées à l'archivage à long terme : Glacier Instant Retrieval, Flexible Retrieval et Deep Archive. Coût de stockage très bas, avec des délais de restauration plus ou moins longs.",
+  "why": [
+   "Conserve des logs et preuves pendant des années (conformité) à faible coût.",
+   "Données chiffrées au repos par défaut, comme dans S3.",
+   "Vault Lock (vaults Glacier) ou Object Lock (S3) rendent l'archive non modifiable (WORM).",
+   "Les règles de cycle de vie S3 automatisent le passage vers l'archive."
+  ],
+  "how": "Une lifecycle rule S3 déplace les objets vieux vers une classe Glacier. Pour lire, on lance une restauration, puis l'objet redevient accessible temporairement ; l'accès reste régi par IAM.",
+  "when": [
+   "Archives de CloudTrail et de logs gardées pour audit",
+   "Sauvegardes légales à conserver plusieurs années"
+  ],
+  "notwhen": "Pas pour des données lues souvent ou en urgence (Flexible/Deep Archive demandent une restauration) : rester sur S3 Standard.",
+  "derja": "Glacier, hedha el 'archive' fil baladiya : el wara9 el 9dim yetkhazzen fil sous-sol, rkhis, ama ken theb tjibou lazem testanna chwaya. Mouch el wara9 elli testa3melha koul youm.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Bucket S3"
+   },
+   {
+    "k": "s3",
+    "t": "Lifecycle rule"
+   },
+   {
+    "k": "glacier",
+    "t": "Classe Glacier"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Restauration tracée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "s3",
+    "d": "S3 Standard est pour l'accès fréquent ; Glacier pour l'archive rarement lue."
+   },
+   {
+    "k": "backup",
+    "d": "AWS Backup orchestre des sauvegardes ; Glacier est seulement un niveau de stockage."
+   }
+  ],
+  "exam": [
+   "Vault Lock applique une policy verrouillée et immuable sur un vault, utile pour la conformité (WORM).",
+   "Les données archivées sont chiffrées ; la restauration n'est pas immédiate sauf pour Instant Retrieval.",
+   "Les logs d'audit anciens se déplacent vers Glacier pour réduire le coût."
+  ],
+  "related": [
+   "s3",
+   "kms",
+   "cloudtrail",
+   "backup"
+  ],
+  "match": [
+   "Glacier",
+   "Deep Archive",
+   "Vault Lock",
+   "Lifecycle"
+  ]
+ },
+ {
+  "k": "ebs",
+  "name": "Amazon EBS",
+  "full": "Amazon Elastic Block Store",
+  "cat": "Stockage",
+  "tagline": "Le disque dur virtuel de ton instance EC2.",
+  "role": "Volumes de stockage en mode bloc attachés à une instance EC2 dans une même zone de disponibilité. Ils servent de disque système ou de disque de données, avec snapshots stockés dans S3.",
+  "why": [
+   "Chiffrement KMS du volume, des snapshots et du trafic vers l'instance, sans changer l'application.",
+   "Le chiffrement par défaut du compte force tout nouveau volume à être chiffré.",
+   "Les snapshots permettent sauvegarde et restauration après incident ou ransomware.",
+   "Un snapshot mal partagé peut fuir des données : à contrôler."
+  ],
+  "how": "Un volume est créé dans une AZ et attaché à une instance. S'il est chiffré, EBS utilise une clé KMS ; les snapshots et volumes dérivés restent chiffrés.",
+  "when": [
+   "Disque système et disques de données d'instances EC2",
+   "Base de données auto-hébergée sur EC2"
+  ],
+  "notwhen": "Pas de partage simultané entre plusieurs instances Linux (cas général) : préférer EFS ; pas d'archive objet : S3.",
+  "derja": "EBS, kif el disque dur mta3 el PC : yetsal b'machine wahda. Ken te7ki 3al disque yetcrypta, ken ay wahed seraq el disque ma yfhem chay. W el snapshot howa copie mta3ou, lazem ma nkhalliwhech ykoun public.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Instance EC2"
+   },
+   {
+    "k": "ebs",
+    "t": "Volume EBS"
+   },
+   {
+    "k": "kms",
+    "t": "Clé KMS"
+   },
+   {
+    "k": "ebs",
+    "t": "Snapshot chiffré"
+   },
+   {
+    "k": "s3",
+    "t": "Stocké dans S3"
+   }
+  ],
+  "vs": [
+   {
+    "k": "efs",
+    "d": "EFS est partageable entre instances ; EBS est attaché à une instance (une AZ)."
+   },
+   {
+    "k": "s3",
+    "d": "S3 est du stockage objet ; EBS est un disque bloc."
+   }
+  ],
+  "exam": [
+   "Un volume est lié à une AZ ; on le déplace en passant par un snapshot.",
+   "Un snapshot d'un volume chiffré est chiffré ; on peut chiffrer un volume non chiffré via snapshot puis copie chiffrée.",
+   "Activer « EBS encryption by default » force le chiffrement des nouveaux volumes dans la Région.",
+   "Les snapshots non chiffrés peuvent être partagés publiquement : risque de fuite."
+  ],
+  "related": [
+   "ec2",
+   "kms",
+   "s3",
+   "backup",
+   "efs"
+  ],
+  "match": [
+   "EBS",
+   "Snapshot",
+   "Volume",
+   "Encryption by default"
+  ]
+ },
+ {
+  "k": "efs",
+  "name": "Amazon EFS",
+  "full": "Amazon Elastic File System",
+  "cat": "Stockage",
+  "tagline": "Un dossier partagé que plusieurs serveurs montent en même temps.",
+  "role": "Système de fichiers réseau managé (NFS) pour Linux, élastique, accessible en parallèle par de nombreuses instances EC2, conteneurs ou fonctions Lambda, réparties sur plusieurs zones de disponibilité.",
+  "why": [
+   "Chiffrement au repos avec KMS et chiffrement en transit TLS pour chaque montage.",
+   "Contrôle fin : security groups, politiques de système de fichiers, IAM, points d'accès.",
+   "Données répliquées sur plusieurs AZ : pas de point de défaillance unique de zone.",
+   "Sauvegarde via AWS Backup."
+  ],
+  "how": "On crée un système de fichiers puis des mount targets dans les sous-réseaux. Les clients Linux montent via NFS, avec le mount helper pour TLS ; les droits combinent permissions POSIX et IAM.",
+  "when": [
+   "Contenu web partagé entre plusieurs serveurs",
+   "Répertoires personnels ou données partagées de conteneurs"
+  ],
+  "notwhen": "Pas pour Windows (SMB) : utiliser FSx for Windows File Server ; pas pour un disque de base de données unique : EBS.",
+  "derja": "EFS, kif dossier partagé fil ma7al 3amalna: koul el mouwadhafin yel9aw nafs el fichiers fi nafs el wa9t. Ama lazem na3tiw el 7a9 ghir lil elli yesta7ou9.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Instances EC2"
+   },
+   {
+    "k": "vpc",
+    "t": "Security group NFS"
+   },
+   {
+    "k": "efs",
+    "t": "Mount target"
+   },
+   {
+    "k": "efs",
+    "t": "Système de fichiers"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement KMS"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ebs",
+    "d": "EBS est un disque pour une instance ; EFS est partagé par plusieurs."
+   },
+   {
+    "k": "fsx",
+    "d": "FSx couvre Windows, Lustre, NetApp ONTAP, OpenZFS ; EFS est du NFS pour Linux."
+   }
+  ],
+  "exam": [
+   "Le chiffrement au repos se choisit à la création du système de fichiers ; le TLS se règle côté client (mount helper).",
+   "Les access points imposent un répertoire racine et une identité POSIX à une application.",
+   "EFS est accessible depuis plusieurs AZ ; EBS est limité à une AZ."
+  ],
+  "related": [
+   "ec2",
+   "kms",
+   "vpc",
+   "backup",
+   "iam"
+  ],
+  "match": [
+   "EFS",
+   "NFS",
+   "Elastic File System"
+  ]
+ },
+ {
+  "k": "fsx",
+  "name": "Amazon FSx",
+  "full": "Amazon FSx (Windows File Server, Lustre, NetApp ONTAP, OpenZFS)",
+  "cat": "Stockage",
+  "tagline": "Des systèmes de fichiers du commerce, gérés par AWS.",
+  "role": "Famille de systèmes de fichiers entièrement managés qui reprennent des technologies connues : FSx for Windows File Server (SMB), Lustre (calcul haute performance), NetApp ONTAP et OpenZFS.",
+  "why": [
+   "Migrer des applications existantes sans les réécrire (SMB, NFS, ACL Windows).",
+   "Chiffrement au repos avec KMS et chiffrement en transit selon le type de système.",
+   "FSx for Windows s'intègre à Active Directory pour les permissions par utilisateur.",
+   "Sauvegardes automatiques et manuelles gérées."
+  ],
+  "how": "AWS gère serveurs, disques et mises à jour du système de fichiers choisi. Les clients le montent via SMB ou NFS dans le VPC ; l'accès réseau se filtre par security groups.",
+  "when": [
+   "Partages de fichiers Windows d'entreprise avec Active Directory",
+   "Calcul haute performance avec FSx for Lustre"
+  ],
+  "notwhen": "Si un simple NFS Linux suffit, EFS est plus simple ; pour des objets via API, utiliser S3.",
+  "derja": "FSx, ya3ni el serveur de fichiers mta3 el charika (partage Windows), ama AWS yekhdem 3lih w ya3mel el maintenance. Enti ghir tgoul chkoun ye9der yesta3melou.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Poste Windows"
+   },
+   {
+    "k": "directory",
+    "t": "Active Directory"
+   },
+   {
+    "k": "fsx",
+    "t": "FSx for Windows"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement KMS"
+   },
+   {
+    "k": "backup",
+    "t": "Sauvegardes"
+   }
+  ],
+  "vs": [
+   {
+    "k": "efs",
+    "d": "EFS est un NFS élastique pour Linux ; FSx propose SMB/Windows et autres moteurs."
+   },
+   {
+    "k": "s3",
+    "d": "S3 est du stockage objet, sans protocole SMB natif."
+   }
+  ],
+  "exam": [
+   "FSx for Windows File Server utilise SMB et s'intègre à Active Directory (managé ou sur site).",
+   "FSx for Lustre est orienté calcul haute performance et peut s'appuyer sur S3.",
+   "Les données sont chiffrées au repos avec KMS."
+  ],
+  "related": [
+   "efs",
+   "directory",
+   "kms",
+   "backup",
+   "s3"
+  ],
+  "match": [
+   "FSx",
+   "Lustre",
+   "SMB",
+   "Windows File Server"
+  ]
+ },
+ {
+  "k": "backup",
+  "name": "AWS Backup",
+  "full": "AWS Backup",
+  "cat": "Protection des données",
+  "tagline": "Une seule console pour planifier et protéger toutes les sauvegardes.",
+  "role": "Service centralisé qui automatise les sauvegardes de nombreux services AWS (EBS, RDS, DynamoDB, EFS, S3…) via des plans de sauvegarde, et gère rétention, copies et restaurations depuis un point unique.",
+  "why": [
+   "Une politique unique remplace des scripts de sauvegarde dispersés et oubliés.",
+   "Les sauvegardes sont chiffrées dans des vaults avec KMS.",
+   "Vault Lock les rend immuables, contre suppression malveillante ou ransomware.",
+   "Copies vers un autre compte ou une autre Région pour résister à une compromission."
+  ],
+  "how": "Un backup plan définit fréquence, rétention et cible ; les ressources sont choisies par tags. Les points de récupération sont stockés dans un backup vault, protégé par politique d'accès.",
+  "when": [
+   "Sauvegardes planifiées multi-services avec rétention de conformité",
+   "Copie cross-account d'une sauvegarde protégée"
+  ],
+  "notwhen": "Ne remplace pas un plan de reprise d'activité complet : pour la reprise de serveurs, voir Elastic Disaster Recovery.",
+  "derja": "AWS Backup, kif el moudir elli ykhalleb el copies mta3 koul el dossiers fil idara fi nafs el wa9t, w y7ot copie fi bureau akher. Ken el aslia tadhrar, el copie mazelet.",
+  "use": [
+   {
+    "k": "rds",
+    "t": "Ressources (RDS, EBS...)"
+   },
+   {
+    "k": "backup",
+    "t": "Backup plan"
+   },
+   {
+    "k": "backup",
+    "t": "Vault chiffré"
+   },
+   {
+    "k": "kms",
+    "t": "Clé KMS"
+   },
+   {
+    "k": "orgs",
+    "t": "Copie cross-account"
+   }
+  ],
+  "vs": [
+   {
+    "k": "drs",
+    "d": "DRS réplique des serveurs en continu pour une reprise rapide ; Backup crée des points de restauration."
+   },
+   {
+    "k": "glacier",
+    "d": "Glacier est un niveau de stockage ; Backup est l'orchestrateur."
+   }
+  ],
+  "exam": [
+   "Backup Vault Lock fournit un modèle WORM : même un administrateur ne peut pas supprimer avant la fin de rétention.",
+   "Sauvegarde cross-account et cross-Region pour limiter l'impact d'une compromission.",
+   "Les sauvegardes sont chiffrées et leurs accès se contrôlent par politique de vault."
+  ],
+  "related": [
+   "kms",
+   "s3",
+   "rds",
+   "ebs",
+   "orgs"
+  ],
+  "match": [
+   "Backup",
+   "Vault",
+   "Backup plan"
+  ]
+ },
+ {
+  "k": "storagegw",
+  "name": "AWS Storage Gateway",
+  "full": "AWS Storage Gateway",
+  "cat": "Stockage",
+  "tagline": "Le pont entre ton datacenter et le stockage AWS.",
+  "role": "Service hybride : une passerelle (VM ou appliance) installée sur site expose des protocoles standards (NFS, SMB, iSCSI, bande virtuelle) mais stocke les données dans AWS, notamment S3.",
+  "why": [
+   "Utiliser le cloud sans modifier les applications sur site.",
+   "Données transférées en TLS et chiffrées au repos (S3, SSE-S3 ou KMS).",
+   "Sauvegarde sur site vers le cloud, sans bandes physiques.",
+   "Cache local pour garder les données fréquentes proches des utilisateurs."
+  ],
+  "how": "La passerelle se connecte à AWS et présente un partage fichier, un volume ou une bibliothèque de bandes. Elle garde un cache local et envoie les données vers S3 ou EBS snapshots.",
+  "when": [
+   "Archiver des fichiers locaux dans S3 via un partage NFS/SMB",
+   "Remplacer des bandes de sauvegarde par Tape Gateway"
+  ],
+  "notwhen": "Pour un transfert unique de gros volumes, préférer DataSync ou Snowball ; pas besoin de passerelle si l'application parle déjà à S3.",
+  "derja": "Storage Gateway, kif jessr bin el dar w el bureau: tkhdem 3al disque mte3ek el 3adi, ama el donnees tetkhazzen fil cloud. Ma tbaddel chay fil application.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Applications sur site"
+   },
+   {
+    "k": "storagegw",
+    "t": "Gateway locale"
+   },
+   {
+    "k": "internet",
+    "t": "TLS vers AWS"
+   },
+   {
+    "k": "s3",
+    "t": "S3 chiffré"
+   },
+   {
+    "k": "backup",
+    "t": "Sauvegarde"
+   }
+  ],
+  "vs": [
+   {
+    "k": "datasync",
+    "d": "DataSync déplace des données en bloc ; Storage Gateway donne un accès hybride continu."
+   },
+   {
+    "k": "snowball",
+    "d": "Snowball transfère hors ligne par appareil physique."
+   }
+  ],
+  "exam": [
+   "Trois familles : File Gateway, Volume Gateway et Tape Gateway.",
+   "Solution hybride : cache local et données durables dans AWS.",
+   "Les données sont chiffrées en transit (TLS) et au repos."
+  ],
+  "related": [
+   "s3",
+   "ebs",
+   "datasync",
+   "kms",
+   "vpc"
+  ],
+  "match": [
+   "Storage Gateway",
+   "File Gateway",
+   "Tape Gateway"
+  ]
+ },
+ {
+  "k": "snowball",
+  "name": "AWS Snowball",
+  "full": "AWS Snow Family (Snowball Edge)",
+  "cat": "Stockage",
+  "tagline": "Un camion de disques chiffrés pour migrer sans réseau.",
+  "role": "Appareils physiques robustes envoyés par AWS pour transférer de gros volumes de données vers ou depuis AWS hors ligne, ou pour traiter des données en périphérie quand le réseau est limité.",
+  "why": [
+   "Transférer des téraoctets quand le réseau est trop lent ou trop cher.",
+   "Données chiffrées sur l'appareil ; les clés KMS ne sont pas stockées dessus.",
+   "Appareil inviolable avec suivi de transport et effacement après le transfert.",
+   "Les accès à la tâche (job) sont contrôlés par IAM et tracés."
+  ],
+  "how": "On commande un job dans la console, AWS expédie l'appareil, on copie les données localement, puis on le renvoie ; AWS importe dans S3 et efface l'appareil.",
+  "when": [
+   "Migration initiale de grandes archives vers S3",
+   "Collecte de données en site isolé sans connexion"
+  ],
+  "notwhen": "Si la bande passante suffit, DataSync (en ligne) est plus simple ; non adapté aux synchronisations continues.",
+  "derja": "Snowball, kif ki tebdel el dar w tjib camion, ma tab3athch koul chay 3al internet 7aja 7aja. Y7ottou el donnees fil sandou9 mkhabba, w el cle ma tetb3athch m3ah.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Données locales"
+   },
+   {
+    "k": "snowball",
+    "t": "Appareil Snowball"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement KMS"
+   },
+   {
+    "k": "s3",
+    "t": "Import dans S3"
+   }
+  ],
+  "vs": [
+   {
+    "k": "datasync",
+    "d": "DataSync transfère en ligne ; Snowball transporte physiquement."
+   },
+   {
+    "k": "storagegw",
+    "d": "Storage Gateway sert l'accès hybride continu."
+   }
+  ],
+  "exam": [
+   "Snowball chiffre les données avec des clés gérées via KMS, non stockées sur l'appareil.",
+   "Cas typique : très gros volume + réseau limité = Snow Family.",
+   "Les données arrivent dans S3 après le retour de l'appareil."
+  ],
+  "related": [
+   "s3",
+   "kms",
+   "datasync",
+   "iam"
+  ],
+  "match": [
+   "Snowball",
+   "Snow Family",
+   "Snowcone"
+  ]
+ },
+ {
+  "k": "datasync",
+  "name": "AWS DataSync",
+  "full": "AWS DataSync",
+  "cat": "Stockage",
+  "tagline": "Le convoyeur rapide et vérifié pour déplacer des fichiers.",
+  "role": "Service de transfert de données en ligne : un agent copie de gros volumes entre un stockage sur site (NFS, SMB) et S3, EFS ou FSx, ou entre services AWS, avec planification et vérification d'intégrité.",
+  "why": [
+   "Données chiffrées en transit avec TLS pendant le transfert.",
+   "Vérifie l'intégrité des données copiées.",
+   "Permissions via rôle IAM ; les transferts se planifient et se journalisent dans CloudWatch.",
+   "Plus rapide et plus fiable qu'un script de copie fait maison."
+  ],
+  "how": "On déploie un agent près de la source, on définit source, destination et planning ; DataSync copie les données de manière optimisée, et ne transfère que les changements lors des répétitions.",
+  "when": [
+   "Migration de partages de fichiers vers S3 ou EFS",
+   "Synchronisation régulière de données entre régions ou comptes"
+  ],
+  "notwhen": "Pour des transferts hors ligne ou sans réseau : Snowball ; pour un accès hybride permanent : Storage Gateway.",
+  "derja": "DataSync, kif camion mta3 livraison m3a facture: yenqel el 7ajet bsor3a w yetaakked elli koul chay wasel s7i7. Mouch kif nkhalliw copier-coller idawi.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Stockage sur site"
+   },
+   {
+    "k": "datasync",
+    "t": "Agent DataSync"
+   },
+   {
+    "k": "internet",
+    "t": "TLS"
+   },
+   {
+    "k": "s3",
+    "t": "S3 / EFS / FSx"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "snowball",
+    "d": "Snowball est hors ligne ; DataSync est en ligne via le réseau."
+   },
+   {
+    "k": "storagegw",
+    "d": "Storage Gateway donne un accès hybride continu, pas une migration planifiée."
+   }
+  ],
+  "exam": [
+   "DataSync = transfert en ligne planifié avec vérification d'intégrité.",
+   "Sources et cibles : NFS, SMB, S3, EFS, FSx.",
+   "Le trafic est chiffré en TLS ; les droits passent par des rôles IAM."
+  ],
+  "related": [
+   "s3",
+   "efs",
+   "fsx",
+   "iam",
+   "cloudwatch"
+  ],
+  "match": [
+   "DataSync"
+  ]
+ },
+ {
+  "k": "transfer",
+  "name": "AWS Transfer Family",
+  "full": "AWS Transfer Family",
+  "cat": "Stockage",
+  "tagline": "Un serveur SFTP managé qui écrit directement dans S3.",
+  "role": "Service managé qui expose des serveurs SFTP, FTPS, FTP et AS2 pour échanger des fichiers avec des partenaires, en stockant directement dans S3 ou EFS, sans gérer de serveurs.",
+  "why": [
+   "Remplace un serveur FTP vieillissant à patcher et à surveiller.",
+   "SFTP et FTPS chiffrent le transfert ; le FTP clair se limite à un VPC.",
+   "Authentification par service, Active Directory ou fournisseur d'identité personnalisé.",
+   "Les accès sont limités par rôle IAM par utilisateur et journalisés."
+  ],
+  "how": "Le partenaire se connecte avec un client SFTP ; Transfer authentifie l'utilisateur, lui assume un rôle IAM et écrit dans le bucket S3, éventuellement limité à son dossier.",
+  "when": [
+   "Échanges de fichiers avec des partenaires externes",
+   "Dépôt sécurisé de fichiers vers S3 sans serveur à maintenir"
+  ],
+  "notwhen": "Pour une API moderne ou des utilisateurs internes AWS, utiliser directement S3 avec IAM ; le FTP non chiffré est à éviter.",
+  "derja": "Transfer Family, kif el boite aux lettres mta3 el 3imara: kol sakin ya3mel dépôt fi boitou, w ma yfout lil boites el okhra. W lezem el 7amel ykoun mqafel (SFTP), mouch bil FTP.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Partenaire"
+   },
+   {
+    "k": "transfer",
+    "t": "Serveur SFTP"
+   },
+   {
+    "k": "iam",
+    "t": "Rôle de l'utilisateur"
+   },
+   {
+    "k": "s3",
+    "t": "Dossier S3"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "datasync",
+    "d": "DataSync copie en masse entre stockages ; Transfer Family sert des partenaires via protocoles de fichiers."
+   }
+  ],
+  "exam": [
+   "Protocoles : SFTP, FTPS, FTP et AS2.",
+   "FTP n'est pas chiffré : à restreindre à l'intérieur d'un VPC.",
+   "Chaque utilisateur peut être limité à un répertoire grâce à un rôle IAM et une policy."
+  ],
+  "related": [
+   "s3",
+   "efs",
+   "iam",
+   "cloudwatch",
+   "vpc"
+  ],
+  "match": [
+   "Transfer Family",
+   "SFTP",
+   "FTPS"
+  ]
+ },
+ {
+  "k": "drs",
+  "name": "AWS Elastic Disaster Recovery",
+  "full": "AWS Elastic Disaster Recovery (DRS)",
+  "cat": "Protection des données",
+  "tagline": "Un site de secours dans AWS, prêt à démarrer quand le principal tombe.",
+  "role": "Service de reprise après sinistre qui réplique en continu des serveurs (sur site ou dans le cloud) vers AWS, puis lance rapidement des instances récupérées en cas de panne ou d'attaque.",
+  "why": [
+   "Faible perte de données (RPO de l'ordre de secondes) grâce à la réplication continue.",
+   "Reprise rapide (RTO de l'ordre de minutes) sans maintenir un second datacenter complet.",
+   "Les données répliquées sont chiffrées, avec des disques EBS dans le VPC de staging.",
+   "Des exercices de reprise sans interrompre la production."
+  ],
+  "how": "Un agent installé sur chaque serveur envoie les blocs de disque vers une zone de staging à faible coût dans AWS. En cas de sinistre, on lance les instances de récupération à partir des derniers points.",
+  "when": [
+   "Reprise après sinistre d'applications sur site",
+   "Résilience face à une panne majeure ou à un ransomware"
+  ],
+  "notwhen": "Pour de simples sauvegardes à restaurer plus tard (RPO long), AWS Backup est plus simple et moins cher.",
+  "derja": "DRS, kif ykoun 3andek dar thanya jehzet fi kol wa9t: ken el dar el 2ouwla tet7ar9, tet3ada l dar l 2okhra b'ghayr ma tkhsar el mafatih w el wathayeq.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Serveur source"
+   },
+   {
+    "k": "drs",
+    "t": "Agent de réplication"
+   },
+   {
+    "k": "ebs",
+    "t": "Staging chiffré"
+   },
+   {
+    "k": "ec2",
+    "t": "Instance de reprise"
+   }
+  ],
+  "vs": [
+   {
+    "k": "backup",
+    "d": "Backup garde des points de restauration périodiques ; DRS vise une reprise rapide avec réplication continue."
+   }
+  ],
+  "exam": [
+   "Mots-clés : RPO, RTO, réplication continue au niveau bloc.",
+   "Zone de staging peu coûteuse ; les instances ne sont lancées qu'en cas de sinistre ou d'exercice.",
+   "Les données répliquées sont chiffrées."
+  ],
+  "related": [
+   "ec2",
+   "ebs",
+   "backup",
+   "vpc",
+   "kms"
+  ],
+  "match": [
+   "Disaster Recovery",
+   "Elastic Disaster Recovery",
+   "RPO",
+   "RTO"
+  ]
+ },
+ {
+  "k": "rds",
+  "name": "Amazon RDS",
+  "full": "Amazon Relational Database Service",
+  "cat": "Bases de données",
+  "tagline": "Une base relationnelle dont AWS gère le serveur et les sauvegardes.",
+  "role": "Service de bases de données relationnelles managées (MySQL, PostgreSQL, MariaDB, Oracle, SQL Server, Db2). AWS gère le matériel, l'installation, les correctifs et les sauvegardes ; tu gères les données et les accès.",
+  "why": [
+   "Chiffrement au repos avec KMS (choisi à la création) et TLS/SSL pour les connexions.",
+   "Placée dans des sous-réseaux privés, protégée par des security groups : jamais exposée à Internet.",
+   "Sauvegardes automatiques avec restauration à un instant donné, et Multi-AZ pour la haute disponibilité.",
+   "Mots de passe gérés par Secrets Manager et authentification IAM possible selon le moteur."
+  ],
+  "how": "Une instance (ou un cluster) tourne dans ton VPC. Les applications s'y connectent par le port du moteur ; les logs d'audit et d'erreurs peuvent être exportés vers CloudWatch Logs.",
+  "when": [
+   "Base d'une application web transactionnelle (MySQL, PostgreSQL)",
+   "Migration d'une base Oracle ou SQL Server sans gérer le serveur"
+  ],
+  "notwhen": "Pas adapté à des clés-valeurs à très grande échelle (DynamoDB) ni à de l'analytique massive (Redshift).",
+  "derja": "RDS, kif ma ta3ti el karhba mta3ek l'mikanisyen: houwa ya3mel el sayana w el sauvegarde, ama el mafatih w chkoun yod5ol, hedha 3lik. Ma tkhalliwch el base maftou7a 3al internet.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Application"
+   },
+   {
+    "k": "vpc",
+    "t": "Security group"
+   },
+   {
+    "k": "rds",
+    "t": "Base RDS privée"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement KMS"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs d'audit"
+   }
+  ],
+  "vs": [
+   {
+    "k": "aurora",
+    "d": "Aurora est un moteur compatible MySQL/PostgreSQL avec stockage distribué sur 3 AZ."
+   },
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB est NoSQL clé-valeur serverless, sans schéma relationnel."
+   }
+  ],
+  "exam": [
+   "Le chiffrement au repos se choisit à la création ; pour chiffrer une base existante : snapshot, copie chiffrée, restauration.",
+   "Multi-AZ sert la disponibilité ; les Read Replicas servent la lecture et la montée en charge.",
+   "Sauvegardes automatiques + snapshots ; ne pas rendre l'instance publique (Public access = No).",
+   "Réplicas et snapshots d'une base chiffrée restent chiffrés."
+  ],
+  "related": [
+   "aurora",
+   "kms",
+   "vpc",
+   "secrets",
+   "backup"
+  ],
+  "match": [
+   "RDS",
+   "Multi-AZ",
+   "Read Replica",
+   "Relational"
+  ]
+ },
+ {
+  "k": "aurora",
+  "name": "Amazon Aurora",
+  "full": "Amazon Aurora",
+  "cat": "Bases de données",
+  "tagline": "Une base relationnelle AWS plus rapide, répliquée sur 3 zones.",
+  "role": "Moteur relationnel conçu par AWS, compatible MySQL et PostgreSQL, intégré à RDS. Son stockage distribué garde six copies des données sur trois zones de disponibilité et se répare automatiquement.",
+  "why": [
+   "Haute disponibilité et durabilité intégrées : six copies sur trois AZ.",
+   "Chiffrement au repos KMS (choisi à la création) et TLS en transit.",
+   "Sauvegardes continues vers S3 et restauration à un instant donné.",
+   "Database Activity Streams envoie l'activité vers Kinesis pour l'audit."
+  ],
+  "how": "Un cluster contient une instance d'écriture et jusqu'à 15 réplicas de lecture qui partagent le même volume distribué. La bascule vers un réplica est rapide en cas de panne.",
+  "when": [
+   "Application critique avec fort trafic de lecture",
+   "Besoin de bascule rapide et de réplication multi-Région (Global Database)"
+  ],
+  "notwhen": "Pour une petite base ou un budget serré, RDS classique peut suffire ; pour du NoSQL, DynamoDB.",
+  "derja": "Aurora, kif ken ta3mel 6 copies mta3 el dossier w t7otthom fi 3 bureaux mokhtalfin: ken bureau wa7ed yetsakker, el khedma mazelet. Ya3ni mouch ghir 'RDS esre3', hiya moustawa akher fil moutawafer.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Application"
+   },
+   {
+    "k": "aurora",
+    "t": "Cluster Aurora"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "s3",
+    "t": "Sauvegardes continues"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Surveillance"
+   }
+  ],
+  "vs": [
+   {
+    "k": "rds",
+    "d": "RDS classique utilise un stockage EBS par instance ; Aurora partage un stockage distribué."
+   },
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB est NoSQL et serverless."
+   }
+  ],
+  "exam": [
+   "Aurora : MySQL- et PostgreSQL-compatible, six copies sur trois AZ.",
+   "Le chiffrement du cluster se décide à la création et couvre sauvegardes, snapshots et réplicas.",
+   "Aurora Serverless ajuste la capacité automatiquement selon la charge."
+  ],
+  "related": [
+   "rds",
+   "kms",
+   "kinesis",
+   "backup",
+   "vpc"
+  ],
+  "match": [
+   "Aurora"
+  ]
+ },
+ {
+  "k": "dynamodb",
+  "name": "Amazon DynamoDB",
+  "full": "Amazon DynamoDB",
+  "cat": "Bases de données",
+  "tagline": "Une base NoSQL serverless, rapide à toute échelle.",
+  "role": "Base de données NoSQL clé-valeur et documents, entièrement managée et serverless. Elle offre des latences de quelques millisecondes à grande échelle sans serveur à gérer, avec réplication multi-AZ intégrée.",
+  "why": [
+   "Toujours chiffrée au repos, avec clé AWS owned, AWS managed ou KMS gérée par toi.",
+   "Accès par IAM, avec contrôle fin au niveau de la table, de l'élément et des attributs.",
+   "Sauvegardes à la demande et Point-in-Time Recovery.",
+   "Accès privé possible via un endpoint VPC ; appels API tracés par CloudTrail."
+  ],
+  "how": "On accède à DynamoDB par API HTTPS signée. Les requêtes passent par la clé primaire ou des index ; Streams peut déclencher Lambda à chaque modification.",
+  "when": [
+   "Sessions, paniers, profils utilisateurs à grande échelle",
+   "Backend serverless avec API Gateway et Lambda"
+  ],
+  "notwhen": "Pas de jointures ni de requêtes SQL complexes : pour de l'analytique ou du relationnel, utiliser RDS, Aurora ou Redshift.",
+  "derja": "DynamoDB, kif dafter el 3onwen: tfatesh bil esm (clé primaire) w tlé9a el ma3louma fi seconds. Ken thebb tfatesh bil 3adad kol w ma 3andekch index, ye3ti3ek.",
+  "use": [
+   {
+    "k": "lambda",
+    "t": "Lambda"
+   },
+   {
+    "k": "iam",
+    "t": "Permissions IAM"
+   },
+   {
+    "k": "dynamodb",
+    "t": "Table DynamoDB"
+   },
+   {
+    "k": "kms",
+    "t": "Clé KMS"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Appels tracés"
+   }
+  ],
+  "vs": [
+   {
+    "k": "rds",
+    "d": "RDS est relationnel avec SQL et jointures ; DynamoDB est NoSQL par clé."
+   },
+   {
+    "k": "elasticache",
+    "d": "ElastiCache est un cache en mémoire ; DynamoDB est une base durable."
+   }
+  ],
+  "exam": [
+   "Le chiffrement au repos est toujours actif et ne peut pas être désactivé ; seul le type de clé varie.",
+   "Les requêtes efficaces passent par la clé primaire ou un index ; sinon, penser à OpenSearch pour la recherche.",
+   "Point-in-Time Recovery restaure la table à un instant dans la fenêtre de rétention.",
+   "Les Streams enregistrent les modifications et alimentent Lambda ou OpenSearch."
+  ],
+  "related": [
+   "iam",
+   "lambda",
+   "kms",
+   "opensearch",
+   "cloudtrail"
+  ],
+  "match": [
+   "DynamoDB",
+   "NoSQL",
+   "Streams"
+  ]
+ },
+ {
+  "k": "elasticache",
+  "name": "Amazon ElastiCache",
+  "full": "Amazon ElastiCache (Redis OSS, Valkey, Memcached)",
+  "cat": "Bases de données",
+  "tagline": "Un cache en mémoire pour répondre en microsecondes.",
+  "role": "Service managé de cache et de stockage en mémoire basé sur Redis OSS, Valkey ou Memcached. Il accélère les applications en évitant de relire la base à chaque requête.",
+  "why": [
+   "Réduit la charge sur les bases de données et accélère l'application.",
+   "S'exécute dans le VPC, derrière des security groups, sans exposition Internet.",
+   "Chiffrement en transit (TLS) et au repos disponibles, avec authentification Redis/Valkey (AUTH, RBAC).",
+   "Les données en cache sont souvent sensibles (sessions) : à protéger comme une base."
+  ],
+  "how": "L'application interroge d'abord le cache ; si la donnée manque, elle lit la base puis la met en cache. Les clusters Redis/Valkey offrent réplication et basculement.",
+  "when": [
+   "Cache de résultats de requêtes ou de sessions web",
+   "Classements en temps réel avec Redis"
+  ],
+  "notwhen": "Pas une base de référence : les données en mémoire peuvent disparaître ; ne pas en faire l'unique copie.",
+  "derja": "ElastiCache, kif el 9ahwajji elli yaaref el commande mta3 el 3ayel el yomi bidoun ma yos2el: yjaweb b'sor3a. Ken yensa, yarja3 lil dafter (el base). W el cache fih ma3loumet 7assassa, ya3ni lazem n7miwh.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Application"
+   },
+   {
+    "k": "elasticache",
+    "t": "Cache en mémoire"
+   },
+   {
+    "k": "rds",
+    "t": "Base en cas de miss"
+   },
+   {
+    "k": "vpc",
+    "t": "Security groups"
+   }
+  ],
+  "vs": [
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB est une base durable ; ElastiCache est un cache rapide et volatil."
+   },
+   {
+    "k": "memorydb",
+    "d": "MemoryDB est une base en mémoire durable compatible Redis."
+   }
+  ],
+  "exam": [
+   "Redis/Valkey : AUTH ou RBAC, TLS et chiffrement au repos ; réplication et basculement.",
+   "Le cache se place dans des sous-réseaux privés avec un security group restrictif.",
+   "Cas d'usage typique : cache de lecture devant RDS."
+  ],
+  "related": [
+   "rds",
+   "dynamodb",
+   "vpc",
+   "kms",
+   "memorydb"
+  ],
+  "match": [
+   "ElastiCache",
+   "Redis",
+   "Memcached",
+   "Cache"
+  ]
+ },
+ {
+  "k": "redshift",
+  "name": "Amazon Redshift",
+  "full": "Amazon Redshift",
+  "cat": "Bases de données",
+  "tagline": "L'entrepôt de données pour analyser des téraoctets en SQL.",
+  "role": "Entrepôt de données (data warehouse) managé, orienté colonnes et massivement parallèle, conçu pour des requêtes analytiques SQL sur de très gros volumes, avec lecture possible de données dans S3 via Spectrum.",
+  "why": [
+   "Données sensibles analysées : chiffrement KMS ou HSM au repos, SSL en transit.",
+   "Déployé dans un VPC avec security groups ; Enhanced VPC Routing garde le trafic dans le réseau AWS.",
+   "Journaux d'audit de connexion et d'activité envoyés vers S3 ou CloudWatch.",
+   "Droits fins par SQL (GRANT) jusqu'au niveau colonne, et intégration avec IAM."
+  ],
+  "how": "Un cluster (nœud leader et nœuds de calcul) ou un workgroup serverless charge les données depuis S3, DynamoDB ou autre, puis exécute des requêtes analytiques en parallèle.",
+  "when": [
+   "Tableaux de bord décisionnels sur historiques volumineux",
+   "Analyse de données combinant entrepôt et fichiers S3"
+  ],
+  "notwhen": "Pas pour des transactions applicatives (OLTP) : utiliser RDS ou Aurora ; pour du SQL ponctuel sur S3 sans cluster : Athena.",
+  "derja": "Redshift, kif el archive el markaziya mta3 el charika, fihom el sanawet kol. Mouch lil khidma el youmiya, ama ken thebb t7asseb el mabi3at mta3 5 snin fi dagi9a, hedhi hiya.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Données S3"
+   },
+   {
+    "k": "redshift",
+    "t": "Cluster Redshift"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "quicksight",
+    "t": "Tableau de bord"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs d'audit"
+   }
+  ],
+  "vs": [
+   {
+    "k": "athena",
+    "d": "Athena interroge S3 sans cluster, facturé au volume scanné ; Redshift est un entrepôt dédié."
+   },
+   {
+    "k": "rds",
+    "d": "RDS gère des transactions ; Redshift fait de l'analytique."
+   }
+  ],
+  "exam": [
+   "Redshift = data warehouse analytique (OLAP), pas transactionnel.",
+   "Chiffrement KMS/HSM et audit logging sont à activer explicitement.",
+   "Redshift Spectrum interroge directement des données dans S3."
+  ],
+  "related": [
+   "s3",
+   "athena",
+   "glue",
+   "kms",
+   "quicksight"
+  ],
+  "match": [
+   "Redshift",
+   "Data warehouse",
+   "Spectrum"
+  ]
+ },
+ {
+  "k": "documentdb",
+  "name": "Amazon DocumentDB",
+  "full": "Amazon DocumentDB (compatible MongoDB)",
+  "cat": "Bases de données",
+  "tagline": "Une base de documents JSON compatible avec MongoDB.",
+  "role": "Base de données de documents managée, compatible avec les API MongoDB, qui stocke des données JSON flexibles. Son stockage est répliqué sur trois zones de disponibilité, avec séparation calcul/stockage.",
+  "why": [
+   "Garde le modèle documentaire MongoDB sans gérer serveurs ni sauvegardes.",
+   "Chiffrement au repos KMS, choisi à la création du cluster ; TLS pour les connexions.",
+   "Accessible uniquement dans un VPC : pas de point d'accès public.",
+   "Journaux d'audit exportables vers CloudWatch Logs."
+  ],
+  "how": "Un cluster DocumentDB (instance principale + réplicas) tourne dans ton VPC. Les applications utilisent les drivers MongoDB ; le stockage distribué sauvegarde en continu vers S3.",
+  "when": [
+   "Catalogue produits ou profils au format JSON",
+   "Migrer une application MongoDB vers un service managé"
+  ],
+  "notwhen": "Compatibilité MongoDB partielle : vérifier les fonctions utilisées ; pour du clé-valeur serverless, DynamoDB.",
+  "derja": "DocumentDB, kif classeur fih fiches mouch kol fiche nafs el forme: wa7da fiha el tel, w okhra fiha el 3onwen. Ama el classeur yet7at fi khzena mqafla (VPC).",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Application"
+   },
+   {
+    "k": "vpc",
+    "t": "Security group"
+   },
+   {
+    "k": "documentdb",
+    "t": "Cluster DocumentDB"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Audit logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB est serverless NoSQL avec API propriétaire ; DocumentDB parle l'API MongoDB."
+   },
+   {
+    "k": "rds",
+    "d": "RDS est relationnel (tables) ; DocumentDB stocke des documents."
+   }
+  ],
+  "exam": [
+   "Le chiffrement au repos doit être choisi à la création du cluster.",
+   "DocumentDB est compatible MongoDB et répliqué sur 3 AZ.",
+   "Le service n'est joignable que depuis un VPC."
+  ],
+  "related": [
+   "dynamodb",
+   "vpc",
+   "kms",
+   "cloudwatch",
+   "backup"
+  ],
+  "match": [
+   "DocumentDB",
+   "MongoDB"
+  ]
+ },
+ {
+  "k": "neptune",
+  "name": "Amazon Neptune",
+  "full": "Amazon Neptune",
+  "cat": "Bases de données",
+  "tagline": "Une base de graphes pour explorer des relations complexes.",
+  "role": "Base de données de graphes managée qui stocke des entités et leurs relations, interrogée avec Gremlin, openCypher ou SPARQL. Adaptée aux données très connectées comme réseaux, fraudes ou connaissances.",
+  "why": [
+   "Repère des liens cachés (fraude, comptes liés) que SQL rend difficiles à exprimer.",
+   "Chiffrement au repos KMS, choisi à la création, et chiffrement en transit TLS.",
+   "Authentification IAM avec requêtes signées ; réseau limité au VPC par security groups.",
+   "Journaux d'audit exportables vers CloudWatch Logs."
+  ],
+  "how": "Un cluster Neptune (instance d'écriture + réplicas) tourne dans un VPC, avec un stockage distribué répliqué sur trois zones. Les applications envoient des requêtes de graphe via les langages pris en charge.",
+  "when": [
+   "Détection de fraude par analyse de relations",
+   "Graphe de connaissances ou de recommandations"
+  ],
+  "notwhen": "Pour des données tabulaires classiques, RDS ou Aurora conviennent mieux ; pour de simples clés-valeurs, DynamoDB.",
+  "derja": "Neptune, kif chajra el 3a2ila: tchoufha b'sor3a chkoun ya9rab chkoun (cousins, jiran...). Fi el fraude, hedha yfidek bech tel9a el rawabet el makhfiya.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Client"
+   },
+   {
+    "k": "iam",
+    "t": "Auth IAM"
+   },
+   {
+    "k": "neptune",
+    "t": "Cluster Neptune"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Audit"
+   }
+  ],
+  "vs": [
+   {
+    "k": "rds",
+    "d": "RDS stocke des tables ; Neptune stocke des nœuds et des relations."
+   },
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB cherche par clé ; Neptune parcourt des liens."
+   }
+  ],
+  "exam": [
+   "Neptune = base de graphes (Gremlin, openCypher, SPARQL).",
+   "Cas typiques : fraude, réseaux sociaux, graphes de connaissances.",
+   "Le chiffrement au repos se décide à la création du cluster."
+  ],
+  "related": [
+   "kms",
+   "vpc",
+   "iam",
+   "rds",
+   "cloudwatch"
+  ],
+  "match": [
+   "Neptune",
+   "Graph"
+  ]
+ },
+ {
+  "k": "dms",
+  "name": "AWS DMS",
+  "full": "AWS Database Migration Service",
+  "cat": "Bases de données",
+  "tagline": "L'outil pour migrer une base vers AWS avec peu d'interruption.",
+  "role": "Service qui migre des bases de données vers AWS ou entre bases, y compris hétérogènes, en gardant la source opérationnelle. Il copie les données existantes puis réplique les changements en continu (CDC).",
+  "why": [
+   "Migrer avec très peu d'interruption grâce à la réplication continue.",
+   "Données chiffrées en transit par SSL/TLS et au repos sur l'instance de réplication via KMS.",
+   "Accès contrôlé par rôles IAM ; mots de passe de connexion gérables avec Secrets Manager.",
+   "Actions tracées par CloudTrail ; tâches journalisées dans CloudWatch."
+  ],
+  "how": "Une instance de réplication relie un endpoint source à un endpoint cible. La tâche fait un chargement initial (full load) puis applique les changements (CDC). SCT convertit le schéma si les moteurs diffèrent.",
+  "when": [
+   "Oracle sur site vers Aurora PostgreSQL",
+   "Réplication continue vers un lac de données S3"
+  ],
+  "notwhen": "Pas un outil de sauvegarde ni de transformation lourde : AWS Backup pour sauvegarder, Glue pour l'ETL.",
+  "derja": "DMS, kif ten9el men dar l dar: el dar el 9dima tab9a tekhdem 7atta tjib el 7wayej koll. Mba3d tsakker el 9dima w ma ykhsrouch chay.",
+  "use": [
+   {
+    "k": "database",
+    "t": "Base source"
+   },
+   {
+    "k": "dms",
+    "t": "Instance DMS"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "rds",
+    "t": "Base cible AWS"
+   }
+  ],
+  "vs": [
+   {
+    "k": "datasync",
+    "d": "DataSync copie des fichiers ; DMS migre des bases de données."
+   },
+   {
+    "k": "glue",
+    "d": "Glue fait de l'ETL de données ; DMS réplique des bases."
+   }
+  ],
+  "exam": [
+   "DMS = migration + CDC ; SCT convertit le schéma lors de migrations hétérogènes.",
+   "Le trafic vers les endpoints se protège avec SSL, et l'instance de réplication est chiffrée par KMS.",
+   "Les mots de passe des endpoints ne doivent pas être codés en dur : Secrets Manager."
+  ],
+  "related": [
+   "rds",
+   "aurora",
+   "secrets",
+   "kms",
+   "cloudtrail"
+  ],
+  "match": [
+   "DMS",
+   "Database Migration",
+   "CDC"
+  ]
+ },
+ {
+  "k": "sns",
+  "name": "Amazon SNS",
+  "full": "Amazon Simple Notification Service",
+  "cat": "Intégration & analytique",
+  "tagline": "Le mégaphone : un message, plusieurs destinataires.",
+  "role": "Service de messagerie publication/abonnement : un éditeur publie un message sur un topic et SNS le diffuse à tous les abonnés (SQS, Lambda, HTTPS, e-mail, SMS, notifications mobiles).",
+  "why": [
+   "Diffuse en parallèle des alertes de sécurité vers plusieurs équipes ou systèmes.",
+   "Chiffrement au repos des messages avec KMS (SSE) et HTTPS pour les échanges.",
+   "Topic policy : décide qui peut publier et s'abonner, y compris d'autres comptes.",
+   "Accès privé possible via endpoint VPC (PrivateLink)."
+  ],
+  "how": "Un publisher envoie vers un topic ; chaque abonné reçoit une copie (fan-out). Des filtres de messages limitent ce que chaque abonné reçoit.",
+  "when": [
+   "Alerte GuardDuty ou CloudWatch envoyée par e-mail à l'équipe sécurité",
+   "Fan-out vers plusieurs files SQS"
+  ],
+  "notwhen": "Pas de stockage durable ni de lecture à la demande : si le consommateur doit lire à son rythme, utiliser SQS.",
+  "derja": "SNS, kif el haut-parleur fi souk: ken yetkal el khbar, koul wahed yesma3ou fi nafs el wa9t. Ken el khbar secret, lazem na3mel mqafel (KMS) w nraqeb chkoun ye9der yesma3.",
+  "use": [
+   {
+    "k": "guardduty",
+    "t": "Alerte"
+   },
+   {
+    "k": "sns",
+    "t": "Topic SNS"
+   },
+   {
+    "k": "sqs",
+    "t": "File SQS"
+   },
+   {
+    "k": "lambda",
+    "t": "Lambda"
+   },
+   {
+    "k": "email",
+    "t": "E-mail"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sqs",
+    "d": "SQS est une file consommée en pull ; SNS pousse (push) vers plusieurs abonnés."
+   },
+   {
+    "k": "eventbridge",
+    "d": "EventBridge route des événements avec des règles riches et des sources AWS/SaaS."
+   }
+  ],
+  "exam": [
+   "SNS = push, pub/sub, fan-out ; SQS = file consommée en pull.",
+   "Si le topic est chiffré avec KMS, les services émetteurs (CloudWatch, EventBridge) doivent avoir accès à la clé.",
+   "Topic policy contrôle les accès cross-account."
+  ],
+  "related": [
+   "sqs",
+   "lambda",
+   "eventbridge",
+   "kms",
+   "cloudwatch"
+  ],
+  "match": [
+   "SNS",
+   "Pub/Sub",
+   "Topic",
+   "Notification"
+  ]
+ },
+ {
+  "k": "sqs",
+  "name": "Amazon SQS",
+  "full": "Amazon Simple Queue Service",
+  "cat": "Intégration & analytique",
+  "tagline": "Une file d'attente pour découpler producteurs et consommateurs.",
+  "role": "File de messages managée : des producteurs y déposent des messages, des consommateurs les lisent (pull) à leur rythme. Elle découple les composants et absorbe les pics de charge.",
+  "why": [
+   "Un pic ou une panne d'un côté n'écrase pas l'autre : les messages attendent.",
+   "Chiffrement au repos : SSE-SQS (par défaut) ou SSE-KMS avec ta clé.",
+   "Queue policy : contrôle qui envoie et reçoit, y compris cross-account.",
+   "Dead-letter queue : isole les messages en échec pour analyse."
+  ],
+  "how": "Un producteur envoie un message ; il reste dans la file jusqu'à lecture et suppression. Pendant le traitement, le message est masqué (visibility timeout). Après trop d'échecs, il va en DLQ.",
+  "when": [
+   "Traitement asynchrone de commandes ou de fichiers",
+   "File tampon entre un service d'alerte et des workers"
+  ],
+  "notwhen": "Pas de diffusion à plusieurs abonnés simultanés (SNS) ni de flux ordonné massif en rejeu (Kinesis).",
+  "derja": "SQS, kif el tabour fil poste: kol wahed ya3ti nemra w yestanna dawrou. Ken el pic yezdad, ma n7ottoch el moudhafin f'khatar : yestannew fil tabour.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Producteur"
+   },
+   {
+    "k": "sqs",
+    "t": "File SQS"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "lambda",
+    "t": "Consommateur"
+   },
+   {
+    "k": "sqs",
+    "t": "Dead-letter queue"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sns",
+    "d": "SNS diffuse à plusieurs abonnés ; SQS stocke pour un consommateur qui lit."
+   },
+   {
+    "k": "kinesis",
+    "d": "Kinesis garde un flux ordonné relisible ; SQS supprime le message après traitement."
+   }
+  ],
+  "exam": [
+   "Standard : au moins une livraison, ordre non garanti ; FIFO : ordre et déduplication.",
+   "Le visibility timeout masque un message pendant son traitement.",
+   "SSE-SQS est actif par défaut sur les nouvelles files ; SSE-KMS est optionnel."
+  ],
+  "related": [
+   "sns",
+   "lambda",
+   "kms",
+   "eventbridge",
+   "iam"
+  ],
+  "match": [
+   "SQS",
+   "Queue",
+   "Dead-letter",
+   "FIFO"
+  ]
+ },
+ {
+  "k": "eventbridge",
+  "name": "Amazon EventBridge",
+  "full": "Amazon EventBridge",
+  "cat": "Intégration & analytique",
+  "tagline": "Le standard d'événements : quand X arrive, déclenche Y.",
+  "role": "Bus d'événements serverless : il reçoit des événements (services AWS, applications, SaaS), applique des règles de filtrage et les envoie vers des cibles comme Lambda, SNS, SQS ou Step Functions.",
+  "why": [
+   "Réagit en quasi temps réel : une alerte GuardDuty déclenche automatiquement un remède.",
+   "Les appels d'API tracés par CloudTrail deviennent des événements à intercepter.",
+   "Resource-based policy : autorise ou refuse l'envoi d'événements depuis d'autres comptes.",
+   "Archive et rejeu des événements pour analyse."
+  ],
+  "how": "Une source publie un événement sur un event bus. Les règles comparent l'événement à un motif (pattern) ; chaque règle qui correspond appelle ses cibles. Un schema registry décrit les formats.",
+  "when": [
+   "Isoler une instance automatiquement après un finding GuardDuty",
+   "Planifier des tâches ou centraliser des événements multi-comptes"
+  ],
+  "notwhen": "Pas une file de messages durable avec lecture par consommateur : SQS ; pour un flux massif ordonné : Kinesis.",
+  "derja": "EventBridge, kif el 7aris elli ken chaf 7aja mouch 3adiya yadreb el jaras w yab3ath chkoun lazem. 'Ken yssir hakka, a3mel hakka' : ma t9a3dch tsahar tchouf bidek.",
+  "use": [
+   {
+    "k": "cloudtrail",
+    "t": "Appel d'API"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Règle EventBridge"
+   },
+   {
+    "k": "lambda",
+    "t": "Lambda de remédiation"
+   },
+   {
+    "k": "sns",
+    "t": "Notification"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sns",
+    "d": "SNS diffuse un message simple ; EventBridge filtre et route finement des événements."
+   },
+   {
+    "k": "sqs",
+    "d": "SQS met en file ; EventBridge déclenche selon des règles."
+   }
+  ],
+  "exam": [
+   "Slides : intercepter les appels d'API via CloudTrail et EventBridge pour détecter et réagir.",
+   "La resource-based policy du bus autorise les événements cross-account.",
+   "Les règles peuvent être planifiées (cron) ou basées sur un motif d'événement."
+  ],
+  "related": [
+   "cloudtrail",
+   "lambda",
+   "sns",
+   "guardduty",
+   "stepfunctions"
+  ],
+  "match": [
+   "EventBridge",
+   "CloudWatch Events",
+   "Event bus",
+   "Rule"
+  ]
+ },
+ {
+  "k": "stepfunctions",
+  "name": "AWS Step Functions",
+  "full": "AWS Step Functions",
+  "cat": "Intégration & analytique",
+  "tagline": "Le chef d'orchestre des flux automatisés.",
+  "role": "Service d'orchestration serverless : tu décris un workflow en machine à états (Amazon States Language) qui enchaîne Lambda et des services AWS, avec branches, boucles, tentatives et gestion d'erreurs.",
+  "why": [
+   "Automatise la réponse aux incidents en étapes ordonnées et auditables.",
+   "Un rôle IAM d'exécution limite précisément ce que le workflow peut appeler.",
+   "Historique complet de chaque exécution pour l'audit et le débogage.",
+   "Logs vers CloudWatch Logs et appels tracés par CloudTrail."
+  ],
+  "how": "Une state machine est composée d'états (tâche, choix, parallèle, attente…). À chaque exécution, Step Functions suit l'état, applique Retry et Catch, et appelle les services avec le rôle d'exécution.",
+  "when": [
+   "Réponse à incident : isoler, snapshot, notifier, ouvrir un ticket",
+   "Pipeline de traitement de données multi-étapes"
+  ],
+  "notwhen": "Pour une simple réaction à un événement, EventBridge + Lambda suffit ; pour un flux de données en continu, Kinesis.",
+  "derja": "Step Functions, kif la liste mta3 el recette: 'awel nsakhen, mba3d nkhalet, ken fachel nraja3 men el awel'. Kol marhla mrattba w nel9aw feha el trace ken 7aja ghalet.",
+  "use": [
+   {
+    "k": "eventbridge",
+    "t": "Déclencheur"
+   },
+   {
+    "k": "stepfunctions",
+    "t": "State machine"
+   },
+   {
+    "k": "lambda",
+    "t": "Étapes Lambda"
+   },
+   {
+    "k": "sns",
+    "t": "Notification"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "lambda",
+    "d": "Lambda exécute une fonction ; Step Functions orchestre plusieurs étapes."
+   },
+   {
+    "k": "eventbridge",
+    "d": "EventBridge déclenche ; Step Functions déroule le workflow."
+   }
+  ],
+  "exam": [
+   "Deux types : Standard (durable) et Express (haut débit, courte durée).",
+   "Le rôle d'exécution doit suivre le moindre privilège.",
+   "Retry et Catch gèrent les erreurs dans la définition du workflow."
+  ],
+  "related": [
+   "lambda",
+   "eventbridge",
+   "iam",
+   "sns",
+   "cloudwatch"
+  ],
+  "match": [
+   "Step Functions",
+   "State machine",
+   "Workflow"
+  ]
+ },
+ {
+  "k": "mq",
+  "name": "Amazon MQ",
+  "full": "Amazon MQ (Apache ActiveMQ et RabbitMQ)",
+  "cat": "Intégration & analytique",
+  "tagline": "Un courtier de messages classique, managé par AWS.",
+  "role": "Service managé de courtiers de messages Apache ActiveMQ et RabbitMQ, compatible avec les protocoles standards (AMQP, MQTT, OpenWire, STOMP). Il évite de réécrire des applications existantes.",
+  "why": [
+   "Migrer une application utilisant JMS/AMQP sans la réécrire.",
+   "Chiffrement au repos avec KMS et TLS en transit.",
+   "Courtiers dans le VPC, filtrés par security groups ; option privée sans IP publique.",
+   "Logs de courtier envoyés vers CloudWatch Logs."
+  ],
+  "how": "AWS provisionne et patche les courtiers (instance simple ou haute disponibilité multi-AZ). Les applications se connectent avec leurs bibliothèques habituelles ; les utilisateurs du courtier sont définis dans le courtier.",
+  "when": [
+   "Migration d'un courtier sur site vers AWS",
+   "Intégration d'applications d'entreprise basées sur JMS"
+  ],
+  "notwhen": "Pour une nouvelle application cloud-native, SQS/SNS sont plus simples et plus scalables.",
+  "derja": "Amazon MQ, kif ma tjib nafs el moudir el 9dim lil bureau el jdid: nafs el 3ada w el protocole, ama AWS ya3mel el sayana. Ken application jdida, 5ou SQS wala SNS.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Application existante"
+   },
+   {
+    "k": "mq",
+    "t": "Courtier MQ"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC / SG"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sqs",
+    "d": "SQS est serverless et propre à AWS ; Amazon MQ garde les protocoles standards ouverts."
+   },
+   {
+    "k": "sns",
+    "d": "SNS est un pub/sub AWS ; MQ fournit des topics et files JMS/AMQP."
+   }
+  ],
+  "exam": [
+   "Amazon MQ = ActiveMQ ou RabbitMQ managé ; choisir quand l'application utilise déjà ces protocoles.",
+   "Les API sont contrôlées par IAM, mais l'accès aux messages utilise les identifiants du courtier.",
+   "Pour du neuf : SQS/SNS."
+  ],
+  "related": [
+   "sqs",
+   "sns",
+   "kms",
+   "vpc",
+   "cloudwatch"
+  ],
+  "match": [
+   "Amazon MQ",
+   "ActiveMQ",
+   "RabbitMQ"
+  ]
+ },
+ {
+  "k": "appsync",
+  "name": "AWS AppSync",
+  "full": "AWS AppSync",
+  "cat": "Intégration & analytique",
+  "tagline": "Une API GraphQL managée devant tes données.",
+  "role": "Service managé pour créer des API GraphQL (et temps réel) qui interrogent une ou plusieurs sources : DynamoDB, Lambda, RDS, OpenSearch ou HTTP, avec résolveurs et abonnements pour les mises à jour en direct.",
+  "why": [
+   "Un point d'entrée unique pour des données dispersées entre plusieurs sources.",
+   "Plusieurs modes d'authentification : clé API, IAM, Cognito, OIDC, Lambda authorizer.",
+   "AWS WAF protège l'API contre les requêtes abusives.",
+   "Trafic en HTTPS, journaux dans CloudWatch, appels tracés."
+  ],
+  "how": "Le client envoie une requête GraphQL ; AppSync vérifie l'authentification, exécute les résolveurs vers les sources de données et ne renvoie que les champs demandés.",
+  "when": [
+   "Application mobile ou web avec données en temps réel",
+   "Façade unique devant DynamoDB, Lambda et services internes"
+  ],
+  "notwhen": "Pour une API REST classique, API Gateway est plus naturel.",
+  "derja": "AppSync, kif guichet wa7ed fil baladiya: tosa2el chna thebb, houwa yemchi lil bureaux koll w yarja3lek ghir elli tlabtou. Lazem na3rfou chkoun ye9der yod5ol lil guichet.",
+  "use": [
+   {
+    "k": "mobile",
+    "t": "Client"
+   },
+   {
+    "k": "cognito",
+    "t": "Authentification"
+   },
+   {
+    "k": "appsync",
+    "t": "API GraphQL"
+   },
+   {
+    "k": "dynamodb",
+    "t": "Source de données"
+   }
+  ],
+  "vs": [
+   {
+    "k": "apigw",
+    "d": "API Gateway expose des API REST/HTTP/WebSocket ; AppSync expose GraphQL."
+   }
+  ],
+  "exam": [
+   "Modes d'authentification : API key, IAM, Cognito User Pools, OIDC, Lambda.",
+   "Une clé API convient aux données publiques, pas à des données sensibles.",
+   "WAF peut être associé à l'API."
+  ],
+  "related": [
+   "dynamodb",
+   "cognito",
+   "apigw",
+   "lambda",
+   "waf"
+  ],
+  "match": [
+   "AppSync",
+   "GraphQL"
+  ]
+ },
+ {
+  "k": "kinesis",
+  "name": "Amazon Kinesis Data Streams",
+  "full": "Amazon Kinesis Data Streams",
+  "cat": "Intégration & analytique",
+  "tagline": "Un flux de données en continu, ordonné et rejouable.",
+  "role": "Service de streaming temps réel : des producteurs écrivent des enregistrements dans un stream divisé en shards ; plusieurs consommateurs les lisent en parallèle, avec une rétention configurable pour rejouer.",
+  "why": [
+   "Ingère des logs et événements de sécurité en continu pour une détection rapide.",
+   "Chiffrement au repos avec KMS et TLS en transit.",
+   "Contrôle d'accès IAM par stream, avec accès privé via endpoint VPC.",
+   "Rétention et rejeu : relire des événements après un incident."
+  ],
+  "how": "Les producteurs envoient des enregistrements avec une clé de partition ; Kinesis les range par shard et conserve l'ordre dans chaque shard. Lambda ou d'autres applications consomment en parallèle.",
+  "when": [
+   "Collecte de logs CloudWatch en temps réel via un subscription filter",
+   "Flux d'événements applicatifs avec plusieurs consommateurs"
+  ],
+  "notwhen": "Pour livrer simplement des données vers S3 sans code consommateur : Firehose ; pour une file à supprimer après traitement : SQS.",
+  "derja": "Kinesis, kif wed yjri dima: el ma ykhoutt ghadi, w ken thebb tchouf marra okhra tarja3 b'enregistrement. Mouch kif tabour elli ya9ra w yfsa5 el waraqa.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Producteurs"
+   },
+   {
+    "k": "kinesis",
+    "t": "Data Streams"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "lambda",
+    "t": "Consommateur"
+   },
+   {
+    "k": "s3",
+    "t": "Archive"
+   }
+  ],
+  "vs": [
+   {
+    "k": "firehose",
+    "d": "Firehose livre les données vers une destination en quasi temps réel, sans consommateur à écrire."
+   },
+   {
+    "k": "sqs",
+    "d": "SQS supprime le message traité ; Kinesis le conserve pour rejeu."
+   }
+  ],
+  "exam": [
+   "Slides : CloudWatch Logs peut envoyer vers Kinesis Data Streams via un subscription filter.",
+   "Shard = unité de capacité et d'ordre ; ordre garanti par shard.",
+   "Data Streams est temps réel ; Firehose est quasi temps réel (buffer)."
+  ],
+  "related": [
+   "firehose",
+   "lambda",
+   "kms",
+   "cloudwatch",
+   "s3"
+  ],
+  "match": [
+   "Kinesis",
+   "Data Streams",
+   "Shard"
+  ]
+ },
+ {
+  "k": "firehose",
+  "name": "Amazon Data Firehose",
+  "full": "Amazon Data Firehose (ex Kinesis Data Firehose)",
+  "cat": "Intégration & analytique",
+  "tagline": "Le tuyau qui livre les flux vers S3, OpenSearch ou Redshift.",
+  "role": "Service managé de livraison de flux : il collecte des données en continu, les transforme éventuellement avec Lambda, les convertit (Parquet/ORC) et les dépose dans S3, Redshift, OpenSearch ou un endpoint HTTP.",
+  "why": [
+   "Archive logs et événements de sécurité sans écrire ni gérer de consommateur.",
+   "Données chiffrées en transit (TLS) et au repos avec KMS selon la source et la destination.",
+   "Rôle IAM de livraison limité aux seules destinations autorisées.",
+   "Transformation Lambda pour nettoyer ou masquer des champs."
+  ],
+  "how": "Une source (CloudWatch Logs, application, Kinesis Data Streams) envoie vers un delivery stream. Firehose met en tampon par taille ou durée, puis livre le lot à la destination.",
+  "when": [
+   "Envoyer les logs CloudWatch vers S3 pour archivage et analyse Athena",
+   "Alimenter OpenSearch pour la recherche de logs"
+  ],
+  "notwhen": "Ce n'est pas du vrai temps réel (buffering) et il ne stocke pas pour rejeu : utiliser Kinesis Data Streams.",
+  "derja": "Firehose, kif el kanalizasyon mta3 SONEDE: yjib el ma men el bir lil dar w enti ma tkhdemch chay. Ken thebb tbaddel chay fil tri9, tzid filtre (Lambda).",
+  "use": [
+   {
+    "k": "cloudwatch",
+    "t": "CloudWatch Logs"
+   },
+   {
+    "k": "firehose",
+    "t": "Delivery stream"
+   },
+   {
+    "k": "lambda",
+    "t": "Transformation"
+   },
+   {
+    "k": "s3",
+    "t": "S3"
+   },
+   {
+    "k": "opensearch",
+    "t": "OpenSearch"
+   }
+  ],
+  "vs": [
+   {
+    "k": "kinesis",
+    "d": "Data Streams garde et rejoue ; Firehose livre vers une destination."
+   },
+   {
+    "k": "sqs",
+    "d": "SQS est une file de messages ; Firehose est un pipeline de livraison."
+   }
+  ],
+  "exam": [
+   "Firehose = quasi temps réel, avec buffer ; destinations S3, Redshift, OpenSearch, HTTP.",
+   "Slides : CloudWatch Logs → subscription filter → Firehose → S3 ou OpenSearch.",
+   "Firehose ne stocke pas les données pour un rejeu."
+  ],
+  "related": [
+   "kinesis",
+   "s3",
+   "opensearch",
+   "lambda",
+   "cloudwatch"
+  ],
+  "match": [
+   "Firehose",
+   "Kinesis Data Firehose"
+  ]
+ },
+ {
+  "k": "athena",
+  "name": "Amazon Athena",
+  "full": "Amazon Athena",
+  "cat": "Intégration & analytique",
+  "tagline": "Interroger des fichiers S3 en SQL, sans serveur.",
+  "role": "Service de requêtes interactives serverless qui analyse directement des données stockées dans S3 en SQL standard (Presto). On paie selon le volume de données scanné ; formats CSV, JSON, ORC, Avro, Parquet.",
+  "why": [
+   "Analyse rapidement CloudTrail, VPC Flow Logs et logs ELB lors d'une investigation.",
+   "Aucun serveur ni entrepôt à protéger ou administrer.",
+   "Accès via IAM, permissions S3 et KMS ; résultats chiffrables et isolés par workgroup.",
+   "Lake Formation peut ajouter des droits par table, colonne ou ligne."
+  ],
+  "how": "On déclare une table (souvent via le Glue Data Catalog) qui pointe vers un dossier S3. Athena lit les fichiers, exécute le SQL et écrit les résultats dans un bucket S3.",
+  "when": [
+   "Requêter des logs CloudTrail ou Flow Logs stockés dans S3",
+   "Rapports avec QuickSight sur des données S3"
+  ],
+  "notwhen": "Pas pour des transactions ni de très nombreuses requêtes concurrentes lourdes : utiliser une base ou Redshift.",
+  "derja": "Athena, kif ken 3andek khzana mliyet wara9 (S3) w tosa2el 'chkoun dkhal el barra7 ?' w yjawbek fi seconds, men ghir ma tebni base. Ken el wara9 mqafel (KMS), lazem tkoun 3andek el cle.",
+  "use": [
+   {
+    "k": "cloudtrail",
+    "t": "Logs dans S3"
+   },
+   {
+    "k": "glue",
+    "t": "Catalogue Glue"
+   },
+   {
+    "k": "athena",
+    "t": "Requête SQL"
+   },
+   {
+    "k": "s3",
+    "t": "Résultats S3"
+   },
+   {
+    "k": "quicksight",
+    "t": "QuickSight"
+   }
+  ],
+  "vs": [
+   {
+    "k": "redshift",
+    "d": "Redshift est un entrepôt à cluster ; Athena est serverless, sans chargement préalable."
+   },
+   {
+    "k": "opensearch",
+    "d": "OpenSearch fait de la recherche indexée ; Athena fait du SQL sur fichiers."
+   }
+  ],
+  "exam": [
+   "Slides : analyser des données S3 avec du SQL serverless = Athena.",
+   "Performance et coût : Parquet/ORC, compression, partitionnement, fichiers volumineux.",
+   "Si les données S3 sont en SSE-KMS, le rôle appelant (ex. QuickSight) doit avoir kms:Decrypt.",
+   "Federated Query interroge d'autres sources via des connecteurs Lambda."
+  ],
+  "related": [
+   "s3",
+   "glue",
+   "cloudtrail",
+   "quicksight",
+   "lakeformation"
+  ],
+  "match": [
+   "Athena",
+   "Presto"
+  ]
+ },
+ {
+  "k": "glue",
+  "name": "AWS Glue",
+  "full": "AWS Glue",
+  "cat": "Intégration & analytique",
+  "tagline": "Le préparateur de données et le catalogue des jeux de données.",
+  "role": "Service serverless d'intégration de données : il découvre les données (crawlers), tient un catalogue de métadonnées (Data Catalog) et exécute des jobs ETL pour transformer et convertir les données, par exemple vers Parquet.",
+  "why": [
+   "Le Data Catalog sert de référence commune à Athena, Redshift Spectrum et EMR.",
+   "Chiffrement du catalogue et des paramètres de connexion, et des sorties des jobs via security configuration.",
+   "Rôles IAM limitent les sources et destinations de chaque job.",
+   "Permissions de données plus fines possibles avec Lake Formation."
+  ],
+  "how": "Un crawler analyse S3 ou une base et crée des tables dans le Data Catalog. Un job ETL lit, transforme (Spark) et écrit vers S3 ou ailleurs, sous un rôle IAM.",
+  "when": [
+   "Convertir des logs JSON en Parquet pour réduire les coûts Athena",
+   "Cataloguer un data lake S3"
+  ],
+  "notwhen": "Pas pour du streaming à faible latence (Kinesis) ni pour une simple requête SQL ponctuelle (Athena).",
+  "derja": "Glue, kif el moudir elli yrattbou w ynadhfou el wara9 9bal ma y7ettou fil archive w yketbou el fehres. Bla fehres, ma nel9awch chay.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Données brutes"
+   },
+   {
+    "k": "glue",
+    "t": "Crawler + Data Catalog"
+   },
+   {
+    "k": "glue",
+    "t": "Job ETL"
+   },
+   {
+    "k": "s3",
+    "t": "Parquet"
+   },
+   {
+    "k": "athena",
+    "t": "Athena"
+   }
+  ],
+  "vs": [
+   {
+    "k": "athena",
+    "d": "Athena interroge ; Glue prépare et catalogue."
+   },
+   {
+    "k": "emr",
+    "d": "EMR donne un cluster Hadoop/Spark à gérer ; Glue est serverless."
+   }
+  ],
+  "exam": [
+   "Slides : utiliser Glue pour convertir les données en Parquet ou ORC avant Athena.",
+   "Le Data Catalog est le métastore partagé par Athena, Redshift Spectrum et EMR.",
+   "Une security configuration chiffre les sorties et logs d'un job."
+  ],
+  "related": [
+   "athena",
+   "s3",
+   "lakeformation",
+   "emr",
+   "iam"
+  ],
+  "match": [
+   "Glue",
+   "ETL",
+   "Data Catalog"
+  ]
+ },
+ {
+  "k": "opensearch",
+  "name": "Amazon OpenSearch Service",
+  "full": "Amazon OpenSearch Service",
+  "cat": "Intégration & analytique",
+  "tagline": "La recherche en texte libre et l'analyse de logs.",
+  "role": "Service managé pour déployer OpenSearch (successeur d'Elasticsearch) : recherche sur n'importe quel champ, y compris partielle, et analyse de logs, avec tableaux de bord OpenSearch Dashboards. Modes cluster managé ou serverless.",
+  "why": [
+   "Centraliser et rechercher des logs de sécurité (usage SIEM léger).",
+   "Chiffrement au repos KMS, TLS et chiffrement node-to-node.",
+   "Contrôle d'accès : policies de domaine, IAM, Cognito pour Dashboards, contrôle fin.",
+   "Domaine en VPC ou public : le public exige des restrictions strictes."
+  ],
+  "how": "Les données arrivent via Firehose, Lambda, IoT ou CloudWatch Logs. Les domaines OpenSearch les indexent ; les applications ou Dashboards interrogent le domaine via API.",
+  "when": [
+   "Recherche dans les logs CloudWatch envoyés en quasi temps réel",
+   "Moteur de recherche d'items DynamoDB via Streams et Lambda"
+  ],
+  "notwhen": "Pas une base de référence ni un SQL natif : DynamoDB/RDS pour la donnée source ; Athena pour du SQL sur S3.",
+  "derja": "OpenSearch, kif moteur de recherche mta3 el charika: tektb kelma ghir kemla w yjibli koll elli yechbah. Ama ken el domaine public w bla policy, koll el 3alem tfatech fi ma3loumatek.",
+  "use": [
+   {
+    "k": "cloudwatch",
+    "t": "CloudWatch Logs"
+   },
+   {
+    "k": "firehose",
+    "t": "Firehose"
+   },
+   {
+    "k": "opensearch",
+    "t": "Domaine OpenSearch"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "user",
+    "t": "Analyste (Dashboards)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "athena",
+    "d": "Athena fait du SQL sur S3 ; OpenSearch indexe pour la recherche et les tableaux de bord."
+   },
+   {
+    "k": "dynamodb",
+    "d": "DynamoDB interroge par clé ; OpenSearch cherche sur tous les champs."
+   }
+  ],
+  "exam": [
+   "Slides : OpenSearch successeur d'Elasticsearch ; complément d'une autre base.",
+   "Accès : VPC (security groups, access policies) ou endpoint public restreint par policies.",
+   "Sécurité : IAM/Cognito, chiffrement KMS, TLS."
+  ],
+  "related": [
+   "firehose",
+   "cloudwatch",
+   "kms",
+   "vpc",
+   "cognito"
+  ],
+  "match": [
+   "OpenSearch",
+   "Elasticsearch"
+  ]
+ },
+ {
+  "k": "lakeformation",
+  "name": "AWS Lake Formation",
+  "full": "AWS Lake Formation",
+  "cat": "Intégration & analytique",
+  "tagline": "Le contrôle d'accès central de ton data lake.",
+  "role": "Service qui facilite la construction et la gouvernance d'un data lake sur S3. Il centralise les permissions (base, table, colonne, ligne, cellule) pour Athena, Glue, Redshift Spectrum et EMR, au-dessus du Data Catalog.",
+  "why": [
+   "Un seul endroit pour accorder ou retirer des accès, au lieu de multiples policies S3 et IAM.",
+   "Droits fins : colonnes ou lignes sensibles masquées selon l'utilisateur.",
+   "LF-Tags étendent facilement les permissions à de nombreuses ressources.",
+   "Partage entre comptes avec contrôle central et traçabilité CloudTrail."
+  ],
+  "how": "On enregistre un emplacement S3 dans Lake Formation, puis on accorde (GRANT) des droits sur les tables du catalogue. Les services d'analyse demandent des accès temporaires aux données à Lake Formation.",
+  "when": [
+   "Masquer des colonnes de données personnelles pour certains analystes",
+   "Partager un data lake entre plusieurs comptes de l'organisation"
+  ],
+  "notwhen": "Pas utile pour un simple bucket sans catalogue ; il complète IAM et S3 sans les remplacer.",
+  "derja": "Lake Formation, kif moudir el archive: ma ya3tich mafatih el khzana kolha, ya3tik ghir el rouf elli ta7a9 lih. W fi nafs el wa9t ykhalli sijil chkoun chaf chnoua.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Data lake S3"
+   },
+   {
+    "k": "glue",
+    "t": "Data Catalog"
+   },
+   {
+    "k": "lakeformation",
+    "t": "Permissions LF"
+   },
+   {
+    "k": "athena",
+    "t": "Athena / EMR"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Audit"
+   }
+  ],
+  "vs": [
+   {
+    "k": "iam",
+    "d": "IAM décide des actions AWS ; Lake Formation ajoute des droits au niveau table, colonne et ligne."
+   },
+   {
+    "k": "macie",
+    "d": "Macie détecte les données sensibles ; Lake Formation contrôle qui y accède."
+   }
+  ],
+  "exam": [
+   "Permissions fines : colonne, ligne et cellule ; modèle GRANT/REVOKE.",
+   "S'appuie sur le Glue Data Catalog et s'intègre à Athena, Redshift Spectrum et EMR.",
+   "Les LF-Tags facilitent un contrôle d'accès par attributs."
+  ],
+  "related": [
+   "s3",
+   "glue",
+   "athena",
+   "iam",
+   "macie"
+  ],
+  "match": [
+   "Lake Formation",
+   "Data lake"
+  ]
+ },
+ {
+  "k": "emr",
+  "name": "Amazon EMR",
+  "full": "Amazon EMR",
+  "cat": "Intégration & analytique",
+  "tagline": "Des clusters Spark et Hadoop pour le big data.",
+  "role": "Plateforme managée pour exécuter des frameworks big data (Spark, Hadoop, Hive, Presto, Flink…) sur des clusters EC2, EKS ou en mode serverless, afin de traiter de gros volumes de données depuis S3.",
+  "why": [
+   "Le traitement massif touche des données sensibles : il faut chiffrer et isoler le cluster.",
+   "Security configuration : chiffrement au repos (S3/EMRFS, disques) et en transit TLS.",
+   "Rôles IAM distincts : service role, instance profile ; Kerberos pour l'authentification.",
+   "Placé en sous-réseau privé, security groups, Block Public Access pour EMR."
+  ],
+  "how": "On lance un cluster (nœuds primaire, cœur, tâche) lié à des rôles IAM. Il lit S3, exécute des jobs Spark ou Hadoop, puis écrit les résultats ; les logs sont envoyés vers S3.",
+  "when": [
+   "Traitement par lots de téraoctets de logs ou de données",
+   "Analyse Spark avec droits pilotés par Lake Formation"
+  ],
+  "notwhen": "Pour du SQL simple sur S3, Athena est plus simple ; pour de l'ETL serverless, Glue.",
+  "derja": "EMR, kif el ma3mal elli yesta3mel kol el machinet bech yekhdem 7asil kbir fi wa9t 9sir, w ba3d yetsakker. Cluster mo2a99at: tkhallesh ghir 3la waqt el khedma.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Données S3"
+   },
+   {
+    "k": "emr",
+    "t": "Cluster EMR"
+   },
+   {
+    "k": "iam",
+    "t": "Rôles IAM"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "s3",
+    "t": "Résultats / logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "glue",
+    "d": "Glue est serverless et géré ; EMR donne plus de contrôle sur le cluster et les frameworks."
+   },
+   {
+    "k": "athena",
+    "d": "Athena exécute du SQL ; EMR exécute du code Spark/Hadoop."
+   }
+  ],
+  "exam": [
+   "Security configuration : chiffrement au repos et en transit pour tout le cluster.",
+   "Rôles : service role, instance profile (EC2) ; ne pas confondre.",
+   "EMR s'intègre à Lake Formation pour les droits fins."
+  ],
+  "related": [
+   "s3",
+   "glue",
+   "athena",
+   "iam",
+   "lakeformation"
+  ],
+  "match": [
+   "EMR",
+   "Hadoop",
+   "Spark"
+  ]
+ },
+ {
+  "k": "msk",
+  "name": "Amazon MSK",
+  "full": "Amazon Managed Streaming for Apache Kafka",
+  "cat": "Intégration & analytique",
+  "tagline": "Apache Kafka managé pour le streaming d'événements.",
+  "role": "Service managé qui exécute Apache Kafka : AWS gère les brokers et ZooKeeper/KRaft, et les applications utilisent les API Kafka standard. Il convient aux entreprises qui utilisent déjà Kafka.",
+  "why": [
+   "Reprendre Kafka sans l'exploiter soi-même.",
+   "Chiffrement au repos avec KMS et TLS en transit entre clients et brokers.",
+   "Authentification : IAM, SASL/SCRAM (avec Secrets Manager) ou TLS mutuel.",
+   "Brokers dans ton VPC ; logs vers CloudWatch, S3 ou Firehose."
+  ],
+  "how": "Un cluster MSK déploie des brokers dans les sous-réseaux du VPC. Les producteurs écrivent dans des topics partitionnés ; les consommateurs les lisent avec leurs offsets.",
+  "when": [
+   "Migrer une plateforme Kafka vers AWS",
+   "Ingestion d'événements applicatifs en streaming"
+  ],
+  "notwhen": "Pour un nouveau flux simple sans compétence Kafka, Kinesis Data Streams est plus direct.",
+  "derja": "MSK, kif louage elli tel9ah 3andou nafs el tri9 elli ya3rfou koll el chauffeurs (Kafka), ama AWS ya3mel el sayana. Ken ma t3rafch Kafka, 5ou Kinesis.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Producteurs"
+   },
+   {
+    "k": "msk",
+    "t": "Brokers MSK"
+   },
+   {
+    "k": "kms",
+    "t": "Chiffrement"
+   },
+   {
+    "k": "lambda",
+    "t": "Consommateurs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "kinesis",
+    "d": "Kinesis est le streaming natif AWS ; MSK expose les API Apache Kafka."
+   },
+   {
+    "k": "sqs",
+    "d": "SQS est une file simple ; Kafka garde un journal relisible."
+   }
+  ],
+  "exam": [
+   "MSK = Kafka managé ; Kinesis = service AWS natif.",
+   "Authentification possible via IAM, SCRAM ou TLS mutuel.",
+   "Les brokers vivent dans ton VPC."
+  ],
+  "related": [
+   "kinesis",
+   "kms",
+   "vpc",
+   "secrets",
+   "iam"
+  ],
+  "match": [
+   "MSK",
+   "Kafka"
+  ]
+ },
+ {
+  "k": "ses",
+  "name": "Amazon SES",
+  "full": "Amazon Simple Email Service",
+  "cat": "Intégration & analytique",
+  "tagline": "L'envoi et la réception d'e-mails à grande échelle.",
+  "role": "Service d'e-mails pour envoyer des messages transactionnels ou marketing et en recevoir, via l'API ou SMTP. Les expéditeurs et domaines doivent être vérifiés, avec signatures DKIM et SPF.",
+  "why": [
+   "Authentification de l'expéditeur (DKIM, SPF, DMARC) contre l'usurpation et le phishing.",
+   "Un compte compromis pourrait envoyer du spam : IAM et quotas limitent le risque.",
+   "Chiffrement TLS vers les serveurs destinataires, avec option d'imposer TLS.",
+   "Événements (rebond, plainte) publiés vers SNS, CloudWatch ou Firehose."
+  ],
+  "how": "L'application appelle l'API ou SMTP avec des identifiants IAM. SES envoie l'e-mail depuis une identité vérifiée ; un configuration set publie les événements de livraison.",
+  "when": [
+   "Envoi des alertes ou des e-mails de réinitialisation de mot de passe",
+   "Réception d'e-mails vers S3 ou Lambda"
+  ],
+  "notwhen": "Pour notifier simplement l'équipe d'une alerte système : SNS est plus direct ; pas de gestion de boîtes mail : WorkMail.",
+  "derja": "SES, kif el bousta mta3 el charika: lazem el 3onwen w el tabi3 ykounou s7a7 (DKIM/SPF), sinon el 3alem ykoul 'hedhi mouch bousta 7a9i9iya' w yrajja3 el mail.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Application"
+   },
+   {
+    "k": "iam",
+    "t": "Identifiants IAM / SMTP"
+   },
+   {
+    "k": "ses",
+    "t": "SES (identité vérifiée)"
+   },
+   {
+    "k": "sns",
+    "t": "Événements"
+   },
+   {
+    "k": "email",
+    "t": "Destinataire"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sns",
+    "d": "SNS envoie de simples notifications ; SES est dédié à l'e-mail à grande échelle."
+   },
+   {
+    "k": "workmail",
+    "d": "WorkMail fournit des boîtes mail pour utilisateurs ; SES envoie depuis des applications."
+   }
+  ],
+  "exam": [
+   "DKIM, SPF et DMARC authentifient l'expéditeur.",
+   "Un nouveau compte démarre en sandbox : envoi limité aux adresses vérifiées.",
+   "Les identifiants SMTP sont dérivés d'un utilisateur IAM : à protéger."
+  ],
+  "related": [
+   "sns",
+   "iam",
+   "s3",
+   "lambda",
+   "cloudwatch"
+  ],
+  "match": [
+   "SES",
+   "Simple Email"
+  ]
+ }
+]

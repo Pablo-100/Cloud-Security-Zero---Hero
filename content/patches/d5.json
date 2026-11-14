@@ -1,0 +1,2871 @@
+[
+ {
+  "id": "d5-01",
+  "services": [
+   "kms",
+   "cloudhsm",
+   "acm",
+   "ram",
+   "vpc",
+   "padlock"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   6,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "Ya3ni t5ayel jawhra f dar: el chiffrement houwa el coffre-fort. Ken wa7ed dkhal lel dar, ma yeqrach 7ata chay 5ater el clé 3andek inti bark. El so2el el kbir fil cloud: chkoun 3andou el clé w kifech nrakbou 3liha."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "pipeline",
+     "title": "Où la donnée peut fuiter, et quelle protection",
+     "stages": [
+      {
+       "label": "Client",
+       "sub": "chiffrement côté client",
+       "icon": "client",
+       "tone": "info"
+      },
+      {
+       "label": "Réseau",
+       "sub": "TLS contre le MITM",
+       "icon": "internet",
+       "tone": "warn"
+      },
+      {
+       "label": "Service AWS",
+       "sub": "SSE avec clé KMS",
+       "icon": "server",
+       "tone": "info"
+      },
+      {
+       "label": "Disque, snapshot",
+       "sub": "au repos : illisible sans clé",
+       "icon": "disk",
+       "tone": "good"
+      }
+     ],
+     "caption": "Trois emplacements : en transit (TLS), au repos côté serveur (SSE), côté client (le serveur ne peut jamais déchiffrer)."
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "cards",
+     "title": "Vocabulaire crypto en 5 mots",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Plaintext",
+       "d": "La donnée lisible, avant chiffrement.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "encdata",
+       "t": "Ciphertext",
+       "d": "Le résultat illisible : plaintext + clé + algorithme.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Algorithme",
+       "d": "La recette (AES, RSA), publique et connue de tous.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "kms",
+       "t": "Clé",
+       "d": "Le secret qui paramètre la recette : toute la sécurité repose dessus.",
+       "tone": "good"
+      },
+      {
+       "icon": "signer",
+       "t": "Hash (SHA-256)",
+       "d": "Empreinte à sens unique pour l'intégrité ; on ne la déchiffre pas.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "facts",
+     "title": "CloudHSM : à retenir",
+     "items": [
+      {
+       "icon": "cloudhsm",
+       "big": "FIPS 140-2 L3",
+       "label": "conformité du HSM",
+       "sub": "comme KMS"
+      },
+      {
+       "icon": "server",
+       "big": "Single-tenant",
+       "label": "matériel dédié à toi",
+       "sub": "AWS n'a pas accès aux clés"
+      },
+      {
+       "icon": "vpc",
+       "big": "2 AZ min.",
+       "label": "pour la haute dispo",
+       "sub": "1 seul HSM = pas de HA"
+      },
+      {
+       "icon": "user",
+       "big": "Toi",
+       "label": "gères users et clés du HSM",
+       "sub": "IAM = cluster seulement"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "matrix",
+     "title": "KMS ou CloudHSM : critère par critère",
+     "rows": [
+      "Tenancy",
+      "Conformité",
+      "Qui gère les clés",
+      "Haute dispo",
+      "Offload TLS, Oracle TDE",
+      "Free tier"
+     ],
+     "cols": [
+      "AWS KMS",
+      "CloudHSM"
+     ],
+     "cells": [
+      [
+       "Multi-tenant",
+       "Single-tenant"
+      ],
+      [
+       "FIPS 140-2 L3",
+       "FIPS 140-2 L3"
+      ],
+      [
+       "AWS + IAM",
+       "Toi, dans HSM"
+      ],
+      [
+       "Gérée par AWS",
+       "Multi-AZ à toi"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Deux façons d'utiliser CloudHSM",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "Via KMS : custom key store",
+       "d": "Les services AWS appellent KMS ; le matériel de clé vit dans tes HSM. Audit CloudTrail.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudhsm",
+       "t": "Directement : applis tierces",
+       "d": "Offload SSL/TLS, Oracle TDE, Windows CA, SignTool, Java Keytool.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quel service de clés choisir ?",
+     "root": {
+      "q": "Besoin de matériel dédié single-tenant, clés sous ton contrôle exclusif ?",
+      "yes": {
+       "q": "Les services AWS (EBS, S3, RDS) doivent l'utiliser ?",
+       "yes": {
+        "a": "KMS custom key store",
+        "icon": "cloudhsm",
+        "tone": "good",
+        "why": "Clés dans ton cluster CloudHSM, appel via KMS"
+       },
+       "no": {
+        "a": "CloudHSM direct",
+        "icon": "cloudhsm",
+        "tone": "good",
+        "why": "Offload TLS, Oracle TDE, signature d'applis"
+       }
+      },
+      "no": {
+       "q": "Tu veux gérer toi-même la rotation et la key policy ?",
+       "yes": {
+        "a": "KMS customer managed key",
+        "icon": "kms",
+        "tone": "good",
+        "why": "Contrôle, audit CloudTrail, intégré aux services"
+       },
+       "no": {
+        "a": "Clé AWS managed ou SSE-S3",
+        "icon": "s3",
+        "tone": "neutral",
+        "why": "Zéro gestion, contrôle minimal"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Service géré multi-tenant de clés ; intégré aux services AWS, accès par IAM et key policy."
+      },
+      {
+       "k": "cloudhsm",
+       "ctx": "HSM dédié single-tenant FIPS 140-2 L3 : tu gères users et clés ; HA avec plusieurs AZ."
+      },
+      {
+       "k": "acm",
+       "ctx": "Fournit les certificats du chiffrement en transit (TLS) sur les load balancers."
+      },
+      {
+       "k": "ram",
+       "ctx": "Partage les subnets du cluster CloudHSM entre comptes ; le cluster lui-même n'est pas partageable."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Un cluster CloudHSM est une ressource de VPC, placé dans des subnets privés multi-AZ."
+      },
+      {
+       "k": "padlock",
+       "ctx": "Rappel de l'idée centrale : sans la clé, la donnée volée ou interceptée est inutilisable."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-02",
+  "services": [
+   "kms",
+   "cloudhsm",
+   "s3",
+   "ebs",
+   "rds",
+   "dynamodb",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   3,
+   7,
+   10
+  ],
+  "shorten": {
+   "0": "KMS = el banka mta3 el clés. Inti ma tchoufch el clé abadan: tab3ath talab bel API, w KMS ta3mel el 5edma. 3andek 3 anwa3: AWS owned (ma tchoufhech), AWS managed (tchoufha ama ma tmanagihech), customer managed (inti el 9awanin)."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "tree",
+     "title": "Les familles de KMS keys : qui possède, d'où vient le key material",
+     "root": {
+      "label": "KMS keys",
+      "icon": "kms",
+      "children": [
+       {
+        "label": "AWS owned",
+        "icon": "building",
+        "tone": "neutral",
+        "children": [
+         {
+          "label": "Invisible, partagée",
+          "icon": "padlock"
+         }
+        ]
+       },
+       {
+        "label": "AWS managed",
+        "icon": "kms",
+        "tone": "info",
+        "children": [
+         {
+          "label": "aws/s3, aws/ebs",
+          "icon": "s3"
+         },
+         {
+          "label": "aws/rds, aws/ssm",
+          "icon": "rds"
+         }
+        ]
+       },
+       {
+        "label": "Customer managed",
+        "icon": "user",
+        "tone": "good",
+        "children": [
+         {
+          "label": "AWS_KMS (défaut)",
+          "icon": "kms"
+         },
+         {
+          "label": "EXTERNAL (BYOK)",
+          "icon": "document"
+         },
+         {
+          "label": "AWS_CLOUDHSM",
+          "icon": "cloudhsm"
+         },
+         {
+          "label": "EXTERNAL_KEY_STORE",
+          "icon": "server"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "matrix",
+     "title": "Qui possède quelle clé ? Ce que tu peux faire",
+     "rows": [
+      "Voir les métadonnées",
+      "Gérer (policy, alias, tags)",
+      "Modifier la key policy",
+      "Rotation automatique",
+      "Rotation à la demande",
+      "Audit CloudTrail"
+     ],
+     "cols": [
+      "Customer managed",
+      "AWS managed",
+      "AWS owned"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "Optionnelle",
+       "Obligatoire/an",
+       "Variable"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "KMS : repères à retenir",
+     "items": [
+      {
+       "icon": "kms",
+       "big": "Jamais en clair",
+       "label": "tu appelles l'API",
+       "sub": "Encrypt, Decrypt..."
+      },
+      {
+       "icon": "internet",
+       "big": "Régionale",
+       "label": "une KMS key, une région",
+       "sub": "sauf multi-region keys"
+      },
+      {
+       "icon": "gear",
+       "big": "90 à 2560 j",
+       "label": "rotation automatique",
+       "sub": "customer managed, 365 par défaut"
+      },
+      {
+       "icon": "cloudtrail",
+       "big": "Chaque usage",
+       "label": "est journalisé",
+       "sub": "CloudTrail"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "decision",
+     "title": "Quelle origine de key material ?",
+     "root": {
+      "q": "La clé ne doit jamais être physiquement chez AWS ?",
+      "yes": {
+       "a": "External key store (XKS)",
+       "icon": "server",
+       "tone": "good",
+       "why": "Clé dans ton gestionnaire externe via un proxy XKS"
+      },
+      "no": {
+       "q": "Il te faut un HSM dédié que tu contrôles ?",
+       "yes": {
+        "a": "AWS_CLOUDHSM",
+        "icon": "cloudhsm",
+        "tone": "good",
+        "why": "Custom key store sur ton cluster CloudHSM"
+       },
+       "no": {
+        "q": "La politique impose de générer la clé toi-même ?",
+        "yes": {
+         "a": "EXTERNAL (BYOK)",
+         "icon": "document",
+         "tone": "warn",
+         "why": "Pas de rotation automatique ni on-demand"
+        },
+        "no": {
+         "a": "AWS_KMS",
+         "icon": "kms",
+         "tone": "good",
+         "why": "Défaut : KMS génère et gère le key material"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "compare",
+     "title": "Custom key store vs External key store",
+     "cols": [
+      {
+       "name": "Custom key store",
+       "tag": "dans AWS",
+       "icon": "cloudhsm",
+       "points": [
+        "Clé dans TON cluster CloudHSM, dans AWS",
+        "Les services AWS appellent KMS comme d'habitude"
+       ],
+       "use": "Exigence de HSM dédié"
+      },
+      {
+       "name": "External key store",
+       "tag": "hors AWS",
+       "icon": "server",
+       "points": [
+        "Clé hors d'AWS, via un XKS proxy",
+        "Latence ; si ton système tombe, données inaccessibles : HA à ta charge"
+       ],
+       "use": "Souveraineté maximale"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Multi-Region keys : points à retenir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "Même key ID, même key material",
+       "d": "Chiffrer dans une région, déchiffrer dans une autre sans re-chiffrer.",
+       "tone": "good"
+      },
+      {
+       "icon": "internet",
+       "t": "Non globales",
+       "d": "Une primaire plus des répliques, gérées séparément, chacune avec sa key policy.",
+       "tone": "warn"
+      },
+      {
+       "icon": "gear",
+       "t": "Même rotation",
+       "d": "La rotation automatique est partagée entre la primaire et les répliques.",
+       "tone": "info"
+      },
+      {
+       "icon": "dynamodb",
+       "t": "Cas d'usage",
+       "d": "Reprise après sinistre, actif-actif, DynamoDB Global Tables, Aurora Global.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Crée, stocke et utilise les clés ; tu appelles l'API, jamais la clé en clair."
+      },
+      {
+       "k": "cloudhsm",
+       "ctx": "Héberge le key material d'un custom key store : HSM dédié que tu contrôles."
+      },
+      {
+       "k": "s3",
+       "ctx": "Exemple d'AWS managed key : aws/s3 chiffre les objets si tu ne choisis pas ta clé."
+      },
+      {
+       "k": "ebs",
+       "ctx": "Utilise aws/ebs ou une customer managed key pour chiffrer les volumes."
+      },
+      {
+       "k": "rds",
+       "ctx": "Chiffre les bases avec aws/rds ou ta clé ; la clé est régionale."
+      },
+      {
+       "k": "dynamodb",
+       "ctx": "Global Tables avec multi-region key : chiffrement côté client, réplique locale."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise chaque usage de clé KMS ; pas d'audit pour les AWS owned keys."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-03",
+  "services": [
+   "kms",
+   "datakey",
+   "encdata",
+   "sdk",
+   "s3",
+   "ebs",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   4,
+   7,
+   8,
+   10
+  ],
+  "shorten": {
+   "0": "Valise kbira (fichier) w el banka (KMS) ma te9bel ken 4 Ko. Donc t9fel el valise b clé sghira (data key) 3andek, w t7ot el clé sghira f coffre mta3 el banka. Clé tet9fel b clé: hedhi l'envelope encryption."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "facts",
+     "title": "Envelope encryption : 4 chiffres-clés",
+     "items": [
+      {
+       "icon": "kms",
+       "big": "4 Ko",
+       "label": "limite de l'API Encrypt",
+       "sub": "au-delà : GenerateDataKey"
+      },
+      {
+       "icon": "datakey",
+       "big": "1 DEK",
+       "label": "par fichier, à la demande",
+       "sub": "réduit les dégâts en cas de fuite"
+      },
+      {
+       "icon": "encdata",
+       "big": "2 copies",
+       "label": "de la DEK renvoyées",
+       "sub": "une en clair, une chiffrée"
+      },
+      {
+       "icon": "padlock",
+       "big": "Jamais",
+       "label": "la KMS key ne quitte KMS",
+       "sub": "elle ne chiffre que la DEK"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "tree",
+     "title": "Hiérarchie des clés : qui protège quoi",
+     "root": {
+      "label": "KMS key",
+      "sub": "jamais hors de KMS",
+      "icon": "kms",
+      "children": [
+       {
+        "label": "DEK chiffrée A",
+        "icon": "datakey",
+        "children": [
+         {
+          "label": "Fichier A chiffré",
+          "icon": "document"
+         }
+        ]
+       },
+       {
+        "label": "DEK chiffrée B",
+        "icon": "datakey",
+        "children": [
+         {
+          "label": "Fichier B chiffré",
+          "icon": "document"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "cards",
+     "title": "Les API KMS symétriques",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "Encrypt",
+       "d": "Chiffre jusqu'à 4 Ko : petits secrets.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Decrypt",
+       "d": "Déchiffre jusqu'à 4 Ko, DEK chiffrées comprises.",
+       "tone": "info"
+      },
+      {
+       "icon": "datakey",
+       "t": "GenerateDataKey",
+       "d": "Crée une DEK : copie en clair et copie chiffrée. Base de l'envelope.",
+       "tone": "good"
+      },
+      {
+       "icon": "encdata",
+       "t": "GenerateDataKeyWithoutPlaintext",
+       "d": "DEK renvoyée seulement chiffrée ; Decrypt avant usage.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "gear",
+       "t": "GenerateRandom",
+       "d": "Octets aléatoires de bonne qualité (HSM de KMS).",
+       "tone": "neutral"
+      },
+      {
+       "icon": "kms",
+       "t": "ReEncrypt",
+       "d": "Re-chiffre sous une autre clé sans exposer le clair.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "decision",
+     "title": "Encrypt direct, GenerateDataKey ou Encryption SDK ?",
+     "root": {
+      "q": "La donnée dépasse 4 Ko ?",
+      "yes": {
+       "q": "Tu veux éviter de coder l'envelope toi-même ?",
+       "yes": {
+        "a": "AWS Encryption SDK",
+        "icon": "sdk",
+        "tone": "good",
+        "why": "Envelope encryption déjà écrite, caching inclus"
+       },
+       "no": {
+        "a": "GenerateDataKey",
+        "icon": "datakey",
+        "tone": "good",
+        "why": "Tu chiffres localement avec la DEK"
+       }
+      },
+      "no": {
+       "a": "Encrypt / Decrypt",
+       "icon": "kms",
+       "tone": "neutral",
+       "why": "Appel direct à KMS, petit secret"
+      }
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "AWS Encryption SDK : ce qu'il fait pour toi",
+     "stages": [
+      {
+       "label": "GenerateDataKey",
+       "sub": "appel à KMS",
+       "icon": "kms",
+       "tone": "info"
+      },
+      {
+       "label": "Chiffre localement",
+       "sub": "avec la DEK",
+       "icon": "sdk",
+       "tone": "good"
+      },
+      {
+       "label": "Message unique",
+       "sub": "données + DEK chiffrée + métadonnées",
+       "icon": "encdata",
+       "tone": "good"
+      },
+      {
+       "label": "Stockage",
+       "sub": "base ou stockage non AWS",
+       "icon": "database",
+       "tone": "neutral"
+      }
+     ],
+     "caption": "Java, Python, C, JavaScript et CLI : utilisé pour le chiffrement côté client."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Encryption context : à retenir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Paires clé-valeur non secrètes",
+       "d": "Utilisées comme AAD : intégrité et authenticité, pas confidentialité.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Même contexte exact au Decrypt",
+       "d": "Sinon le déchiffrement échoue, même avec la bonne clé.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Visible en clair dans CloudTrail",
+       "d": "Ne jamais y mettre de donnée sensible.",
+       "tone": "bad"
+      },
+      {
+       "icon": "permissions",
+       "t": "Utilisable en condition",
+       "d": "kms:EncryptionContext:clé dans les policies et contraintes de grants.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Garde la KMS key ; génère et déchiffre les DEK, jamais le gros fichier."
+      },
+      {
+       "k": "datakey",
+       "ctx": "La DEK chiffre le fichier localement ; seule sa copie chiffrée est conservée."
+      },
+      {
+       "k": "encdata",
+       "ctx": "L'enveloppe : fichier chiffré plus DEK chiffrée, stockés ensemble."
+      },
+      {
+       "k": "sdk",
+       "ctx": "AWS Encryption SDK : implémente l'envelope encryption et le data key caching."
+      },
+      {
+       "k": "s3",
+       "ctx": "Exemple de stockage de l'enveloppe, ou service qui fait l'envelope pour toi."
+      },
+      {
+       "k": "ebs",
+       "ctx": "Volumes chiffrés par envelope encryption en coulisse avec KMS."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise les appels KMS, encryption context compris, visible en clair."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-04",
+  "services": [
+   "kms",
+   "cloudtrail",
+   "cloudwatch",
+   "sns",
+   "eventbridge",
+   "ssm"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   8,
+   12
+  ],
+  "shorten": {
+   "0": "Rotation = tbaddel el serrure men wa9t l wa9t, ama el clé el 9dima ma tarmihech: tfta7 biha el data el 9dima. Suppression = t7arre9 el clé nihaiyyen; ken 3andek data biha, mchet. Ela hedha AWS t3tik 7 a 30 youm 9bal ma tetfarrez."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "matrix",
+     "title": "Trois façons de faire tourner une clé",
+     "rows": [
+      "Déclencheur",
+      "Key ID",
+      "Clés éligibles",
+      "Période",
+      "Côté application"
+     ],
+     "cols": [
+      "Automatique",
+      "À la demande",
+      "Manuelle"
+     ],
+     "cells": [
+      [
+       "KMS",
+       "Toi (API)",
+       "Toi"
+      ],
+      [
+       "Identique",
+       "Identique",
+       "Nouveau"
+      ],
+      [
+       "Sym. customer",
+       "Sym. customer",
+       "Toutes"
+      ],
+      [
+       "90-2560 j",
+       "Limitée",
+       "Libre"
+      ],
+      [
+       "Aucun",
+       "Aucun",
+       "Alias"
+      ]
+     ]
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "facts",
+     "title": "Rotation et suppression : chiffres-clés",
+     "items": [
+      {
+       "icon": "kms",
+       "big": "365 j",
+       "label": "rotation automatique par défaut",
+       "sub": "réglable de 90 à 2560 j"
+      },
+      {
+       "icon": "padlock",
+       "big": "Même key ID",
+       "label": "rotation auto ou à la demande",
+       "sub": "seul le backing key change"
+      },
+      {
+       "icon": "document",
+       "big": "Nouveau key ID",
+       "label": "rotation manuelle",
+       "sub": "alias + UpdateAlias"
+      },
+      {
+       "icon": "health",
+       "big": "7 à 30 j",
+       "label": "waiting period de suppression",
+       "sub": "annulable avec CancelKeyDeletion"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Cycle de vie d'une KMS key vers la suppression",
+     "stages": [
+      {
+       "label": "Enabled",
+       "sub": "utilisable",
+       "icon": "kms",
+       "tone": "good"
+      },
+      {
+       "label": "Disabled",
+       "sub": "DisableKey, réversible",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "Pending deletion",
+       "sub": "7 à 30 j, annulable",
+       "icon": "health",
+       "tone": "warn"
+      },
+      {
+       "label": "Supprimée",
+       "sub": "irréversible, data perdue",
+       "icon": "database",
+       "tone": "bad"
+      }
+     ],
+     "caption": "Les AWS managed keys et AWS owned keys ne peuvent pas être supprimées."
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Suppression d'une clé : règles à connaître",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "health",
+       "t": "Waiting period 7 à 30 jours",
+       "d": "ScheduleKeyDeletion : la clé est inutilisable mais CancelKeyDeletion est possible.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "DisableKey",
+       "d": "Alternative réversible : on réactive la clé plus tard.",
+       "tone": "good"
+      },
+      {
+       "icon": "document",
+       "t": "Clés importées",
+       "d": "Key material expirable ou supprimable ; KMS garde les métadonnées pour réimporter.",
+       "tone": "info"
+      },
+      {
+       "icon": "kms",
+       "t": "Managed et owned",
+       "d": "Les AWS managed keys et AWS owned keys ne sont pas supprimables.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Supprimer une multi-region key : dans quel ordre ?",
+     "root": {
+      "q": "Tu veux garder au moins une réplique ?",
+      "yes": {
+       "a": "Promouvoir une réplique",
+       "icon": "kms",
+       "tone": "good",
+       "why": "Elle devient primaire ; ensuite planifier la suppression de l'ancienne primaire"
+      },
+      "no": {
+       "q": "Les répliques sont-elles déjà supprimées ?",
+       "yes": {
+        "a": "Planifier la primaire",
+        "icon": "health",
+        "tone": "warn",
+        "why": "Suppression en 7 à 30 jours"
+       },
+       "no": {
+        "a": "Répliques d'abord",
+        "icon": "kms",
+        "tone": "warn",
+        "why": "La primaire ne se supprime pas tant qu'il reste des répliques"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Porte la rotation (backing keys, alias) et la suppression planifiée avec délai de sécurité."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise les appels refusés sur une clé Pending deletion et les DisableKey."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Metric filter et alarme sur les logs : détecte l'usage d'une clé en suppression."
+      },
+      {
+       "k": "sns",
+       "ctx": "Notifie l'administrateur par email pour qu'il annule la suppression à temps."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Règle sur DisableKey et ScheduleKeyDeletion : déclenche alerte et remédiation."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Automation AWSConfigRemediation-CancelKeyDeletion annule la suppression automatiquement."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-05",
+  "services": [
+   "kms",
+   "iam",
+   "ebs",
+   "ec2",
+   "orgs",
+   "vpc"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   7,
+   11,
+   14
+  ],
+  "shorten": {
+   "0": "Key policy = el 9anoun mta3 el clé nafsha. F KMS, IAM wa7dou ma ykafi: lazem el key policy tgol Allow, wala tgol « khalli IAM yeqrar » (instruction root). Bidha, ma 7ad yodkhol, 7ata IAM admin."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "La key policy : le point d'entrée de toute autorisation KMS",
+     "center": {
+      "label": "Key policy",
+      "sub": "resource policy obligatoire",
+      "icon": "kms"
+     },
+     "spokes": [
+      {
+       "label": "Key administrators",
+       "sub": "gèrent la clé",
+       "icon": "gear",
+       "tone": "info",
+       "note": "Créent, activent ou désactivent, planifient la suppression, taguent, modifient la policy. Ils ne peuvent pas faire Encrypt ou Decrypt."
+      },
+      {
+       "label": "Key users",
+       "sub": "utilisent la clé",
+       "icon": "user",
+       "tone": "good",
+       "note": "Encrypt, Decrypt, GenerateDataKey ; peuvent aussi créer des grants pour les services AWS."
+      },
+      {
+       "label": "Compte root",
+       "sub": "délègue à IAM",
+       "icon": "iam",
+       "tone": "warn",
+       "note": "L'instruction root de la key policy par défaut rend les policies IAM utilisables. Elle n'accorde aucun droit nominatif."
+      },
+      {
+       "label": "Grants",
+       "sub": "droits temporaires",
+       "icon": "permissions",
+       "tone": "info",
+       "note": "Jetons attachés à une clé et à des principals, sans modifier la key policy."
+      },
+      {
+       "label": "Autres comptes",
+       "sub": "cross-account",
+       "icon": "building",
+       "tone": "warn",
+       "note": "La key policy peut nommer un compte externe ; son compte doit aussi autoriser par IAM."
+      },
+      {
+       "label": "Services AWS",
+       "sub": "EBS, RDS...",
+       "icon": "ebs",
+       "tone": "neutral",
+       "note": "Utilisent la clé par des grants créés au nom de l'appelant."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "matrix",
+     "title": "Qui peut voir et modifier la key policy ?",
+     "rows": [
+      "AWS owned key",
+      "AWS managed key",
+      "Customer managed key"
+     ],
+     "cols": [
+      "Voir",
+      "Modifier"
+     ],
+     "cells": [
+      [
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "matrix",
+     "title": "Administrateurs et utilisateurs d'une clé",
+     "rows": [
+      "Créer, désactiver, supprimer",
+      "Modifier la key policy",
+      "Encrypt, Decrypt",
+      "Créer un grant (service AWS)"
+     ],
+     "cols": [
+      "Key admin",
+      "Key user"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "Grants : un droit temporaire et ciblé",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Jeton lié à une clé",
+       "d": "Pour un ou plusieurs principals : Encrypt, Decrypt, Sign, Verify, CreateGrant.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Sans toucher aux policies",
+       "d": "Ni key policy ni IAM modifiées ; limité par des constraints comme EncryptionContextSubset.",
+       "tone": "good"
+      },
+      {
+       "icon": "tempcred",
+       "t": "N'expire pas seul",
+       "d": "Il faut le retirer (retire) ou le révoquer (revoke), via le retiring principal.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cli",
+       "t": "API ou CLI seulement",
+       "d": "create-grant : pas de création depuis la console.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "pipeline",
+     "title": "Dépannage : instance EC2 avec volume EBS chiffré qui ne démarre pas",
+     "stages": [
+      {
+       "label": "Clé active ?",
+       "sub": "ni supprimée ni désactivée",
+       "icon": "kms",
+       "tone": "warn"
+      },
+      {
+       "label": "Droits du principal",
+       "sub": "kms:CreateGrant + GrantIsForAWSResource",
+       "icon": "iam",
+       "tone": "info"
+      },
+      {
+       "label": "Key policy",
+       "sub": "Decrypt, GenerateDataKey*, ViaService",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Relancer",
+       "sub": "démarrer à nouveau",
+       "icon": "ec2",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "decision",
+     "title": "Processus d'autorisation KMS : ALLOW ou DENY ?",
+     "root": {
+      "q": "Un Deny explicite existe (key policy, IAM, SCP, VPC endpoint) ?",
+      "yes": {
+       "a": "DENY",
+       "icon": "padlock",
+       "tone": "bad",
+       "why": "Un Deny explicite l'emporte toujours"
+      },
+      "no": {
+       "q": "SCP et VPC endpoint éventuels autorisent l'action ?",
+       "no": {
+        "a": "DENY",
+        "icon": "orgs",
+        "tone": "bad",
+        "why": "Ces garde-fous doivent autoriser, sinon refus"
+       },
+       "yes": {
+        "q": "Allow explicite dans key policy ou grant, ou root + policy IAM ?",
+        "no": {
+         "a": "DENY",
+         "icon": "kms",
+         "tone": "bad",
+         "why": "Pas de Allow : accès implicitement refusé"
+        },
+        "yes": {
+         "a": "ALLOW",
+         "icon": "kms",
+         "tone": "good",
+         "why": "Même compte : suffisant. Inter-comptes : le compte de l'appelant doit aussi autoriser."
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Porte la key policy, les grants et les conditions ViaService et CallerAccount."
+      },
+      {
+       "k": "iam",
+       "ctx": "Policies IAM utilisables seulement si la key policy délègue au compte via root."
+      },
+      {
+       "k": "ebs",
+       "ctx": "Volumes chiffrés : EBS crée des grants KMS au nom de l'utilisateur."
+      },
+      {
+       "k": "ec2",
+       "ctx": "L'instance ne démarre pas si la clé est désactivée ou si CreateGrant manque."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Un SCP doit autoriser l'action KMS, sinon refus malgré les Allow."
+      },
+      {
+       "k": "vpc",
+       "ctx": "La policy d'un VPC endpoint KMS est un garde-fou supplémentaire dans l'évaluation."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-06",
+  "services": [
+   "kms",
+   "ebs",
+   "rds",
+   "efs",
+   "datasync",
+   "iam"
+  ],
+  "drop": [
+   1,
+   5,
+   6,
+   10,
+   12,
+   16
+  ],
+  "shorten": {
+   "0": "Clé f dar mta3 compte A, w sa7bek f compte B yebi yestaamelha. Lazem 2 7ajet: A yeqolou fil key policy « B ya9dar », w B yekteb f IAM « el user hedha ya9dar ». Wa7da na9sa, mamchech: kima el visa."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "matrix",
+     "title": "Quelle clé peut être partagée entre comptes ?",
+     "rows": [
+      "aws/ebs",
+      "aws/rds",
+      "Customer managed key"
+     ],
+     "cols": [
+      "Key policy modifiable",
+      "Snapshot partageable",
+      "Accès cross-account"
+     ],
+     "cells": [
+      [
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Trois façons d'ouvrir une clé à un autre compte",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "Key policy + IAM policy",
+       "d": "A autorise le compte B ; B autorise son utilisateur. La plus courante.",
+       "tone": "good"
+      },
+      {
+       "icon": "role",
+       "t": "AssumeRole",
+       "d": "Un utilisateur de B assume un rôle de A que la key policy autorise.",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "Grant",
+       "d": "A crée un grant pour un principal de B : temporaire, à retirer.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "pipeline",
+     "title": "Partager un snapshot RDS chiffré avec un autre compte",
+     "stages": [
+      {
+       "label": "Clé CMK-A",
+       "sub": "customer managed, pas aws/rds",
+       "icon": "kms",
+       "tone": "good"
+      },
+      {
+       "label": "Key policy",
+       "sub": "autorise le compte B",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Partage",
+       "sub": "ID du compte B ajouté au snapshot",
+       "icon": "rds",
+       "tone": "info"
+      },
+      {
+       "label": "Copie chez B",
+       "sub": "re-chiffrée avec sa propre clé",
+       "icon": "database",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "facts",
+     "title": "Chiffrement EBS par défaut",
+     "items": [
+      {
+       "icon": "ebs",
+       "big": "Désactivé",
+       "label": "par défaut : volumes en clair",
+       "sub": "réglage à activer"
+      },
+      {
+       "icon": "internet",
+       "big": "Par région",
+       "label": "à activer région par région",
+       "sub": "enable-ebs-encryption-by-default"
+      },
+      {
+       "icon": "kms",
+       "big": "aws/ebs",
+       "label": "clé par défaut",
+       "sub": "ou ta clé via modify-ebs-default-kms-key-id"
+      },
+      {
+       "icon": "user",
+       "big": "Compte",
+       "label": "niveau du réglage",
+       "sub": "volumes neufs et copies de snapshots"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "cards",
+     "title": "KMS asymétrique : ce qu'il faut savoir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "RSA",
+       "d": "Chiffrer et déchiffrer, ou signer et vérifier.",
+       "tone": "info"
+      },
+      {
+       "icon": "signer",
+       "t": "ECC",
+       "d": "Signature et vérification uniquement.",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "SM2",
+       "d": "Disponible seulement dans les régions de Chine.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "padlock",
+       "t": "Clé publique téléchargeable",
+       "d": "GetPublicKey ; la clé privée ne sort jamais de KMS en clair.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "cards",
+     "title": "ABAC avec KMS : accès par attributs",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Tags sur la clé",
+       "d": "Tag Environment=Prod : toute clé taguée est couverte sans changer la policy.",
+       "tone": "good"
+      },
+      {
+       "icon": "permissions",
+       "t": "Alias",
+       "d": "Condition kms:ResourceAliases pour cibler des alias.",
+       "tone": "info"
+      },
+      {
+       "icon": "user",
+       "t": "Tag principal = tag ressource",
+       "d": "aws:ResourceTag/Project égal à ${aws:PrincipalTag/Project}.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "decision",
+     "title": "Quelle action pour quel besoin de chiffrement ?",
+     "root": {
+      "q": "Changer la clé d'un volume EBS existant ?",
+      "yes": {
+       "a": "Snapshot, puis nouveau volume",
+       "icon": "ebs",
+       "tone": "good",
+       "why": "On précise la nouvelle clé à la création du volume"
+      },
+      "no": {
+       "q": "Partager un snapshot chiffré avec un autre compte ?",
+       "yes": {
+        "a": "Customer managed key",
+        "icon": "kms",
+        "tone": "good",
+        "why": "Key policy du compte cible, jamais aws/ebs ni aws/rds"
+       },
+       "no": {
+        "q": "Chiffrer un EFS déjà créé ?",
+        "yes": {
+         "a": "Nouvel EFS + DataSync",
+         "icon": "datasync",
+         "tone": "warn",
+         "why": "Le chiffrement se choisit à la création de l'EFS"
+        },
+        "no": {
+         "a": "EBS encryption by default",
+         "icon": "ebs",
+         "tone": "neutral",
+         "why": "Plus aucun volume en clair, région par région"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 19,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "kms",
+       "ctx": "Clé partagée entre comptes (key policy + IAM) ; clés asymétriques pour signer et chiffrer hors AWS."
+      },
+      {
+       "k": "ebs",
+       "ctx": "Volumes et snapshots chiffrés ; clé non modifiable sur place ; chiffrement par défaut par région."
+      },
+      {
+       "k": "rds",
+       "ctx": "Snapshot chiffré partageable seulement avec une customer managed key."
+      },
+      {
+       "k": "efs",
+       "ctx": "Chiffrement choisi à la création ; un EFS existant non chiffré ne se convertit pas."
+      },
+      {
+       "k": "datasync",
+       "ctx": "Migre les fichiers d'un EFS non chiffré vers un nouvel EFS chiffré."
+      },
+      {
+       "k": "iam",
+       "ctx": "Policy du compte B qui autorise l'utilisateur à appeler la clé du compte A."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-07",
+  "services": [
+   "ssm",
+   "secrets",
+   "kms",
+   "rds",
+   "lambda",
+   "ecs",
+   "iam"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   7,
+   12
+  ],
+  "shorten": {
+   "0": "Mot de passe f code wala .env eli yetpousha lel GitHub = clé el dar taht el 7asira. Fil cloud: el secret f coffre (Parameter Store wala Secrets Manager), mchifr b KMS, w el app tjibou bel IAM role. Secrets Manager yzid ybaddlou wa7dou."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "cards",
+     "title": "Les mauvais endroits pour un mot de passe",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "cli",
+       "t": "Code source",
+       "d": "Changer le mot de passe oblige à redéployer.",
+       "tone": "bad"
+      },
+      {
+       "icon": "gear",
+       "t": "Variable visible",
+       "d": "Lisible par quiconque voit la configuration.",
+       "tone": "bad"
+      },
+      {
+       "icon": "codecommit",
+       "t": "Dépôt Git",
+       "d": "Chaque clone est une copie du secret.",
+       "tone": "bad"
+      },
+      {
+       "icon": "ec2",
+       "t": "AMI",
+       "d": "Le secret est dupliqué dans chaque instance lancée.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "matrix",
+     "title": "Parameter Store ou Secrets Manager ?",
+     "rows": [
+      "Chiffrement KMS",
+      "Rotation automatique",
+      "Réplication multi-region",
+      "Resource policy",
+      "Coût"
+     ],
+     "cols": [
+      "Parameter Store",
+      "Secrets Manager"
+     ],
+     "cells": [
+      [
+       "SecureString",
+       "Toujours"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "Gratuit (std)",
+       "Payant/secret"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "decision",
+     "title": "Quel service pour quel besoin ?",
+     "root": {
+      "q": "Rotation automatique, réplication multi-region ou partage inter-comptes ?",
+      "yes": {
+       "a": "Secrets Manager",
+       "icon": "secrets",
+       "tone": "good",
+       "why": "Rotation par Lambda, resource policy, réplicas"
+      },
+      "no": {
+       "q": "La valeur est sensible ?",
+       "yes": {
+        "a": "Parameter Store SecureString",
+        "icon": "ssm",
+        "tone": "good",
+        "why": "Chiffré par KMS, gratuit en standard"
+       },
+       "no": {
+        "a": "Parameter Store String",
+        "icon": "ssm",
+        "tone": "neutral",
+        "why": "Simple configuration, sans chiffrement"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "compare",
+     "title": "Parameter Store SecureString : Standard vs Advanced",
+     "cols": [
+      {
+       "name": "Standard",
+       "tag": "4 Ko",
+       "icon": "ssm",
+       "points": [
+        "Tous les paramètres chiffrés avec la même clé KMS",
+        "Clé aws/ssm ou ta customer managed key"
+       ],
+       "use": "Cas simple et gratuit"
+      },
+      {
+       "name": "Advanced",
+       "tag": "8 Ko",
+       "icon": "kms",
+       "points": [
+        "Une data key unique par paramètre (envelope encryption)",
+        "Clés KMS symétriques uniquement"
+       ],
+       "use": "Quand la valeur dépasse 4 Ko"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "facts",
+     "title": "Secrets Manager : à retenir",
+     "items": [
+      {
+       "icon": "secrets",
+       "big": "Rotation",
+       "label": "tous les X jours par Lambda",
+       "sub": "RDS, Redshift, DocumentDB"
+      },
+      {
+       "icon": "datakey",
+       "big": "1 data key",
+       "label": "par version de secret",
+       "sub": "envelope encryption"
+      },
+      {
+       "icon": "kms",
+       "big": "aws/secretsmanager",
+       "label": "ou ta customer managed key",
+       "sub": "symétrique uniquement"
+      },
+      {
+       "icon": "permissions",
+       "big": "2 droits",
+       "label": "sur le secret ET sur la clé KMS",
+       "sub": "l'un sans l'autre échoue"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "compare",
+     "title": "Injecter un secret : ECS et Lambda",
+     "cols": [
+      {
+       "name": "ECS",
+       "tag": "task definition",
+       "icon": "ecs",
+       "points": [
+        "La définition de tâche référence le secret",
+        "ECS l'injecte en variable d'environnement au démarrage",
+        "Le rôle d'exécution lit le secret et la clé"
+       ],
+       "use": "Conteneurs"
+      },
+      {
+       "name": "Lambda",
+       "tag": "GetSecretValue",
+       "icon": "lambda",
+       "points": [
+        "Le cours schématise une variable d'environnement",
+        "En pratique : GetSecretValue au démarrage, avec cache",
+        "Évite le secret en clair dans la config"
+       ],
+       "use": "Fonctions"
+      }
+     ]
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "ssm",
+       "ctx": "Parameter Store : SecureString chiffré par KMS ; pas de rotation automatique."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Stocke les secrets, les fait tourner par Lambda, les réplique, les partage par resource policy."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffre chaque valeur ; lire un secret exige aussi l'accès à la clé."
+      },
+      {
+       "k": "rds",
+       "ctx": "Intégration native : le mot de passe est changé dans le secret et dans la base."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Exécute la rotation ; doit joindre Secrets Manager et la base (endpoint ou NAT)."
+      },
+      {
+       "k": "ecs",
+       "ctx": "Récupère le secret au démarrage de la tâche et l'injecte dans le conteneur."
+      },
+      {
+       "k": "iam",
+       "ctx": "Rôle de l'application : droits sur le secret et sur la clé KMS."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-08",
+  "services": [
+   "s3",
+   "kms",
+   "glacier",
+   "athena",
+   "cloudtrail",
+   "iam"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   7,
+   8,
+   12,
+   13
+  ],
+  "shorten": {
+   "0": "S3 3andou 4 tari9at tchiffer: SSE-S3 (AWS ta3mel kol chay), SSE-KMS (inti tel9a el clé w tchouf CloudTrail), SSE-C (inti tb3ath el clé m3a kol talab, HTTPS lazem), client-side (inti tchiffer 9bal). W 2 tari9at lel WORM: Vault Lock w Object Lock."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "matrix",
+     "title": "Les 4 méthodes de chiffrement d'objets S3",
+     "rows": [
+      "SSE-S3",
+      "SSE-KMS",
+      "SSE-C",
+      "Client-side"
+     ],
+     "cols": [
+      "Clé gérée par",
+      "Audit KMS",
+      "S3 déchiffre",
+      "Par défaut"
+     ],
+     "cells": [
+      [
+       "AWS",
+       "no",
+       "ok",
+       "ok"
+      ],
+      [
+       "KMS",
+       "ok",
+       "ok",
+       "no"
+      ],
+      [
+       "Toi, HTTPS",
+       "no",
+       "ok",
+       "no"
+      ],
+      [
+       "Toi",
+       "no",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "decision",
+     "title": "Quelle méthode de chiffrement S3 choisir ?",
+     "root": {
+      "q": "S3 ne doit jamais voir la donnée en clair ?",
+      "yes": {
+       "a": "Client-side",
+       "icon": "sdk",
+       "tone": "good",
+       "why": "Tu chiffres avant l'envoi, par exemple avec l'Encryption SDK"
+      },
+      "no": {
+       "q": "La clé doit rester hors d'AWS ?",
+       "yes": {
+        "a": "SSE-C",
+        "icon": "padlock",
+        "tone": "warn",
+        "why": "Clé dans chaque requête, HTTPS obligatoire, perdue = objet perdu"
+       },
+       "no": {
+        "q": "Il te faut audit CloudTrail et contrôle de la clé ?",
+        "yes": {
+         "a": "SSE-KMS",
+         "icon": "kms",
+         "tone": "good",
+         "why": "Key policy, audit, mais quotas KMS"
+        },
+        "no": {
+         "a": "SSE-S3",
+         "icon": "s3",
+         "tone": "neutral",
+         "why": "AES-256 géré par S3, appliqué par défaut"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "SSE-KMS : coûts et limites",
+     "items": [
+      {
+       "icon": "kms",
+       "big": "GenerateDataKey",
+       "label": "à chaque upload",
+       "sub": "Decrypt à chaque download"
+      },
+      {
+       "icon": "cloudwatch",
+       "big": "5500 à 30000",
+       "label": "requêtes/s, quota KMS",
+       "sub": "selon la région ; hausse via Service Quotas"
+      },
+      {
+       "icon": "s3",
+       "big": "Bucket Key",
+       "label": "jusqu'à 99 % d'appels KMS en moins",
+       "sub": "moins de coût et d'événements CloudTrail"
+      },
+      {
+       "icon": "user",
+       "big": "Anonyme refusé",
+       "label": "même objet « public »",
+       "sub": "il faudrait aussi accéder à la clé"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Gros fichiers, SSE-C et transit",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "Multipart avec KMS",
+       "d": "Il faut kms:GenerateDataKey et kms:Decrypt : une data key par partie.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "SSE-C",
+       "d": "Clé dans les en-têtes de chaque requête ; HTTPS seulement ; S3 ne la conserve pas.",
+       "tone": "warn"
+      },
+      {
+       "icon": "internet",
+       "t": "HTTP vs HTTPS",
+       "d": "Endpoint HTTP non chiffré ; HTTPS recommandé, obligatoire pour SSE-C.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "PutObject : bucket policy avant default encryption",
+     "stages": [
+      {
+       "label": "Requête PutObject",
+       "sub": "avec ou sans en-tête",
+       "icon": "client",
+       "tone": "info"
+      },
+      {
+       "label": "Bucket policy",
+       "sub": "Deny si l'en-tête manque",
+       "icon": "document",
+       "tone": "warn"
+      },
+      {
+       "label": "Default encryption",
+       "sub": "SSE-S3 sur les nouveaux objets",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "Objet chiffré",
+       "sub": "stocké",
+       "icon": "database",
+       "tone": "good"
+      }
+     ],
+     "caption": "Une requête sans en-tête est refusée avant que le chiffrement par défaut ne s'applique."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "Chiffrer en masse des objets existants",
+     "stages": [
+      {
+       "label": "S3 Inventory",
+       "sub": "liste + Encryption Status",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "Athena",
+       "sub": "garde les objets non chiffrés",
+       "icon": "athena",
+       "tone": "info"
+      },
+      {
+       "label": "Batch Operations",
+       "sub": "copie sur place avec SSE-KMS",
+       "icon": "gear",
+       "tone": "good"
+      }
+     ],
+     "caption": "Le job doit avoir accès au bucket et à la clé KMS."
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "stack",
+     "title": "Classes de stockage S3",
+     "layers": [
+      {
+       "label": "Standard",
+       "sub": "accès fréquent",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "Standard-IA",
+       "sub": "accès rare",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "Intelligent-Tiering",
+       "sub": "bascule automatique",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "One Zone-IA",
+       "sub": "une seule AZ",
+       "icon": "s3",
+       "tone": "warn"
+      },
+      {
+       "label": "Glacier Instant Retrieval",
+       "sub": "archive, accès immédiat",
+       "icon": "glacier",
+       "tone": "good"
+      },
+      {
+       "label": "Glacier Flexible Retrieval",
+       "sub": "archive, récupération différée",
+       "icon": "glacier",
+       "tone": "good"
+      },
+      {
+       "label": "Glacier Deep Archive",
+       "sub": "le plus lent, le plus économique",
+       "icon": "glacier",
+       "tone": "good"
+      }
+     ],
+     "side": "du plus rapide et cher au plus lent et économique"
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "cards",
+     "title": "Règles de cycle de vie",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Transition actions",
+       "d": "Déplacer vers une autre classe, par exemple Standard-IA après 60 jours.",
+       "tone": "info"
+      },
+      {
+       "icon": "health",
+       "t": "Expiration actions",
+       "d": "Supprimer logs d'accès, anciennes versions et uploads multipart incomplets.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Portée",
+       "d": "Par préfixe (mp3/*) ou par tag (Department: Finance).",
+       "tone": "neutral"
+      },
+      {
+       "icon": "athena",
+       "t": "Storage Class Analysis",
+       "d": "Conseille Standard vers Standard-IA seulement ; rapport quotidien après 24 à 48 h.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "cards",
+     "title": "Réplication CRR / SRR : règles",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "CRR et SRR",
+       "d": "CRR : conformité, latence, inter-comptes. SRR : agrégation de logs, prod vers test.",
+       "tone": "info"
+      },
+      {
+       "icon": "s3",
+       "t": "Versioning obligatoire",
+       "d": "Source et destination ; réplication asynchrone ; rôle IAM requis.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Nouveaux objets seulement",
+       "d": "Les existants passent par S3 Batch Replication.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "padlock",
+       "t": "Suppressions",
+       "d": "Delete markers réplicables (option) ; suppression par version ID jamais répliquée.",
+       "tone": "good"
+      },
+      {
+       "icon": "vpc",
+       "t": "Pas de chaînage",
+       "d": "Bucket 1 vers 2 vers 3 ne réplique pas 1 vers 3.",
+       "tone": "bad"
+      },
+      {
+       "icon": "kms",
+       "t": "Objets SSE-KMS",
+       "d": "Répliqués si l'option est activée et que S3 accède aux clés.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "s3",
+       "ctx": "Chiffre les objets (SSE-S3, SSE-KMS, SSE-C), verrouille (Object Lock), réplique et gère le cycle de vie."
+      },
+      {
+       "k": "kms",
+       "ctx": "Clé de SSE-KMS : audit, key policy ; quotas par seconde, réduits par la Bucket Key."
+      },
+      {
+       "k": "glacier",
+       "ctx": "Archives chiffrées AES-256 ; Vault Lock rend la rétention immuable."
+      },
+      {
+       "k": "athena",
+       "ctx": "Filtre l'inventaire S3 pour trouver les objets non chiffrés."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise chaque usage de la clé KMS lors des upload et download."
+      },
+      {
+       "k": "iam",
+       "ctx": "Rôle de la réplication et du job Batch ; droits kms:GenerateDataKey et kms:Decrypt."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d5-09",
+  "services": [
+   "rds",
+   "elb",
+   "acm",
+   "ca",
+   "route53",
+   "backup",
+   "nitro",
+   "kms"
+  ],
+  "drop": [
+   1,
+   5,
+   6,
+   8,
+   10,
+   11,
+   13
+  ],
+  "shorten": {
+   "0": "Hedha el dars el \"collage\": kol service 3andou tari9tou. RDS yetchiffer wa9t el creation, ELB yfek TLS bel certificat, ACM yjaddedou wa7do, Backup y7mi mel suppression, Nitro Enclave ghorfa mghalla9a. W fil e5er: « 3andi besoin X, nesta3mel chnowa? »."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "stack",
+     "title": "Le chiffrement à chaque couche d'une application",
+     "layers": [
+      {
+       "label": "Client",
+       "sub": "Encryption SDK, côté client",
+       "icon": "client",
+       "tone": "info",
+       "tags": [
+        "client-side"
+       ]
+      },
+      {
+       "label": "Réseau et load balancer",
+       "sub": "TLS, certificats ACM",
+       "icon": "elb",
+       "tone": "info",
+       "tags": [
+        "TLS",
+        "ACM"
+       ]
+      },
+      {
+       "label": "Calcul sensible",
+       "sub": "Nitro Enclaves attestées",
+       "icon": "nitro",
+       "tone": "warn",
+       "tags": [
+        "attestation"
+       ]
+      },
+      {
+       "label": "Base de données",
+       "sub": "RDS/Aurora chiffré par KMS",
+       "icon": "rds",
+       "tone": "good",
+       "tags": [
+        "KMS",
+        "IAM auth"
+       ]
+      },
+      {
+       "label": "Secrets",
+       "sub": "Secrets Manager, rotation",
+       "icon": "secrets",
+       "tone": "good",
+       "tags": [
+        "rotation"
+       ]
+      },
+      {
+       "label": "Sauvegardes",
+       "sub": "AWS Backup + Vault Lock",
+       "icon": "backup",
+       "tone": "good",
+       "tags": [
+        "WORM"
+       ]
+      }
+     ],
+     "side": "du plus externe au plus interne"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "RDS et Aurora : la sécurité en bref",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "Au repos",
+       "d": "Choisi au lancement. Base existante : snapshot puis restore avec une clé KMS.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "En transit",
+       "d": "TLS prêt par défaut ; le client utilise les certificats racine AWS.",
+       "tone": "info"
+      },
+      {
+       "icon": "iam",
+       "t": "IAM authentication",
+       "d": "Un rôle IAM remplace le mot de passe.",
+       "tone": "good"
+      },
+      {
+       "icon": "vpc",
+       "t": "Réseau",
+       "d": "Security groups ; pas de SSH, sauf RDS Custom.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Audit logs",
+       "d": "Envoyés vers CloudWatch Logs pour une rétention longue.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "aurora",
+       "t": "Aurora chiffré",
+       "d": "Instances, snapshots, logs et backups chiffrés aussi.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "matrix",
+     "title": "Les load balancers (ELB)",
+     "rows": [
+      "ALB",
+      "NLB",
+      "GWLB",
+      "CLB"
+     ],
+     "cols": [
+      "Couche",
+      "SNI multi-cert.",
+      "IP statique par AZ"
+     ],
+     "cells": [
+      [
+       "L7 HTTP, gRPC",
+       "ok",
+       "no"
+      ],
+      [
+       "L4 TCP, UDP",
+       "ok",
+       "ok"
+      ],
+      [
+       "L3 GENEVE",
+       "na",
+       "na"
+      ],
+      [
+       "L4 et L7",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non",
+      "na": "Sans objet"
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Sticky sessions : les cookies",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "elb",
+       "t": "Duration-based",
+       "d": "Cookie du load balancer : AWSALB pour ALB, AWSELB pour CLB.",
+       "tone": "info"
+      },
+      {
+       "icon": "server",
+       "t": "Application-based custom",
+       "d": "Cookie généré par la cible ; jamais AWSALB, AWSALBAPP ni AWSALBTG.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Application cookie",
+       "d": "Généré par le load balancer : AWSALBAPP.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Certificats sur un load balancer",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "acm",
+       "t": "Certificat X.509",
+       "d": "Géré par ACM ou importé ; le listener HTTPS exige un certificat par défaut.",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "SNI",
+       "d": "Le client donne le nom d'hôte ; ALB et NLB gèrent plusieurs certificats, le CLB un seul.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "Security policy",
+       "d": "Protocoles et ciphers ; les policies FS ajoutent la Forward Secrecy.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "facts",
+     "title": "ACM : à retenir",
+     "items": [
+      {
+       "icon": "acm",
+       "big": "Gratuit",
+       "label": "certificats publics, renouvelés",
+       "sub": "ELB, CloudFront, API Gateway"
+      },
+      {
+       "icon": "internet",
+       "big": "Régional",
+       "label": "un certificat par région",
+       "sub": "pas de copie possible"
+      },
+      {
+       "icon": "route53",
+       "big": "DNS",
+       "label": "validation recommandée (CNAME)",
+       "sub": "ou email"
+      },
+      {
+       "icon": "cloudwatch",
+       "big": "45 jours",
+       "label": "avant expiration",
+       "sub": "même ARN après renouvellement"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Certificat ACM bloqué en Pending validation ?",
+     "root": {
+      "q": "Le CNAME est dans la bonne zone, sans caractère en trop ?",
+      "no": {
+       "a": "Corriger le CNAME",
+       "icon": "route53",
+       "tone": "warn",
+       "why": "Un caractère manquant ou en trop bloque la validation"
+      },
+      "yes": {
+       "q": "Le domaine apparaît en double (example.com.example.com) ?",
+       "yes": {
+        "a": "Retirer le doublon",
+        "icon": "route53",
+        "tone": "warn",
+        "why": "Le fournisseur DNS ajoute déjà le domaine"
+       },
+       "no": {
+        "q": "Un TXT existe pour le même nom que le CNAME ?",
+        "yes": {
+         "a": "Supprimer le TXT",
+         "icon": "route53",
+         "tone": "warn",
+         "why": "CNAME et TXT ne cohabitent pas"
+        },
+        "no": {
+         "a": "Essayer la validation email",
+         "icon": "email",
+         "tone": "neutral",
+         "why": "Adresses WHOIS du domaine"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Certificats importés et privés",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Importés : manuel",
+       "d": "Renouvellement et réimport à la main ; pas de validation requise.",
+       "tone": "warn"
+      },
+      {
+       "icon": "eventbridge",
+       "t": "Alerte d'expiration",
+       "d": "Événement EventBridge quotidien dès 45 jours avant, et règle Config acm-certificate-expiration-check.",
+       "tone": "info"
+      },
+      {
+       "icon": "ca",
+       "t": "AWS Private CA",
+       "d": "CA racine et subordonnées pour certificats privés, de confiance dans ton organisation.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Backup, DLM et Nitro Enclaves",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "backup",
+       "t": "AWS Backup",
+       "d": "Sauvegardes centralisées, cross-region et cross-account ; Vault Lock : WORM, même pour root.",
+       "tone": "good"
+      },
+      {
+       "icon": "ebs",
+       "t": "Data Lifecycle Manager",
+       "d": "Automatise snapshots EBS et AMI EBS-backed via tags ; ignore ce qui est créé hors DLM.",
+       "tone": "info"
+      },
+      {
+       "icon": "nitro",
+       "t": "Nitro Enclaves",
+       "d": "VM isolée : sans stockage persistant, accès interactif ni réseau externe ; attestation cryptographique.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "decision",
+     "title": "Quelle solution de clés choisir ?",
+     "root": {
+      "q": "La clé ne doit jamais être hébergée chez AWS ?",
+      "yes": {
+       "a": "KMS external key store",
+       "icon": "server",
+       "tone": "good",
+       "why": "XKS : la clé reste dans ton gestionnaire externe"
+      },
+      "no": {
+       "q": "Matériel dédié single-tenant, contrôle total, Oracle TDE ?",
+       "yes": {
+        "a": "CloudHSM",
+        "icon": "cloudhsm",
+        "tone": "good",
+        "why": "Ou KMS custom key store pour les services AWS"
+       },
+       "no": {
+        "q": "Tu dois importer ta propre clé ?",
+        "yes": {
+         "a": "KMS origine EXTERNAL",
+         "icon": "kms",
+         "tone": "warn",
+         "why": "BYOK : rotation manuelle"
+        },
+        "no": {
+         "a": "KMS customer managed key",
+         "icon": "kms",
+         "tone": "good",
+         "why": "Chiffrement simple, intégré, audit CloudTrail"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "cards",
+     "title": "Quel besoin, quelle solution (1/2)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "secrets",
+       "t": "Rotation de mots de passe RDS",
+       "d": "Secrets Manager, avec Lambda.",
+       "tone": "good"
+      },
+      {
+       "icon": "ssm",
+       "t": "Config chiffrée peu coûteuse",
+       "d": "Parameter Store SecureString.",
+       "tone": "good"
+      },
+      {
+       "icon": "sdk",
+       "t": "Champs chiffrés côté client",
+       "d": "Encryption SDK, avec data key caching.",
+       "tone": "good"
+      },
+      {
+       "icon": "signer",
+       "t": "Intégrité et signature",
+       "d": "Clé asymétrique KMS : Sign et Verify.",
+       "tone": "good"
+      },
+      {
+       "icon": "kms",
+       "t": "Même clé dans deux régions",
+       "d": "Multi-Region key : reprise après sinistre, Global Tables.",
+       "tone": "good"
+      },
+      {
+       "icon": "glacier",
+       "t": "Non supprimable, même par root",
+       "d": "Object Lock Compliance, Vault Lock, Backup Vault Lock.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "cards",
+     "title": "Quel besoin, quelle solution (2/2)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "acm",
+       "t": "Certificat public auto-renouvelé",
+       "d": "ACM avec validation DNS ; en interne : Private CA.",
+       "tone": "good"
+      },
+      {
+       "icon": "nitro",
+       "t": "Données ultra-sensibles, code attesté",
+       "d": "Nitro Enclaves avec KMS.",
+       "tone": "good"
+      },
+      {
+       "icon": "backup",
+       "t": "Sauvegardes centralisées",
+       "d": "AWS Backup ; snapshots EBS planifiés : DLM.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "rds",
+       "ctx": "Chiffrement KMS choisi au lancement ; authentification IAM ; TLS par défaut."
+      },
+      {
+       "k": "elb",
+       "ctx": "ALB, NLB ou GWLB : termine TLS avec un certificat, ou laisse passer en TCP."
+      },
+      {
+       "k": "acm",
+       "ctx": "Fournit et renouvelle automatiquement les certificats publics ; service régional."
+      },
+      {
+       "k": "ca",
+       "ctx": "AWS Private CA émet des certificats privés pour TLS interne et signature."
+      },
+      {
+       "k": "route53",
+       "ctx": "Héberge le CNAME de validation DNS des certificats ACM."
+      },
+      {
+       "k": "backup",
+       "ctx": "Sauvegardes centralisées multi-comptes ; Vault Lock impose le WORM."
+      },
+      {
+       "k": "nitro",
+       "ctx": "Nitro Enclaves : VM attestée, la clé KMS n'est délivrée qu'à elle."
+      },
+      {
+       "k": "kms",
+       "ctx": "Fournit les clés de chiffrement des bases, secrets, volumes et enclaves."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

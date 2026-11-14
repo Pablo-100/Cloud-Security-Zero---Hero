@@ -1,0 +1,1953 @@
+[
+ {
+  "k": "vpc",
+  "name": "Amazon VPC",
+  "full": "Amazon Virtual Private Cloud",
+  "cat": "Réseau & edge",
+  "tagline": "Ton réseau privé et isolé à l'intérieur d'AWS.",
+  "role": "Réseau virtuel logiquement isolé dans une Région AWS, dans lequel tu déclares plages d'adresses IP, sous-réseaux, tables de routage et règles de filtrage. Presque toutes les ressources de calcul et de bases de données y sont lancées.",
+  "why": [
+   "Isole tes workloads des autres clients et d'Internet par défaut.",
+   "Sous-réseaux privés : aucune route directe depuis Internet vers tes serveurs.",
+   "Security groups et NACL filtrent le trafic à plusieurs niveaux.",
+   "VPC Flow Logs enregistrent les flux réseau pour l'investigation."
+  ],
+  "how": "Tu choisis un bloc CIDR, le découpes en sous-réseaux par zone de disponibilité, puis tu contrôles l'exposition via tables de routage, Internet Gateway, NAT Gateway et endpoints.",
+  "when": [
+   "Héberger une application web : load balancer en subnet public, serveurs en subnet privé.",
+   "Séparer prod, test et données sensibles dans des VPC ou subnets distincts.",
+   "Accéder à S3 sans passer par Internet via un VPC endpoint."
+  ],
+  "notwhen": "Un VPC est régional et ne se connecte pas tout seul à un autre : pour relier plusieurs VPC, utilise peering, Transit Gateway ou PrivateLink.",
+  "derja": "Le VPC, c'est ta villa avec son mur d'enceinte et son portail : dehors c'est la rue (Internet), dedans c'est chez toi. Tu décides quelles portes existent (routes) et qui a la clé (security groups). Les chambres du fond (subnets privés) n'ont pas de porte sur la rue.",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Internet"
+   },
+   {
+    "k": "elb",
+    "t": "Load balancer (subnet public)"
+   },
+   {
+    "k": "ec2",
+    "t": "Serveurs (subnet privé)"
+   },
+   {
+    "k": "rds",
+    "t": "Base (subnet privé)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "firewall",
+    "d": "Un security group est stateful et attaché à l'ENI ; une NACL est stateless et s'applique au subnet."
+   },
+   {
+    "k": "privatelink",
+    "d": "PrivateLink expose un service précis entre VPC ; le peering ouvre la connectivité réseau entre deux VPC."
+   }
+  ],
+  "exam": [
+   "Security group : stateful, règles allow seulement. NACL : stateless, règles allow et deny, évaluées par numéro croissant.",
+   "Un subnet est public parce que sa table de routage a une route vers une Internet Gateway, pas à cause de son nom.",
+   "Un VPC endpoint de passerelle (gateway) existe pour S3 et DynamoDB ; les autres services utilisent des interface endpoints.",
+   "Activer VPC Flow Logs : ils ne capturent pas le contenu des paquets, seulement les métadonnées des flux."
+  ],
+  "related": [
+   "internet",
+   "firewall",
+   "networkfw",
+   "privatelink",
+   "tgw"
+  ],
+  "match": [
+   "VPC",
+   "Virtual Private Cloud",
+   "security group",
+   "NACL",
+   "subnet"
+  ]
+ },
+ {
+  "k": "cloudfront",
+  "name": "Amazon CloudFront",
+  "full": "Amazon CloudFront",
+  "cat": "Réseau & edge",
+  "tagline": "Le CDN qui rapproche et protège ton contenu.",
+  "role": "Réseau de distribution de contenu (CDN) : met en cache et sert ton contenu depuis des points de présence (edge locations) proches des utilisateurs, avec TLS, intégration AWS WAF et protection DDoS (Shield Standard incluse).",
+  "why": [
+   "Les origines (S3, ALB) peuvent rester privées : seul CloudFront les atteint.",
+   "Absorbe une partie des attaques DDoS et des pics de trafic à l'edge.",
+   "Impose HTTPS entre l'utilisateur et l'edge, avec certificat ACM.",
+   "Signed URLs, signed cookies et restrictions géographiques contrôlent qui accède au contenu."
+  ],
+  "how": "L'utilisateur contacte l'edge location la plus proche ; si l'objet n'est pas en cache, CloudFront le récupère à l'origine. Avec OAC (Origin Access Control), le bucket S3 n'accepte que CloudFront.",
+  "when": [
+   "Servir un site statique S3 sans exposer le bucket publiquement.",
+   "Placer AWS WAF devant une application web mondiale.",
+   "Distribuer du contenu payant via signed URLs."
+  ],
+  "notwhen": "Inutile pour un trafic purement interne ou TCP/UDP non HTTP ; dans ce cas regarde Global Accelerator ou un load balancer.",
+  "derja": "CloudFront, c'est comme avoir des petits dépôts de ta marchandise dans chaque ville au lieu de tout livrer de Tunis à chaque commande. Le client reçoit vite, et ton magasin principal (l'origine) reste fermé aux inconnus.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Utilisateur"
+   },
+   {
+    "k": "cloudfront",
+    "t": "Edge CloudFront + WAF"
+   },
+   {
+    "k": "s3",
+    "t": "Origine S3 privée (OAC)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "globalaccel",
+    "d": "Global Accelerator route du trafic TCP/UDP vers tes endpoints sans cache ; CloudFront met en cache du contenu HTTP(S)."
+   },
+   {
+    "k": "elb",
+    "d": "Le load balancer répartit dans une Région ; CloudFront diffuse à l'échelle mondiale depuis l'edge."
+   }
+  ],
+  "exam": [
+   "OAC (successeur d'OAI) : méthode recommandée pour garder un bucket S3 privé derrière CloudFront.",
+   "AWS WAF peut être associé à une distribution CloudFront ; son web ACL est alors créé en portée globale.",
+   "Les certificats ACM pour CloudFront doivent être demandés dans la Région us-east-1.",
+   "Field-level encryption protège des champs sensibles de formulaire jusqu'à l'application."
+  ],
+  "related": [
+   "s3",
+   "waf",
+   "shield",
+   "acm",
+   "elb"
+  ],
+  "match": [
+   "CloudFront",
+   "CDN",
+   "OAC",
+   "edge location"
+  ]
+ },
+ {
+  "k": "route53",
+  "name": "Amazon Route 53",
+  "full": "Amazon Route 53",
+  "cat": "Réseau & edge",
+  "tagline": "Le DNS d'AWS : noms de domaine et routage intelligent.",
+  "role": "Service DNS hautement disponible : enregistre des noms de domaine, résout les noms vers des adresses, vérifie la santé des endpoints et route le trafic selon des politiques (latence, géolocalisation, basculement).",
+  "why": [
+   "Basculement automatique vers un site de secours si le principal est en panne.",
+   "DNSSEC pour signer les zones publiques contre la falsification de réponses DNS.",
+   "Route 53 Resolver DNS Firewall bloque les domaines malveillants depuis le VPC.",
+   "Les logs de requêtes DNS alimentent la détection (ex. GuardDuty)."
+  ],
+  "how": "Une hosted zone contient des enregistrements (A, AAAA, CNAME, alias…). Les politiques de routage et les health checks décident quelle réponse DNS est renvoyée.",
+  "when": [
+   "Associer un domaine à un load balancer ou à CloudFront via un enregistrement alias.",
+   "Zone privée : noms internes visibles seulement dans tes VPC.",
+   "Basculement actif/passif entre deux Régions."
+  ],
+  "notwhen": "Le DNS ne chiffre ni ne filtre le contenu : il ne remplace ni TLS ni un pare-feu applicatif.",
+  "derja": "Route 53, c'est l'annuaire téléphonique : tu dis le nom, il te donne le numéro. Si le numéro principal ne répond pas, il te donne celui du remplaçant. Un attaquant qui falsifie l'annuaire t'envoie chez lui : d'où DNSSEC.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Utilisateur"
+   },
+   {
+    "k": "route53",
+    "t": "Résolution DNS"
+   },
+   {
+    "k": "cloudfront",
+    "t": "CloudFront ou ALB"
+   },
+   {
+    "k": "ec2",
+    "t": "Application"
+   }
+  ],
+  "vs": [
+   {
+    "k": "globalaccel",
+    "d": "Route 53 agit au niveau DNS (peut être mis en cache) ; Global Accelerator offre des IP anycast fixes sans dépendre du cache DNS."
+   }
+  ],
+  "exam": [
+   "Enregistrement alias : gratuit pour les requêtes vers ressources AWS et utilisable à l'apex du domaine (contrairement au CNAME).",
+   "Zone privée associée à un ou plusieurs VPC ; DNS support et DNS hostnames doivent être activés sur le VPC.",
+   "DNS tunneling : des requêtes DNS encodées servent à exfiltrer des données ; surveillées via les logs de requêtes.",
+   "Route 53 Resolver DNS Firewall filtre les requêtes sortantes du VPC."
+  ],
+  "related": [
+   "cloudfront",
+   "elb",
+   "vpc",
+   "guardduty",
+   "shield"
+  ],
+  "match": [
+   "Route 53",
+   "DNS",
+   "DNSSEC",
+   "hosted zone"
+  ]
+ },
+ {
+  "k": "elb",
+  "name": "Elastic Load Balancing",
+  "full": "Elastic Load Balancing (ALB, NLB, GWLB)",
+  "cat": "Réseau & edge",
+  "tagline": "Répartit le trafic et cache les serveurs derrière lui.",
+  "role": "Distribue le trafic entrant entre plusieurs cibles saines (EC2, conteneurs, IP, Lambda) dans plusieurs zones de disponibilité. Types principaux : ALB (HTTP/HTTPS, couche 7), NLB (TCP/UDP/TLS, couche 4) et GWLB (appliances de sécurité).",
+  "why": [
+   "Les serveurs restent en subnet privé : seul le load balancer est exposé.",
+   "Termine TLS avec un certificat ACM et centralise la gestion des certificats.",
+   "L'ALB s'associe à AWS WAF ; l'ALB peut aussi authentifier via OIDC ou Cognito.",
+   "Health checks retirent les cibles défaillantes : meilleure disponibilité."
+  ],
+  "how": "Un listener reçoit les connexions sur un port, applique des règles puis envoie vers un target group. Le load balancer vérifie la santé des cibles et ne route que vers les saines.",
+  "when": [
+   "Application web : ALB public + instances ou conteneurs privés.",
+   "Protocole non HTTP ou très haute performance : NLB.",
+   "Insérer un pare-feu tiers dans le flux : Gateway Load Balancer."
+  ],
+  "notwhen": "Ne remplace pas un WAF : l'ALB route, c'est AWS WAF qui inspecte les requêtes malveillantes.",
+  "derja": "Le load balancer, c'est le serveur de la caisse en entrée d'un grand café : il envoie chaque client vers la table libre, et personne ne voit la cuisine. Si une table est cassée, il n'y envoie plus personne.",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Internet"
+   },
+   {
+    "k": "waf",
+    "t": "WAF"
+   },
+   {
+    "k": "elb",
+    "t": "ALB (TLS, ACM)"
+   },
+   {
+    "k": "ec2",
+    "t": "Cibles en subnet privé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "apigw",
+    "d": "API Gateway gère authentification, quotas et cycle de vie d'API ; l'ALB répartit simplement le trafic."
+   },
+   {
+    "k": "cloudfront",
+    "d": "CloudFront met en cache à l'edge ; ELB répartit dans une Région."
+   }
+  ],
+  "exam": [
+   "Bonne pratique : le security group de la cible n'autorise que le security group du load balancer.",
+   "ALB = couche 7 (HTTP/HTTPS), NLB = couche 4, GWLB = appliances de sécurité via GENEVE.",
+   "L'ALB prend en charge AWS WAF directement ; le NLB ne le prend pas en charge.",
+   "Un load balancer interne (internal) n'a que des adresses privées."
+  ],
+  "related": [
+   "vpc",
+   "waf",
+   "acm",
+   "ec2",
+   "autoscaling"
+  ],
+  "match": [
+   "ELB",
+   "ALB",
+   "NLB",
+   "load balancer",
+   "Application Load Balancer"
+  ]
+ },
+ {
+  "k": "directconnect",
+  "name": "AWS Direct Connect",
+  "full": "AWS Direct Connect",
+  "cat": "Réseau & edge",
+  "tagline": "Une liaison physique dédiée entre ton site et AWS.",
+  "role": "Connexion réseau privée et dédiée entre ton datacenter et AWS via un site partenaire, sans passer par l'Internet public. Elle offre un débit et une latence plus prévisibles qu'un lien Internet.",
+  "why": [
+   "Le trafic ne traverse pas l'Internet public : exposition réduite.",
+   "Latence et débit plus stables pour les gros volumes de données.",
+   "Peut être combinée à un VPN IPsec pour ajouter du chiffrement."
+  ],
+  "how": "Un circuit physique relie ton routeur à un emplacement Direct Connect ; des interfaces virtuelles (privée, publique, transit) donnent accès aux VPC et services AWS.",
+  "when": [
+   "Migrer ou synchroniser de gros volumes entre site et AWS.",
+   "Applications hybrides sensibles à la latence.",
+   "Exigence de conformité interdisant le transit par Internet."
+  ],
+  "notwhen": "Privé ne veut pas dire chiffré : par défaut, le trafic n'est pas chiffré. Ajoute VPN sur Direct Connect ou MACsec (sur les connexions dédiées compatibles).",
+  "derja": "Direct Connect, c'est ta propre route privée entre ta boutique et ton entrepôt, au lieu de l'autoroute bondée. Mais attention : une route privée ne veut pas dire que les colis sont dans des boîtes fermées. Le chiffrement, c'est à toi de l'ajouter.",
+  "use": [
+   {
+    "k": "building",
+    "t": "Datacenter"
+   },
+   {
+    "k": "directconnect",
+    "t": "Direct Connect"
+   },
+   {
+    "k": "tgw",
+    "t": "Transit Gateway"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC"
+   }
+  ],
+  "vs": [
+   {
+    "k": "vpn",
+    "d": "Site-to-Site VPN passe par Internet, se déploie vite et chiffre en IPsec ; Direct Connect est physique, plus stable, non chiffré par défaut."
+   }
+  ],
+  "exam": [
+   "Direct Connect n'est pas chiffré par défaut : combiner avec VPN IPsec ou MACsec.",
+   "Mise en place plus longue qu'un VPN (liaison physique, partenaire).",
+   "Pour la résilience, prévoir plusieurs connexions, idéalement sur des sites différents."
+  ],
+  "related": [
+   "vpn",
+   "tgw",
+   "vpc",
+   "cloudwan"
+  ],
+  "match": [
+   "Direct Connect",
+   "DX",
+   "hybrid"
+  ]
+ },
+ {
+  "k": "vpn",
+  "name": "AWS Site-to-Site VPN",
+  "full": "AWS Site-to-Site VPN",
+  "cat": "Réseau & edge",
+  "tagline": "Un tunnel chiffré IPsec entre ton site et ton VPC.",
+  "role": "Crée une connexion chiffrée IPsec entre ton réseau sur site et AWS (VPC via virtual private gateway ou Transit Gateway), à travers l'Internet public. Chaque connexion comprend deux tunnels pour la redondance.",
+  "why": [
+   "Chiffrement en transit du trafic entre ton site et AWS.",
+   "Rapide à mettre en place, sans liaison physique dédiée.",
+   "Deux tunnels par connexion : meilleure tolérance aux pannes."
+  ],
+  "how": "Côté AWS, une customer gateway décrit ton équipement local ; deux tunnels IPsec sont établis vers AWS avec routage statique ou dynamique (BGP).",
+  "when": [
+   "Relier un bureau ou un datacenter à un VPC rapidement.",
+   "Sauvegarde d'un lien Direct Connect.",
+   "Chiffrer le trafic hybride."
+  ],
+  "notwhen": "La bande passante dépend d'Internet et est limitée par tunnel ; pour de gros volumes réguliers, envisage Direct Connect.",
+  "derja": "Le VPN, c'est un tuyau blindé que tu fais passer à travers la route publique : les gens voient passer le tuyau mais pas ce qu'il y a dedans. Deux tuyaux valent mieux qu'un si l'un est coupé.",
+  "use": [
+   {
+    "k": "building",
+    "t": "Réseau sur site"
+   },
+   {
+    "k": "vpn",
+    "t": "Tunnels IPsec"
+   },
+   {
+    "k": "tgw",
+    "t": "Transit Gateway ou VGW"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC"
+   }
+  ],
+  "vs": [
+   {
+    "k": "clientvpn",
+    "d": "Client VPN relie des utilisateurs individuels ; Site-to-Site relie deux réseaux."
+   },
+   {
+    "k": "directconnect",
+    "d": "Direct Connect est dédié et non chiffré par défaut ; le VPN passe par Internet mais est chiffré."
+   }
+  ],
+  "exam": [
+   "Site-to-Site VPN : réseau à réseau, IPsec, deux tunnels par connexion.",
+   "Client VPN : utilisateur à réseau, basé sur OpenVPN ; ne pas confondre.",
+   "Le VPN peut être posé sur Direct Connect pour obtenir un lien privé et chiffré."
+  ],
+  "related": [
+   "directconnect",
+   "tgw",
+   "vpc",
+   "clientvpn"
+  ],
+  "match": [
+   "VPN",
+   "IPsec",
+   "Site-to-Site",
+   "customer gateway"
+  ]
+ },
+ {
+  "k": "clientvpn",
+  "name": "AWS Client VPN",
+  "full": "AWS Client VPN",
+  "cat": "Réseau & edge",
+  "tagline": "L'accès distant sécurisé pour les utilisateurs.",
+  "role": "Service VPN géré, basé sur OpenVPN, qui permet à des utilisateurs distants d'accéder en TLS à des ressources AWS et à ton réseau sur site depuis leur poste, sans gérer de serveur VPN.",
+  "why": [
+   "Remplace les bastions SSH exposés sur Internet par un accès authentifié.",
+   "Authentification par Active Directory, certificats mutuels ou SAML (SSO).",
+   "Règles d'autorisation par groupe : accès limité aux seuls subnets utiles.",
+   "Journalise les connexions dans CloudWatch Logs."
+  ],
+  "how": "Tu crées un endpoint Client VPN associé à des subnets d'un VPC ; l'utilisateur se connecte avec un client OpenVPN et reçoit uniquement les accès autorisés.",
+  "when": [
+   "Télétravail : ingénieurs accédant aux serveurs privés.",
+   "Administration de ressources sans IP publique.",
+   "Accès temporaire d'un prestataire avec règles strictes."
+  ],
+  "notwhen": "Pour relier deux réseaux entiers, choisis Site-to-Site VPN ; pour l'accès à un shell d'instance sans VPN, Systems Manager Session Manager convient souvent mieux.",
+  "derja": "Client VPN, c'est la clé de la porte de service que tu donnes à ton employé : il vient de chez lui et entre dans la maison sans passer par la rue. Et tu sais exactement qui est entré, à quelle heure.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Utilisateur distant"
+   },
+   {
+    "k": "clientvpn",
+    "t": "Endpoint Client VPN"
+   },
+   {
+    "k": "vpc",
+    "t": "Subnet privé du VPC"
+   },
+   {
+    "k": "ec2",
+    "t": "Serveur interne"
+   }
+  ],
+  "vs": [
+   {
+    "k": "vpn",
+    "d": "Site-to-Site relie deux réseaux ; Client VPN relie des utilisateurs individuels."
+   },
+   {
+    "k": "ssm",
+    "d": "Session Manager donne un shell sans ouvrir de port ni VPN, via IAM."
+   }
+  ],
+  "exam": [
+   "Client VPN utilise TLS et le protocole OpenVPN.",
+   "Authentification possible : Active Directory, certificats mutuels, SAML.",
+   "Les règles d'autorisation et les security groups limitent l'accès aux ressources."
+  ],
+  "related": [
+   "vpn",
+   "vpc",
+   "directory",
+   "saml",
+   "ssm"
+  ],
+  "match": [
+   "Client VPN",
+   "OpenVPN",
+   "remote access"
+  ]
+ },
+ {
+  "k": "privatelink",
+  "name": "AWS PrivateLink",
+  "full": "AWS PrivateLink",
+  "cat": "Réseau & edge",
+  "tagline": "Accéder à un service sans jamais quitter le réseau AWS.",
+  "role": "Technologie qui expose un service via des interface endpoints (une interface réseau avec IP privée dans ton subnet). Le trafic reste sur le réseau AWS, sans Internet, NAT ni peering de VPC.",
+  "why": [
+   "Le trafic n'emprunte pas l'Internet public.",
+   "Expose un seul service, pas tout le réseau : surface d'attaque minimale.",
+   "Une endpoint policy limite les actions autorisées via l'endpoint.",
+   "Permet les chevauchements d'adresses IP entre VPC."
+  ],
+  "how": "Le fournisseur publie son service derrière un Network Load Balancer ; le consommateur crée un interface endpoint dans son VPC et appelle le service via une IP privée.",
+  "when": [
+   "Appeler S3, KMS ou Secrets Manager depuis un subnet privé sans NAT.",
+   "Consommer un service SaaS ou interne d'un autre compte.",
+   "Exposer ton API à des clients sans ouvrir ton VPC."
+  ],
+  "notwhen": "Un interface endpoint est facturé (heure + données) et ouvre un seul service ; pour S3 et DynamoDB, un gateway endpoint est gratuit.",
+  "derja": "PrivateLink, c'est un guichet dans le mur entre deux maisons : tu passes la demande par le guichet, sans entrer chez le voisin ni ouvrir la porte de la rue. Le voisin ne voit que le guichet.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Client (VPC A)"
+   },
+   {
+    "k": "privatelink",
+    "t": "Interface endpoint"
+   },
+   {
+    "k": "elb",
+    "t": "Network LB (VPC B)"
+   },
+   {
+    "k": "server",
+    "t": "Service exposé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "vpc",
+    "d": "Le VPC peering ouvre la connectivité réseau entre deux VPC ; PrivateLink n'expose qu'un service."
+   },
+   {
+    "k": "tgw",
+    "d": "Transit Gateway relie de nombreux réseaux ; PrivateLink publie un service précis."
+   }
+  ],
+  "exam": [
+   "Interface endpoint (PrivateLink) vs gateway endpoint (S3, DynamoDB uniquement) : deux mécanismes distincts.",
+   "Un endpoint policy est une policy de ressource qui filtre l'accès via l'endpoint.",
+   "Avec PrivateLink, pas besoin d'Internet Gateway, NAT ni peering."
+  ],
+  "related": [
+   "vpc",
+   "elb",
+   "s3",
+   "kms",
+   "tgw"
+  ],
+  "match": [
+   "PrivateLink",
+   "VPC endpoint",
+   "interface endpoint"
+  ]
+ },
+ {
+  "k": "tgw",
+  "name": "AWS Transit Gateway",
+  "full": "AWS Transit Gateway",
+  "cat": "Réseau & edge",
+  "tagline": "Le hub central qui relie VPC et réseaux sur site.",
+  "role": "Routeur régional géré qui relie de nombreux VPC, VPN et connexions Direct Connect via un point central (hub-and-spoke), évitant des dizaines de peerings VPC point à point.",
+  "why": [
+   "Une seule connexion par VPC, au lieu d'un maillage complexe.",
+   "Tables de routage multiples : segmentation prod / test / partagé.",
+   "Point central pour inspection et journalisation du trafic.",
+   "Partageable entre comptes via AWS RAM."
+  ],
+  "how": "Chaque VPC ou VPN est attaché (attachment) à la passerelle ; des tables de routage décident quelles attachments peuvent se parler.",
+  "when": [
+   "Entreprise multi-comptes avec dizaines de VPC.",
+   "Centraliser l'inspection du trafic dans un VPC de sécurité.",
+   "Brancher un site sur plusieurs VPC avec un seul VPN."
+  ],
+  "notwhen": "Pour deux VPC seulement, un peering suffit et coûte moins ; pour exposer un service précis, PrivateLink.",
+  "derja": "Transit Gateway, c'est la grande gare routière centrale : au lieu que chaque ville construise une route vers toutes les autres, tout le monde passe par la gare. Et tu décides quels bus se croisent.",
+  "use": [
+   {
+    "k": "vpc",
+    "t": "VPC Prod"
+   },
+   {
+    "k": "tgw",
+    "t": "Transit Gateway"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC Dev"
+   },
+   {
+    "k": "vpn",
+    "t": "VPN / Direct Connect"
+   }
+  ],
+  "vs": [
+   {
+    "k": "vpc",
+    "d": "Le peering est direct, sans transit : non transitif."
+   },
+   {
+    "k": "cloudwan",
+    "d": "Cloud WAN gère un réseau mondial multi-Régions ; Transit Gateway est régional."
+   }
+  ],
+  "exam": [
+   "Le peering de VPC n'est pas transitif ; Transit Gateway permet le transit.",
+   "Les tables de routage de la TGW permettent d'isoler des environnements.",
+   "Une TGW est régionale ; le peering entre TGW permet de relier des Régions."
+  ],
+  "related": [
+   "vpc",
+   "vpn",
+   "directconnect",
+   "cloudwan",
+   "ram"
+  ],
+  "match": [
+   "Transit Gateway",
+   "TGW",
+   "hub-and-spoke"
+  ]
+ },
+ {
+  "k": "globalaccel",
+  "name": "AWS Global Accelerator",
+  "full": "AWS Global Accelerator",
+  "cat": "Réseau & edge",
+  "tagline": "Des IP fixes mondiales vers ton application, via le réseau AWS.",
+  "role": "Fournit des adresses IP anycast statiques qui reçoivent le trafic à l'edge AWS le plus proche, puis l'acheminent sur le réseau mondial AWS vers tes endpoints sains (ALB, NLB, EC2, IP Elastic).",
+  "why": [
+   "IP fixes à autoriser dans des pare-feux clients.",
+   "Trafic entre l'edge et l'application sur le réseau AWS, pas sur Internet.",
+   "Shield Standard protège l'accélérateur contre les DDoS courants.",
+   "Basculement rapide vers un endpoint sain d'une autre Région."
+  ],
+  "how": "Les utilisateurs se connectent aux IP anycast de l'accélérateur ; il choisit l'endpoint sain le plus proche selon des health checks et des poids.",
+  "when": [
+   "Application TCP/UDP mondiale exigeant latence stable.",
+   "Clients qui doivent mettre sur liste blanche des IP fixes.",
+   "Basculement multi-Régions rapide."
+  ],
+  "notwhen": "Ne met pas le contenu en cache : pour du contenu statique HTTP, CloudFront est plus adapté.",
+  "derja": "Global Accelerator, c'est un numéro unique, toujours le même, qui te met directement sur la voie rapide de l'autoroute AWS. Tu ne cours plus entre les routes secondaires d'Internet.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Utilisateur"
+   },
+   {
+    "k": "globalaccel",
+    "t": "IP anycast (edge)"
+   },
+   {
+    "k": "elb",
+    "t": "ALB / NLB régional"
+   },
+   {
+    "k": "ec2",
+    "t": "Application"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudfront",
+    "d": "CloudFront met en cache du contenu HTTP ; Global Accelerator route du trafic sans cache, y compris TCP/UDP."
+   },
+   {
+    "k": "route53",
+    "d": "Route 53 repose sur le DNS (mise en cache côté client) ; Global Accelerator utilise des IP anycast fixes."
+   }
+  ],
+  "exam": [
+   "Global Accelerator = IP anycast statiques, pas de cache.",
+   "Il fonctionne à la couche 4 (TCP/UDP) ; CloudFront est orienté HTTP(S).",
+   "Les IP statiques simplifient la liste blanche chez les clients."
+  ],
+  "related": [
+   "cloudfront",
+   "elb",
+   "route53",
+   "shield",
+   "vpc"
+  ],
+  "match": [
+   "Global Accelerator",
+   "anycast"
+  ]
+ },
+ {
+  "k": "apigw",
+  "name": "Amazon API Gateway",
+  "full": "Amazon API Gateway",
+  "cat": "Réseau & edge",
+  "tagline": "La porte d'entrée sécurisée de tes API.",
+  "role": "Service géré pour créer, publier et protéger des API REST, HTTP et WebSocket. Il gère l'authentification, la limitation de débit, la validation des requêtes et l'intégration avec Lambda ou des backends.",
+  "why": [
+   "Authentifie avant le backend : IAM (SigV4), Cognito, ou Lambda authorizer.",
+   "Throttling et quotas limitent abus et attaques par volume.",
+   "AWS WAF peut protéger les API REST.",
+   "Les API privées restent accessibles uniquement depuis un VPC via endpoint."
+  ],
+  "how": "Le client appelle une URL ; API Gateway vérifie l'authentification, applique throttling et validation, puis transmet à l'intégration (Lambda, ALB, HTTP).",
+  "when": [
+   "Exposer une API serverless adossée à Lambda.",
+   "Vérifier des jetons JWT (Cognito, OIDC) avant le backend.",
+   "Appliquer quotas par client via usage plans."
+  ],
+  "notwhen": "Pour du simple load balancing HTTP interne, un ALB suffit et coûte moins ; les clés d'API ne sont pas un mécanisme d'authentification fiable.",
+  "derja": "API Gateway, c'est le vigile à l'entrée de l'administration : il vérifie ta carte, limite combien de personnes entrent par minute, et seulement ensuite te laisse voir le bon bureau. Le bureau (backend) ne voit jamais la foule.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Client"
+   },
+   {
+    "k": "apigw",
+    "t": "API Gateway"
+   },
+   {
+    "k": "cognito",
+    "t": "Cognito / authorizer"
+   },
+   {
+    "k": "lambda",
+    "t": "Lambda"
+   }
+  ],
+  "vs": [
+   {
+    "k": "elb",
+    "d": "L'ALB répartit le trafic ; API Gateway ajoute authentification, quotas et gestion d'API."
+   }
+  ],
+  "exam": [
+   "Authorizers : IAM, Cognito user pool, Lambda authorizer.",
+   "Les API keys servent à mesurer et limiter, pas à authentifier fortement.",
+   "Throttling au niveau du compte, de l'étape (stage) et de la méthode.",
+   "Les API privées s'exposent via un interface VPC endpoint."
+  ],
+  "related": [
+   "lambda",
+   "cognito",
+   "waf",
+   "iam",
+   "cloudwatch"
+  ],
+  "match": [
+   "API Gateway",
+   "API REST",
+   "authorizer",
+   "throttling"
+  ]
+ },
+ {
+  "k": "appmesh",
+  "name": "AWS App Mesh",
+  "full": "AWS App Mesh",
+  "cat": "Réseau & edge",
+  "tagline": "Un maillage de services (service mesh) basé sur Envoy.",
+  "role": "Service de maillage qui standardise la communication entre microservices via des proxys Envoy : routage, observabilité et TLS entre services. AWS a annoncé la fin de son support au 30 septembre 2026.",
+  "why": [
+   "Chiffrement TLS et mTLS entre microservices.",
+   "Routage et reprises (retries) uniformes sans changer le code.",
+   "Observabilité du trafic entre services."
+  ],
+  "how": "Un proxy Envoy est déployé à côté de chaque service ; App Mesh en pousse la configuration (routes, politiques TLS) et le trafic transite par ces proxys.",
+  "when": [
+   "Comprendre un maillage existant sur ECS ou EKS.",
+   "Étudier le principe du service mesh pour l'examen."
+  ],
+  "notwhen": "Service en fin de support (30 septembre 2026) : pour de nouveaux projets, utilise ECS Service Connect ou VPC Lattice.",
+  "derja": "Le service mesh, c'est un petit facteur personnel posté devant chaque service : tous les messages passent par lui, il les chiffre, les compte et les redirige. Mais AWS ferme ce bureau, donc on étudie l'idée sans bâtir dessus.",
+  "use": [
+   {
+    "k": "ecs",
+    "t": "Service A"
+   },
+   {
+    "k": "appmesh",
+    "t": "Proxy Envoy (sidecar)"
+   },
+   {
+    "k": "appmesh",
+    "t": "Proxy Envoy (sidecar)"
+   },
+   {
+    "k": "ecs",
+    "t": "Service B"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudmap",
+    "d": "Cloud Map sert à la découverte de services ; App Mesh gère le trafic entre eux."
+   }
+  ],
+  "exam": [
+   "Un service mesh ajoute mTLS entre microservices sans modifier le code applicatif.",
+   "Le plan de données repose sur des proxys Envoy en sidecar.",
+   "App Mesh : fin de support annoncée au 30 septembre 2026."
+  ],
+  "related": [
+   "ecs",
+   "eks",
+   "cloudmap",
+   "acm",
+   "vpc"
+  ],
+  "match": [
+   "App Mesh",
+   "service mesh",
+   "Envoy"
+  ]
+ },
+ {
+  "k": "cloudmap",
+  "name": "AWS Cloud Map",
+  "full": "AWS Cloud Map",
+  "cat": "Réseau & edge",
+  "tagline": "L'annuaire dynamique de tes services et ressources.",
+  "role": "Service de découverte : enregistre des ressources (services, instances, conteneurs) sous des noms personnalisés et leur état de santé. Les applications les retrouvent par DNS ou via l'API, sans adresses codées en dur.",
+  "why": [
+   "Évite de coder des IP en dur dans l'application.",
+   "Ne renvoie que les instances saines (health checks).",
+   "Accès à l'API de découverte contrôlé par IAM."
+  ],
+  "how": "Tu crées un namespace, des services et enregistres des instances avec leurs attributs ; les clients résolvent ces noms en DNS ou via l'API DiscoverInstances.",
+  "when": [
+   "Microservices ECS qui doivent se trouver entre eux.",
+   "Exposer des ressources dans un namespace DNS privé."
+  ],
+  "notwhen": "Cloud Map ne fait pas de load balancing ni de sécurité réseau : il indique où se trouve le service, rien de plus.",
+  "derja": "Cloud Map, c'est l'annuaire de l'immeuble : tu cherches « le plombier » et il te donne l'étage et la porte à jour, même si le plombier a déménagé. Il ne garde pas la porte, il te dit seulement où aller.",
+  "use": [
+   {
+    "k": "ecs",
+    "t": "Service A"
+   },
+   {
+    "k": "cloudmap",
+    "t": "Cloud Map (namespace)"
+   },
+   {
+    "k": "ecs",
+    "t": "Service B"
+   }
+  ],
+  "vs": [
+   {
+    "k": "route53",
+    "d": "Route 53 gère des zones DNS générales ; Cloud Map enregistre et suit dynamiquement des instances de services."
+   }
+  ],
+  "exam": [
+   "Cloud Map = découverte de services, DNS ou API.",
+   "ECS Service Discovery s'appuie sur Cloud Map.",
+   "Les health checks évitent de renvoyer une instance défaillante."
+  ],
+  "related": [
+   "ecs",
+   "route53",
+   "appmesh",
+   "vpc"
+  ],
+  "match": [
+   "Cloud Map",
+   "service discovery"
+  ]
+ },
+ {
+  "k": "cloudwan",
+  "name": "AWS Cloud WAN",
+  "full": "AWS Cloud WAN",
+  "cat": "Réseau & edge",
+  "tagline": "Un réseau mondial géré par une politique centrale.",
+  "role": "Service qui construit et gère un réseau étendu mondial reliant VPC, sites et connexions via un réseau central (core network) décrit par une politique unique, avec des segments pour isoler les environnements.",
+  "why": [
+   "Segmentation globale (prod, dev, partenaires) définie en un endroit.",
+   "Une politique centrale remplace des configurations Région par Région.",
+   "Visibilité de bout en bout via Network Manager."
+  ],
+  "how": "Tu écris une core network policy (Régions, segments, règles de partage) ; AWS déploie les edges du réseau, auxquels tu attaches VPC, VPN et sites.",
+  "when": [
+   "Entreprise multi-Régions avec plusieurs sites.",
+   "Isoler des segments de réseau à l'échelle mondiale."
+  ],
+  "notwhen": "Pour une seule Région ou peu de VPC, Transit Gateway est plus simple.",
+  "derja": "Cloud WAN, c'est le plan directeur d'un réseau routier national : un seul règlement décide quelles villes se relient et lesquelles restent séparées, partout dans le pays.",
+  "use": [
+   {
+    "k": "building",
+    "t": "Sites"
+   },
+   {
+    "k": "cloudwan",
+    "t": "Core network (segments)"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC multi-Régions"
+   }
+  ],
+  "vs": [
+   {
+    "k": "tgw",
+    "d": "Transit Gateway est régional ; Cloud WAN pilote un réseau mondial par politique."
+   }
+  ],
+  "exam": [
+   "Core network policy : définit segments et Régions.",
+   "Segments : domaines de routage isolés les uns des autres.",
+   "Se gère avec Network Manager."
+  ],
+  "related": [
+   "tgw",
+   "vpc",
+   "vpn",
+   "directconnect"
+  ],
+  "match": [
+   "Cloud WAN",
+   "core network"
+  ]
+ },
+ {
+  "k": "ec2",
+  "name": "Amazon EC2",
+  "full": "Amazon Elastic Compute Cloud",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Des serveurs virtuels à la demande, que tu administres.",
+  "role": "Service de machines virtuelles (instances) : tu choisis l'AMI, le type, le réseau et le stockage. AWS gère le matériel et l'hyperviseur ; toi, tu gères le système, les correctifs, les applications et les security groups.",
+  "why": [
+   "Un rôle IAM via instance profile évite de stocker des clés d'accès sur le serveur.",
+   "Les security groups limitent les ports ouverts au strict nécessaire.",
+   "Les volumes EBS peuvent être chiffrés avec KMS, sans changer l'application.",
+   "IMDSv2 protège les identifiants temporaires contre le vol via SSRF."
+  ],
+  "how": "Tu lances une instance depuis une AMI dans un subnet ; elle reçoit une IP privée, des security groups et, si besoin, un rôle dont les identifiants temporaires viennent du service de métadonnées (IMDS).",
+  "when": [
+   "Applications nécessitant un contrôle total du système d'exploitation.",
+   "Migrer un serveur existant vers le cloud (lift and shift).",
+   "Charges prévisibles ou spécifiques (GPU, mémoire)."
+  ],
+  "notwhen": "Si tu ne veux pas gérer l'OS et les correctifs, regarde Lambda, Fargate ou Elastic Beanstalk.",
+  "derja": "EC2, c'est un local que tu loues vide : les murs et l'électricité sont à AWS, mais tout ce qui est dedans, serrures, meubles, réparations, c'est toi. Si tu oublies de réparer la serrure, ce n'est pas le propriétaire qui sera responsable.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Instance EC2"
+   },
+   {
+    "k": "role",
+    "t": "Rôle (instance profile)"
+   },
+   {
+    "k": "sts",
+    "t": "Identifiants temporaires"
+   },
+   {
+    "k": "s3",
+    "t": "Accès S3 sans clé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "lambda",
+    "d": "Lambda : pas de serveur à administrer, exécution par événement."
+   },
+   {
+    "k": "fargate",
+    "d": "Fargate : conteneurs sans gérer les instances sous-jacentes."
+   }
+  ],
+  "exam": [
+   "Modèle de responsabilité partagée : pour EC2 (IaaS), le client gère l'OS, les correctifs et le pare-feu.",
+   "Utiliser un rôle IAM (instance profile) plutôt que des clés d'accès dans l'instance.",
+   "IMDSv2 exige un jeton de session ; recommandé face aux attaques SSRF.",
+   "Les security groups sont stateful ; l'accès SSH peut être remplacé par SSM Session Manager."
+  ],
+  "related": [
+   "iam",
+   "vpc",
+   "ebs",
+   "kms",
+   "ssm"
+  ],
+  "match": [
+   "EC2",
+   "instance",
+   "AMI",
+   "IMDS",
+   "instance profile"
+  ]
+ },
+ {
+  "k": "lambda",
+  "name": "AWS Lambda",
+  "full": "AWS Lambda",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Du code exécuté sans serveur à gérer.",
+  "role": "Service de calcul serverless : tu déposes une fonction, AWS l'exécute en réponse à des événements (API, S3, file, planification) et gère les serveurs, l'OS et la montée en charge des runtimes gérés.",
+  "why": [
+   "Aucun serveur ni SSH à sécuriser : surface d'attaque côté infrastructure réduite.",
+   "Chaque fonction a son propre rôle d'exécution : moindre privilège précis.",
+   "Chaque exécution tourne dans un environnement isolé.",
+   "Les variables d'environnement sont chiffrées au repos avec KMS."
+  ],
+  "how": "Un événement déclenche la fonction ; Lambda crée un environnement d'exécution, assume le rôle d'exécution de la fonction et lance le code. La resource-based policy décide qui peut invoquer.",
+  "when": [
+   "Réponse automatique à un événement (ex. finding GuardDuty vers remédiation).",
+   "Backend d'API avec API Gateway.",
+   "Traitement léger de fichiers déposés dans S3."
+  ],
+  "notwhen": "Durée maximale d'une exécution : 15 minutes ; pour des traitements longs ou continus, utilise Fargate, ECS ou EC2.",
+  "derja": "Lambda, c'est le taxi à la course : tu paies seulement quand tu montes, et tu ne t'occupes ni du garage ni de l'entretien. Mais la clé que tu lui donnes (le rôle) doit ouvrir seulement la porte dont il a besoin.",
+  "use": [
+   {
+    "k": "eventbridge",
+    "t": "Événement"
+   },
+   {
+    "k": "lambda",
+    "t": "Fonction Lambda"
+   },
+   {
+    "k": "role",
+    "t": "Rôle d'exécution"
+   },
+   {
+    "k": "dynamodb",
+    "t": "Ressource accédée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ec2",
+    "d": "EC2 : contrôle total mais tu gères l'OS et les correctifs."
+   },
+   {
+    "k": "fargate",
+    "d": "Fargate : conteneurs longs, sans limite de 15 minutes."
+   }
+  ],
+  "exam": [
+   "Deux policies à distinguer : rôle d'exécution (ce que la fonction peut faire) et resource-based policy (qui peut l'invoquer).",
+   "Responsabilité partagée : pour les runtimes gérés, AWS patche l'OS et le runtime ; le client sécurise son code et ses dépendances.",
+   "Placer Lambda dans un VPC est optionnel ; nécessaire pour atteindre des ressources privées.",
+   "Ne pas stocker de secrets en clair : Secrets Manager ou Parameter Store."
+  ],
+  "related": [
+   "iam",
+   "apigw",
+   "eventbridge",
+   "kms",
+   "secrets"
+  ],
+  "match": [
+   "Lambda",
+   "serverless",
+   "execution role"
+  ]
+ },
+ {
+  "k": "fargate",
+  "name": "AWS Fargate",
+  "full": "AWS Fargate",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Des conteneurs sans serveur à administrer.",
+  "role": "Moteur de calcul serverless pour conteneurs, utilisable avec ECS et EKS : tu décris les ressources de la tâche, AWS fournit et gère les machines sous-jacentes. Tu n'as ni instance à patcher ni OS hôte à administrer.",
+  "why": [
+   "Pas d'hôte à durcir ni à patcher : moins de responsabilité côté client.",
+   "Chaque tâche est isolée dans sa propre frontière, sans partager le noyau avec d'autres tâches.",
+   "Chaque tâche a sa propre interface réseau et ses security groups.",
+   "Un rôle de tâche séparé donne des droits précis à chaque conteneur."
+  ],
+  "how": "Tu définis une tâche ECS ou un pod EKS ; Fargate lance un environnement dédié avec sa propre interface réseau dans ton VPC (mode awsvpc) et applique les rôles IAM demandés.",
+  "when": [
+   "Faire tourner des conteneurs sans administrer de cluster d'instances.",
+   "Microservices à charge variable.",
+   "Réduire la surface d'administration des hôtes."
+  ],
+  "notwhen": "Pas d'accès à l'hôte ni de conteneurs privilégiés : si tu as besoin d'un contrôle du noyau, de GPU ou d'agents spécifiques sur l'hôte, utilise EC2.",
+  "derja": "Fargate, c'est le café qui te prête une table propre pour chaque groupe : tu ne partages ni table ni plateau avec les autres clients, et tu ne nettoies pas la salle. Tu apportes seulement ton plat (le conteneur).",
+  "use": [
+   {
+    "k": "ecr",
+    "t": "Image ECR"
+   },
+   {
+    "k": "fargate",
+    "t": "Tâche Fargate"
+   },
+   {
+    "k": "role",
+    "t": "Rôle de tâche"
+   },
+   {
+    "k": "vpc",
+    "t": "Interface réseau (VPC)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ec2",
+    "d": "Type de lancement EC2 : tu gères les instances et l'OS hôte."
+   },
+   {
+    "k": "lambda",
+    "d": "Lambda : exécution courte par événement, sans conteneur long."
+   }
+  ],
+  "exam": [
+   "Fargate est un mode de lancement (launch type), pas un orchestrateur : il s'utilise avec ECS ou EKS.",
+   "Responsabilité partagée : AWS gère l'hôte ; le client gère l'image, le code et les rôles.",
+   "Mode réseau awsvpc obligatoire : une interface réseau et des security groups par tâche.",
+   "Distinguer rôle de tâche (permissions de l'application) et rôle d'exécution (tirer l'image, écrire les logs)."
+  ],
+  "related": [
+   "ecs",
+   "eks",
+   "ecr",
+   "vpc",
+   "iam"
+  ],
+  "match": [
+   "Fargate",
+   "serverless container"
+  ]
+ },
+ {
+  "k": "autoscaling",
+  "name": "Auto Scaling",
+  "full": "Amazon EC2 Auto Scaling",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Ajuste automatiquement le nombre de serveurs.",
+  "role": "Maintient le bon nombre d'instances EC2 dans un groupe Auto Scaling : ajoute ou retire des instances selon la charge ou un calendrier, et remplace automatiquement les instances défaillantes, sur plusieurs zones de disponibilité.",
+  "why": [
+   "Remplace toute instance défaillante ou compromise par une neuve.",
+   "Une infrastructure remplaçable et cohérente (launch template) limite la dérive de configuration.",
+   "Un correctif OS passe par une nouvelle AMI et un renouvellement d'instances.",
+   "Absorbe un pic de charge ; limiter le nombre maximal borne les coûts."
+  ],
+  "how": "Un groupe référence un launch template (AMI, type, rôle, security groups, IMDSv2) et un nombre min / souhaité / max. Des politiques de scaling et les health checks ajustent la flotte.",
+  "when": [
+   "Application web derrière un load balancer, avec trafic variable.",
+   "Déploiement d'une nouvelle AMI par instance refresh.",
+   "Haute disponibilité sur plusieurs AZ."
+  ],
+  "notwhen": "Ne remplace pas la protection contre le DDoS : une montée en charge due à une attaque coûte cher ; combine avec Shield et WAF.",
+  "derja": "Auto Scaling, c'est le patron de café qui appelle plus de serveurs au moment du rush du vendredi et les renvoie à la maison après. Si un serveur tombe malade, il est remplacé tout de suite.",
+  "use": [
+   {
+    "k": "cloudwatch",
+    "t": "Métrique (charge)"
+   },
+   {
+    "k": "autoscaling",
+    "t": "Groupe Auto Scaling"
+   },
+   {
+    "k": "ec2",
+    "t": "Instances (launch template)"
+   },
+   {
+    "k": "elb",
+    "t": "Load balancer"
+   }
+  ],
+  "vs": [
+   {
+    "k": "lambda",
+    "d": "Lambda monte en charge sans groupe à gérer ; Auto Scaling gère une flotte d'instances."
+   }
+  ],
+  "exam": [
+   "Le launch template définit instance profile, security groups, IMDSv2 et chiffrement.",
+   "Auto Scaling fonctionne sur plusieurs zones de disponibilité pour la haute disponibilité.",
+   "Les health checks (EC2 ou ELB) déclenchent le remplacement d'instances.",
+   "Une attaque DDoS peut provoquer un scale-out coûteux : le plafond max limite le risque."
+  ],
+  "related": [
+   "ec2",
+   "elb",
+   "cloudwatch",
+   "vpc",
+   "imagebuilder"
+  ],
+  "match": [
+   "Auto Scaling",
+   "scaling",
+   "launch template"
+  ]
+ },
+ {
+  "k": "beanstalk",
+  "name": "AWS Elastic Beanstalk",
+  "full": "AWS Elastic Beanstalk",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Déploie ton application, AWS monte l'infrastructure.",
+  "role": "Service PaaS : tu fournis ton code, Elastic Beanstalk crée et configure les ressources sous-jacentes (EC2, load balancer, Auto Scaling, surveillance). Les ressources restent visibles dans ton compte.",
+  "why": [
+   "Déploiement rapide sans assembler soi-même l'infrastructure.",
+   "La plateforme (OS, runtime) est gérée par AWS ; le client garde son application et ses données.",
+   "Les mises à jour de plateforme peuvent être gérées automatiquement.",
+   "Instance profile et service role donnent des droits précis."
+  ],
+  "how": "Tu charges une version de l'application dans un environnement ; Beanstalk provisionne instances, load balancer et Auto Scaling, puis déploie et surveille le code.",
+  "when": [
+   "Déployer rapidement une application web (Java, .NET, Node.js, Python…).",
+   "Équipe de développement sans expertise infrastructure.",
+   "Prototype devenant une application de production."
+  ],
+  "notwhen": "Moins de contrôle fin que EC2 ou une architecture conteneurs ; pour du serverless ou des microservices à grande échelle, regarde Lambda ou ECS.",
+  "derja": "Elastic Beanstalk, c'est le menu complet au restaurant : tu donnes ton plat (le code), la cuisine s'installe toute seule. Mais c'est toujours toi qui es responsable de ce que contient le plat.",
+  "use": [
+   {
+    "k": "beanstalk",
+    "t": "Code de l'application"
+   },
+   {
+    "k": "elb",
+    "t": "Load balancer"
+   },
+   {
+    "k": "autoscaling",
+    "t": "Auto Scaling"
+   },
+   {
+    "k": "ec2",
+    "t": "Instances EC2"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ec2",
+    "d": "EC2 : tu assembles tout toi-même, contrôle total."
+   },
+   {
+    "k": "lambda",
+    "d": "Lambda : plus de serveur du tout, exécution par événement."
+   }
+  ],
+  "exam": [
+   "Beanstalk est du PaaS : AWS gère la plateforme, le client gère ses applications et ses données.",
+   "Il utilise un service role (pour Beanstalk) et un instance profile (pour les instances).",
+   "Les ressources créées (EC2, ELB…) restent dans ton compte, et tu payes ces ressources, pas Beanstalk lui-même."
+  ],
+  "related": [
+   "ec2",
+   "elb",
+   "autoscaling",
+   "iam",
+   "cloudwatch"
+  ],
+  "match": [
+   "Beanstalk",
+   "PaaS"
+  ]
+ },
+ {
+  "k": "nitro",
+  "name": "AWS Nitro System",
+  "full": "AWS Nitro System",
+  "cat": "Calcul & conteneurs",
+  "tagline": "La base matérielle qui isole et protège EC2.",
+  "role": "Plateforme matérielle et logicielle d'EC2 : des cartes Nitro dédiées prennent en charge réseau, stockage et sécurité, avec un hyperviseur très léger. Elle isole les instances et exclut l'accès des opérateurs AWS à la mémoire des clients.",
+  "why": [
+   "Isolation renforcée entre clients : réseau et stockage déportés sur du matériel dédié.",
+   "Nitro Security Chip : racine de confiance matérielle qui contrôle le firmware.",
+   "Aucun moyen technique pour les opérateurs AWS d'accéder à la mémoire de ton instance.",
+   "Nitro Enclaves : environnement isolé pour traiter des données très sensibles."
+  ],
+  "how": "Les fonctions réseau, EBS et sécurité tournent sur des cartes Nitro séparées du processeur principal ; l'hyperviseur léger ne gère que CPU et mémoire, laissant presque toutes les ressources à l'instance.",
+  "when": [
+   "Comprendre pourquoi les instances EC2 modernes sont isolées entre clients.",
+   "Isoler un traitement sensible (clés, données personnelles) avec Nitro Enclaves.",
+   "Utiliser NitroTPM pour mesurer et attester l'état de démarrage."
+  ],
+  "notwhen": "Nitro est la fondation d'EC2, pas un service que tu appelles : la sécurité de l'OS et de l'application reste à ta charge.",
+  "derja": "Nitro, c'est un immeuble où chaque appartement a ses propres compteurs et sa propre porte blindée, gérés par un gardien dans un local séparé. Même le gardien ne peut pas entrer dans ton appartement.",
+  "use": [
+   {
+    "k": "nitro",
+    "t": "Cartes Nitro"
+   },
+   {
+    "k": "ec2",
+    "t": "Instance EC2"
+   },
+   {
+    "k": "kms",
+    "t": "Attestation et clé"
+   },
+   {
+    "k": "ebs",
+    "t": "Volume chiffré"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ec2",
+    "d": "EC2 est le service que tu utilises ; Nitro est la plateforme qui l'exécute en sous-main."
+   }
+  ],
+  "exam": [
+   "Nitro System : cartes dédiées + hyperviseur léger + Nitro Security Chip.",
+   "Nitro Enclaves : VM isolée sans réseau externe, sans stockage persistant ni accès interactif, avec attestation cryptographique.",
+   "Les opérateurs AWS n'ont aucun moyen technique d'accéder à la mémoire des instances EC2 sur Nitro."
+  ],
+  "related": [
+   "ec2",
+   "kms",
+   "ebs",
+   "vpc",
+   "outposts"
+  ],
+  "match": [
+   "Nitro",
+   "enclave",
+   "hyperviseur",
+   "hypervisor"
+  ]
+ },
+ {
+  "k": "ecs",
+  "name": "Amazon ECS",
+  "full": "Amazon Elastic Container Service",
+  "cat": "Calcul & conteneurs",
+  "tagline": "L'orchestrateur de conteneurs d'AWS.",
+  "role": "Service d'orchestration de conteneurs : tu décris tes conteneurs dans une task definition, ECS les place, les lance, les relance et les met à l'échelle sur des instances EC2 ou sur Fargate.",
+  "why": [
+   "Un rôle de tâche par service : chaque conteneur a ses propres permissions IAM.",
+   "Mode awsvpc : chaque tâche a son interface réseau et ses security groups.",
+   "Les secrets viennent de Secrets Manager ou Parameter Store, pas du code.",
+   "Les images sont tirées d'ECR, qui peut les scanner."
+  ],
+  "how": "Un cluster contient des services ; un service maintient le nombre de tâches voulu à partir d'une task definition (image, CPU, mémoire, rôles, réseau) sur EC2 ou Fargate.",
+  "when": [
+   "Faire tourner des microservices conteneurisés sans la complexité de Kubernetes.",
+   "Charges planifiées ou batch en conteneurs.",
+   "Application web derrière un ALB."
+  ],
+  "notwhen": "Spécifique à AWS : si tu veux la portabilité Kubernetes ou son écosystème, choisis EKS.",
+  "derja": "ECS, c'est le chef de salle d'un grand restaurant : il sait combien de plats doivent sortir, relance un cuisinier si l'un est absent et place chaque commande au bon poste. Les cuisiniers sont les conteneurs.",
+  "use": [
+   {
+    "k": "ecr",
+    "t": "Image dans ECR"
+   },
+   {
+    "k": "ecs",
+    "t": "Service ECS"
+   },
+   {
+    "k": "fargate",
+    "t": "Tâches Fargate / EC2"
+   },
+   {
+    "k": "elb",
+    "t": "Load balancer"
+   }
+  ],
+  "vs": [
+   {
+    "k": "eks",
+    "d": "EKS : orchestrateur Kubernetes, ouvert et portable, plus complexe."
+   },
+   {
+    "k": "fargate",
+    "d": "Fargate : moteur de calcul sans serveur qu'ECS peut utiliser."
+   }
+  ],
+  "exam": [
+   "Task role : permissions de l'application ; task execution role : permissions d'ECS pour tirer l'image, écrire les logs et lire les secrets.",
+   "ECS peut tourner sur EC2 (tu gères les instances) ou Fargate (serverless).",
+   "Mode réseau awsvpc : security group par tâche.",
+   "ECS Exec utilise Systems Manager pour ouvrir un shell dans un conteneur."
+  ],
+  "related": [
+   "fargate",
+   "ecr",
+   "iam",
+   "elb",
+   "secrets"
+  ],
+  "match": [
+   "ECS",
+   "task definition",
+   "conteneur",
+   "container"
+  ]
+ },
+ {
+  "k": "eks",
+  "name": "Amazon EKS",
+  "full": "Amazon Elastic Kubernetes Service",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Kubernetes géré par AWS.",
+  "role": "Service Kubernetes managé : AWS exploite le plan de contrôle (API server, etcd) sur plusieurs zones de disponibilité ; tu déploies tes pods sur des nœuds EC2 ou Fargate avec les API Kubernetes standard.",
+  "why": [
+   "Plan de contrôle géré et haute disponibilité par AWS.",
+   "IRSA ou EKS Pod Identity : un rôle IAM par pod, pas par nœud.",
+   "Chiffrement des secrets Kubernetes avec une clé KMS.",
+   "Accès à l'API configurable : public, privé ou les deux."
+  ],
+  "how": "Tu crées un cluster ; l'authentification AWS est reliée à RBAC Kubernetes ; tes workloads s'exécutent sur des nœuds que tu gères (node groups) ou sur Fargate.",
+  "when": [
+   "Organisation déjà standardisée sur Kubernetes.",
+   "Portabilité entre cloud et sur site.",
+   "Écosystème d'outils Kubernetes (Helm, opérateurs…)."
+  ],
+  "notwhen": "Plus complexe qu'ECS : mises à niveau de version, sécurité des nœuds et des pods à ta charge ; pour des besoins simples, ECS suffit.",
+  "derja": "EKS, c'est le grand marché de Sousse géré par la municipalité : la mairie s'occupe du bâtiment et de la sécurité de l'entrée (plan de contrôle), mais chaque commerçant (toi) reste responsable de ses stands et de sa marchandise.",
+  "use": [
+   {
+    "k": "eks",
+    "t": "Cluster EKS"
+   },
+   {
+    "k": "ec2",
+    "t": "Nœuds EC2 / Fargate"
+   },
+   {
+    "k": "role",
+    "t": "Rôle IAM par pod"
+   },
+   {
+    "k": "s3",
+    "t": "Accès S3"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ecs",
+    "d": "ECS : plus simple et propre à AWS, sans API Kubernetes."
+   },
+   {
+    "k": "fargate",
+    "d": "Fargate : nœuds serverless utilisables par EKS."
+   }
+  ],
+  "exam": [
+   "Responsabilité partagée : AWS gère le plan de contrôle ; le client gère les nœuds (sauf Fargate), les pods et les droits.",
+   "Les logs du plan de contrôle sont à activer explicitement.",
+   "IRSA associe un rôle IAM à un service account Kubernetes via OIDC.",
+   "GuardDuty EKS Protection surveille l'audit et le runtime des clusters."
+  ],
+  "related": [
+   "ecr",
+   "iam",
+   "kms",
+   "guardduty",
+   "fargate"
+  ],
+  "match": [
+   "EKS",
+   "Kubernetes",
+   "pod"
+  ]
+ },
+ {
+  "k": "ecr",
+  "name": "Amazon ECR",
+  "full": "Amazon Elastic Container Registry",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Le registre privé de tes images de conteneurs.",
+  "role": "Registre géré pour stocker, versionner et distribuer des images de conteneurs. L'accès est contrôlé par IAM et des repository policies, avec chiffrement au repos et analyse de vulnérabilités.",
+  "why": [
+   "Images privées, accessibles seulement aux identités autorisées.",
+   "L'analyse de vulnérabilités détecte des CVE avant le déploiement.",
+   "Tags immuables : empêchent de remplacer une image déjà validée.",
+   "Chiffrement au repos par défaut, avec option clé KMS."
+  ],
+  "how": "Tu authentifies Docker auprès d'ECR (jeton temporaire valable 12 heures), puis tu pousses et tires des images ; ECS, EKS et Lambda les tirent via leur rôle IAM.",
+  "when": [
+   "Stocker les images d'une chaîne CI/CD.",
+   "Scanner les images avant production (Inspector pour le scan enrichi).",
+   "Répliquer des images entre Régions ou comptes."
+  ],
+  "notwhen": "Registre non public par défaut ; pour publier des images ouvertes à tous, utilise ECR Public.",
+  "derja": "ECR, c'est l'entrepôt fermé à clé où tu ranges les cartons de marchandise prêts à livrer. On vérifie chaque carton à l'entrée, et on empêche quelqu'un de changer l'étiquette d'un carton déjà validé.",
+  "use": [
+   {
+    "k": "codebuild",
+    "t": "Build de l'image"
+   },
+   {
+    "k": "ecr",
+    "t": "ECR (scan, tags)"
+   },
+   {
+    "k": "inspector",
+    "t": "Analyse CVE"
+   },
+   {
+    "k": "ecs",
+    "t": "Déploiement ECS / EKS"
+   }
+  ],
+  "vs": [
+   {
+    "k": "s3",
+    "d": "S3 stocke des objets quelconques ; ECR comprend le format d'image conteneur, ses tags et son scan."
+   }
+  ],
+  "exam": [
+   "Tag immutability : un tag ne peut plus pointer vers une autre image.",
+   "Analyse basique ou enrichie (via Amazon Inspector) ; scan au push possible.",
+   "Contrôle d'accès : permissions IAM et repository policies.",
+   "Un interface VPC endpoint permet de tirer les images sans passer par Internet."
+  ],
+  "related": [
+   "ecs",
+   "eks",
+   "inspector",
+   "kms",
+   "codebuild"
+  ],
+  "match": [
+   "ECR",
+   "image",
+   "registry"
+  ]
+ },
+ {
+  "k": "outposts",
+  "name": "AWS Outposts",
+  "full": "AWS Outposts",
+  "cat": "Calcul & conteneurs",
+  "tagline": "L'infrastructure AWS installée dans ton propre datacenter.",
+  "role": "Racks ou serveurs AWS installés chez toi, qui étendent une Région AWS : mêmes API, outils et services (EC2, EBS, ECS…) mais exécutés sur site. Ils restent reliés à leur Région d'attache.",
+  "why": [
+   "Garde les données et le calcul sur site (latence, résidence des données).",
+   "Même modèle IAM et mêmes API qu'en Région : gouvernance homogène.",
+   "Fondé sur Nitro : même isolation matérielle qu'EC2.",
+   "Un VPC peut s'étendre jusqu'à l'Outpost."
+  ],
+  "how": "L'Outpost se rattache à une zone de disponibilité d'une Région via une service link (connexion chiffrée) ; un subnet de ton VPC est créé sur l'Outpost et un local gateway relie le réseau local.",
+  "when": [
+   "Systèmes industriels ou de santé nécessitant une latence très faible.",
+   "Exigences de résidence des données dans un pays ou un site.",
+   "Migration progressive d'un datacenter vers AWS."
+  ],
+  "notwhen": "Tu héberges le matériel : sécurité physique, alimentation et réseau du site restent à ta charge ; ce n'est pas pour de petits besoins.",
+  "derja": "Outposts, c'est une succursale d'AWS dans ton garage : même carte d'accès, mêmes règles qu'au siège, mais c'est toi qui fermes la porte du local à clé et qui payes le courant.",
+  "use": [
+   {
+    "k": "building",
+    "t": "Ton datacenter"
+   },
+   {
+    "k": "outposts",
+    "t": "Outpost (rack AWS)"
+   },
+   {
+    "k": "vpn",
+    "t": "Service link chiffrée"
+   },
+   {
+    "k": "vpc",
+    "t": "Région AWS (VPC)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "localzones",
+    "d": "Local Zones : infrastructure AWS exploitée par AWS près d'une grande ville ; Outposts est chez toi."
+   },
+   {
+    "k": "wavelength",
+    "d": "Wavelength : calcul AWS au cœur d'un réseau 5G d'opérateur."
+   }
+  ],
+  "exam": [
+   "Responsabilité partagée : AWS gère le matériel et les services ; le client gère la sécurité physique du site, l'alimentation et le réseau.",
+   "Outposts étend le VPC et les API de la Région vers le site du client.",
+   "Use cases : faible latence locale et résidence des données.",
+   "Outposts existe en racks (infrastructure complète) et en serveurs (sites plus petits)."
+  ],
+  "related": [
+   "ec2",
+   "vpc",
+   "nitro",
+   "directconnect",
+   "localzones"
+  ],
+  "match": [
+   "Outposts",
+   "on-premises",
+   "hybrid"
+  ]
+ },
+ {
+  "k": "localzones",
+  "name": "AWS Local Zones",
+  "full": "AWS Local Zones",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Une extension de Région au plus près d'une grande ville.",
+  "role": "Extension d'une Région AWS placée près de grandes zones urbaines : tu y lances EC2, EBS ou des bases de données dans un subnet de ton VPC, pour obtenir une latence de quelques millisecondes pour les utilisateurs de cette ville.",
+  "why": [
+   "Latence réduite pour des utilisateurs éloignés de la Région.",
+   "Même VPC, mêmes IAM et security groups que dans la Région parente.",
+   "Données conservées dans une zone géographique précise (souvent un enjeu réglementaire).",
+   "Aucun matériel à acheter ou à héberger."
+  ],
+  "how": "Tu actives (opt-in) la Local Zone, tu crées un subnet dans ce VPC pointant vers elle, puis tu y places les ressources ; elle reste reliée à sa Région parente.",
+  "when": [
+   "Jeux, médias, streaming nécessitant une très faible latence.",
+   "Rendu graphique, visualisation, production vidéo.",
+   "Charges devant rester proches d'une ville pour la latence."
+  ],
+  "notwhen": "Catalogue de services réduit par rapport à la Région complète ; le nombre de zones disponibles dépend de chaque Région.",
+  "derja": "Local Zones, c'est un petit dépôt de ta marchandise ouvert dans le centre de la grande ville, relié à ton entrepôt principal. Les clients sont servis plus vite, mais le dépôt n'a pas tous les articles de l'entrepôt.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Utilisateurs de la ville"
+   },
+   {
+    "k": "localzones",
+    "t": "Local Zone"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC (même Région parente)"
+   },
+   {
+    "k": "server",
+    "t": "Région AWS parente"
+   }
+  ],
+  "vs": [
+   {
+    "k": "outposts",
+    "d": "Outposts : racks installés chez toi ; Local Zones : exploitées par AWS dans la ville."
+   },
+   {
+    "k": "cloudfront",
+    "d": "CloudFront met du contenu en cache ; Local Zones héberge du calcul et du stockage."
+   }
+  ],
+  "exam": [
+   "Local Zone = extension d'une Région, activation en opt-in.",
+   "Elle ne dispose que d'un sous-ensemble de services.",
+   "Les subnets d'une Local Zone font partie du VPC de la Région parente."
+  ],
+  "related": [
+   "vpc",
+   "ec2",
+   "outposts",
+   "wavelength",
+   "cloudfront"
+  ],
+  "match": [
+   "Local Zones",
+   "Local Zone"
+  ]
+ },
+ {
+  "k": "wavelength",
+  "name": "AWS Wavelength",
+  "full": "AWS Wavelength",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Du calcul AWS à l'intérieur des réseaux 5G.",
+  "role": "Déploie des Wavelength Zones : infrastructure de calcul et de stockage AWS installée dans les datacenters d'opérateurs télécom 5G, pour offrir une latence très faible aux appareils mobiles sans quitter le réseau de l'opérateur.",
+  "why": [
+   "Les appareils mobiles atteignent l'application sans sortir du réseau de l'opérateur.",
+   "Même VPC et mêmes IAM qu'une Région AWS.",
+   "La carrier gateway contrôle les flux entre réseau opérateur et VPC.",
+   "Adapté aux applications temps réel sensibles à la latence."
+  ],
+  "how": "Tu crées un subnet dans une Wavelength Zone de ton VPC et lances des instances dedans ; une carrier gateway les relie aux appareils via le réseau de l'opérateur.",
+  "when": [
+   "Jeux mobiles et streaming en temps réel.",
+   "Réalité augmentée ou virtuelle.",
+   "Applications de vidéo ou d'IA nécessitant une très faible latence."
+  ],
+  "notwhen": "Disponible seulement chez certains opérateurs et zones ; si la latence n'est pas critique, une Région classique suffit.",
+  "derja": "Wavelength, c'est installer ta boutique directement dans l'antenne de ton opérateur téléphonique, de sorte que la requête du mobile n'a presque pas de chemin à faire. C'est fait pour les applications qui ne tolèrent aucun retard.",
+  "use": [
+   {
+    "k": "mobile",
+    "t": "Appareil 5G"
+   },
+   {
+    "k": "wavelength",
+    "t": "Wavelength Zone"
+   },
+   {
+    "k": "ec2",
+    "t": "Instance EC2"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC (Région)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "localzones",
+    "d": "Local Zones : près d'une ville ; Wavelength : dans le réseau 5G d'un opérateur."
+   },
+   {
+    "k": "outposts",
+    "d": "Outposts : matériel chez le client."
+   }
+  ],
+  "exam": [
+   "Wavelength Zone = subnet du VPC hébergé dans le réseau d'un opérateur 5G.",
+   "La carrier gateway relie le VPC au réseau de l'opérateur (adresses carrier IP).",
+   "Usage type : latence ultra-faible pour mobiles."
+  ],
+  "related": [
+   "vpc",
+   "ec2",
+   "localzones",
+   "outposts",
+   "mobile"
+  ],
+  "match": [
+   "Wavelength",
+   "5G"
+  ]
+ },
+ {
+  "k": "apprunner",
+  "name": "AWS App Runner",
+  "full": "AWS App Runner",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Du code ou une image vers une URL HTTPS en quelques clics.",
+  "role": "Service managé qui construit et déploie une application web ou une API depuis du code source ou une image de conteneur, avec HTTPS et mise à l'échelle automatiques. Fermé aux nouveaux clients depuis le 30 avril 2026.",
+  "why": [
+   "Aucune infrastructure à configurer : HTTPS et scaling automatiques.",
+   "Deux rôles distincts : accès (tirer l'image) et instance (droits de l'application).",
+   "Un VPC connector permet d'atteindre des ressources privées.",
+   "Un accès entrant privé via un VPC endpoint est possible."
+  ],
+  "how": "Tu pointes vers un dépôt ou une image ECR ; App Runner la construit, la déploie derrière un load balancer géré, fournit un domaine HTTPS et ajuste le nombre d'instances.",
+  "when": [
+   "Comprendre un service existant déjà déployé avec App Runner.",
+   "Illustrer le niveau d'abstraction le plus élevé des conteneurs."
+  ],
+  "notwhen": "En mode maintenance depuis le 30 avril 2026, non ouvert aux nouveaux clients : AWS recommande ECS Express Mode pour de nouveaux projets.",
+  "derja": "App Runner, c'est le service clé en main : tu déposes ton plat, ils s'occupent de la cuisine, du service et de la salle. Pratique, mais AWS ne prend plus de nouveaux clients, donc pour un nouveau projet on regarde ailleurs.",
+  "use": [
+   {
+    "k": "ecr",
+    "t": "Image ECR ou code"
+   },
+   {
+    "k": "apprunner",
+    "t": "App Runner"
+   },
+   {
+    "k": "route53",
+    "t": "URL HTTPS"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC connector"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ecs",
+    "d": "ECS : plus de contrôle, orchestration complète."
+   },
+   {
+    "k": "beanstalk",
+    "d": "Beanstalk : PaaS avec EC2 visibles ; App Runner masque l'infrastructure."
+   }
+  ],
+  "exam": [
+   "App Runner = niveau d'abstraction le plus élevé pour des conteneurs web : AWS gère presque tout.",
+   "Rôle d'accès (access role) pour tirer l'image ; rôle d'instance (instance role) pour les appels AWS de l'application.",
+   "Statut : maintenance, fermé aux nouveaux clients depuis le 30 avril 2026."
+  ],
+  "related": [
+   "ecr",
+   "ecs",
+   "vpc",
+   "iam",
+   "fargate"
+  ],
+  "match": [
+   "App Runner"
+  ]
+ },
+ {
+  "k": "imagebuilder",
+  "name": "EC2 Image Builder",
+  "full": "Amazon EC2 Image Builder",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Une chaîne automatique pour fabriquer des images sûres.",
+  "role": "Service gratuit qui automatise la création, le test et la distribution d'images (AMI ou conteneurs) à partir de recettes composées de composants. Tu payes seulement les ressources utilisées par la construction.",
+  "why": [
+   "Des images durcies et cohérentes plutôt que des serveurs configurés à la main.",
+   "Rebuild planifié : les correctifs sont intégrés régulièrement.",
+   "Les tests de conformité et l'analyse de vulnérabilités peuvent faire partie du pipeline.",
+   "Distribution contrôlée vers plusieurs Régions et comptes, avec chiffrement."
+  ],
+  "how": "Un pipeline lance une instance de build à partir d'une image de base, applique les composants (installation, durcissement), exécute des tests, crée l'image, puis la distribue.",
+  "when": [
+   "Produire une AMI standard durcie pour toute l'entreprise.",
+   "Reconstruire chaque mois avec les derniers correctifs.",
+   "Créer des images conteneurs conformes."
+  ],
+  "notwhen": "Il produit des images, il ne les déploie pas : ensuite, c'est le travail d'Auto Scaling, EC2 ou ECS.",
+  "derja": "Image Builder, c'est le moule à gâteaux : tu fais d'abord une bonne recette, testée, sans erreur, puis tous les gâteaux sortent identiques. Si la recette change (un correctif), tu refais simplement une fournée.",
+  "use": [
+   {
+    "k": "imagebuilder",
+    "t": "Pipeline"
+   },
+   {
+    "k": "ec2",
+    "t": "Instance de build"
+   },
+   {
+    "k": "inspector",
+    "t": "Tests et scan"
+   },
+   {
+    "k": "ec2",
+    "t": "AMI durcie distribuée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ssm",
+    "d": "Systems Manager Patch Manager corrige des instances déjà en cours d'exécution ; Image Builder fabrique de nouvelles images corrigées."
+   }
+  ],
+  "exam": [
+   "Recipe = image de base + composants ; pipeline = recette + infrastructure + distribution + planning.",
+   "Approche d'infrastructure immuable : remplacer l'instance plutôt que la corriger.",
+   "Le service est gratuit ; tu paies les ressources sous-jacentes."
+  ],
+  "related": [
+   "ec2",
+   "autoscaling",
+   "inspector",
+   "kms",
+   "ssm"
+  ],
+  "match": [
+   "Image Builder",
+   "AMI"
+  ]
+ },
+ {
+  "k": "workspaces",
+  "name": "Amazon WorkSpaces",
+  "full": "Amazon WorkSpaces",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Des bureaux virtuels (poste de travail) dans le cloud.",
+  "role": "Service de bureau virtuel (DaaS) : fournit des postes Windows ou Linux hébergés dans AWS, auxquels les utilisateurs accèdent depuis n'importe quel appareil. Les données restent dans AWS, seul un flux d'écran arrive sur l'appareil.",
+  "why": [
+   "Les données ne sont pas stockées sur l'appareil de l'utilisateur : perte ou vol moins grave.",
+   "Authentification via l'annuaire de l'entreprise, avec MFA.",
+   "Volumes chiffrés avec KMS et groupes de contrôle d'accès par adresse IP.",
+   "Les postes sont créés dans ton VPC, derrière tes règles réseau."
+  ],
+  "how": "Un annuaire (AWS Managed Microsoft AD ou AD Connector) authentifie l'utilisateur ; un WorkSpace est lancé dans ton VPC et un protocole de streaming envoie l'image à son client.",
+  "when": [
+   "Télétravail, prestataires et BYOD sans données en local.",
+   "Accès à des environnements sensibles via un poste contrôlé.",
+   "Postes standardisés pour de grandes équipes."
+  ],
+  "notwhen": "Si tu dois seulement donner accès à quelques applications, AppStream 2.0 (WorkSpaces Applications) est plus adapté qu'un bureau complet.",
+  "derja": "WorkSpaces, c'est un poste de travail qui reste au bureau mais que tu pilotes de chez toi : tu vois l'écran et tu tapes, mais les dossiers ne sortent jamais du bureau. Si ton PC portable est volé, il n'y a rien dedans.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Utilisateur"
+   },
+   {
+    "k": "directory",
+    "t": "Annuaire + MFA"
+   },
+   {
+    "k": "workspaces",
+    "t": "WorkSpace dans le VPC"
+   },
+   {
+    "k": "kms",
+    "t": "Volumes chiffrés"
+   }
+  ],
+  "vs": [
+   {
+    "k": "appstream",
+    "d": "AppStream 2.0 diffuse des applications ; WorkSpaces donne un bureau complet et persistant."
+   }
+  ],
+  "exam": [
+   "VDI/DaaS : les données restent dans AWS, le terminal ne reçoit que des pixels.",
+   "Authentification : AWS Managed Microsoft AD ou AD Connector (annuaire sur site).",
+   "Le chiffrement des volumes passe par KMS ; les IP access control groups restreignent l'origine des connexions."
+  ],
+  "related": [
+   "appstream",
+   "directory",
+   "kms",
+   "vpc",
+   "mfa"
+  ],
+  "match": [
+   "WorkSpaces",
+   "DaaS",
+   "bureau virtuel"
+  ]
+ },
+ {
+  "k": "appstream",
+  "name": "Amazon AppStream 2.0",
+  "full": "Amazon AppStream 2.0 (renommé Amazon WorkSpaces Applications)",
+  "cat": "Calcul & conteneurs",
+  "tagline": "Diffuse des applications de bureau vers le navigateur.",
+  "role": "Service de streaming d'applications : tes applications tournent sur des instances gérées par AWS et s'affichent dans le navigateur de l'utilisateur. Le service a été renommé Amazon WorkSpaces Applications.",
+  "why": [
+   "Les données restent dans AWS ; presse-papiers, transfert de fichiers et impression se contrôlent.",
+   "Authentification fédérée avec SAML 2.0 et SSO.",
+   "Aucune installation sur le poste de l'utilisateur.",
+   "Les instances de streaming sont dans ton VPC."
+  ],
+  "how": "Une image contient les applications ; une fleet d'instances les exécute et une stack définit qui y accède et avec quelles permissions (presse-papiers, fichiers). L'utilisateur reçoit un flux de pixels.",
+  "when": [
+   "Donner accès à une application métier ou à un logiciel coûteux.",
+   "Prestataires externes sur postes non maîtrisés.",
+   "Applications sensibles où les données ne doivent pas sortir."
+  ],
+  "notwhen": "Pour un bureau complet et persistant par utilisateur, WorkSpaces est plus adapté.",
+  "derja": "AppStream, c'est comme regarder l'application à travers une vitrine : tu la vois et tu l'utilises, mais tu ne peux rien emporter si le patron a interdit le copier-coller. Aucune installation chez toi.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Utilisateur + navigateur"
+   },
+   {
+    "k": "saml",
+    "t": "SSO SAML 2.0"
+   },
+   {
+    "k": "appstream",
+    "t": "Fleet + stack"
+   },
+   {
+    "k": "vpc",
+    "t": "VPC"
+   }
+  ],
+  "vs": [
+   {
+    "k": "workspaces",
+    "d": "WorkSpaces : bureau complet ; AppStream : applications seulement."
+   }
+  ],
+  "exam": [
+   "Service renommé Amazon WorkSpaces Applications (l'ancien nom reste dans les supports).",
+   "Fleet : instances ; stack : accès et permissions ; image : applications.",
+   "Authentification SAML 2.0 pour la fédération d'identité."
+  ],
+  "related": [
+   "workspaces",
+   "saml",
+   "vpc",
+   "iam",
+   "s3"
+  ],
+  "match": [
+   "AppStream",
+   "streaming d'applications"
+  ]
+ }
+]

@@ -1,0 +1,11 @@
+# Supports de cours du prof (PDF/PPTX/texte extrait) : ne pas publier
+src/
+# temporaires
+__pycache__/
+*.pyc
+tmp/
+tools/tmp/
+tmp_i18n/
+old_style.css
+_head.css
+_keep.css

@@ -1,0 +1,4016 @@
+[
+ {
+  "id": "ch2a-07",
+  "part": "ch2a",
+  "title": "OAuth 2.0 : déléguer l'accès sans donner son mot de passe",
+  "emoji": "🔑",
+  "level": 1,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 24-26",
+  "hook": {
+   "fr": "OAuth 2.0 permet à une application d'agir sur tes données avec un jeton limité, sans jamais voir ton mot de passe.",
+   "derja": "Ki tdiffer el voiture 3and el gardien mta3 el parking, ma t3atihech clé mta3 el dar w el coffre w el carte bancaire: t3atih ken clé el voiture, w ken lel wa9t li yestaha9ha. OAuth hakka bidhabt: el application tatlob « clé spéciale » (access token) limitée f 7ajet w f wa9t, w el mot de passe mta3ek ma yo5rejch men 3andek. Hedha houwa el mabda2 kolou."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawwar application « Impression photos » tolbek: « e3tini el mot de passe mta3 Google bch nel9a tsawerek ». Ya3ni tsalemha el clé mta3 el dar kolha: tnajjem tkra el mails, tfassakh el compte, kol chay, w ma tnajjemch tna7iha ken ma bddelt el mot de passe w 9ata3t 3la kol application o5ra. OAuth jé bch yhel el mochkla hedhi: el application ma tchoufch el mot de passe, ta5ou ken jeton (token) yodhhor « inti tnajjem tkra ken tsawer, l 15 d9aye9 ». Fhemt?"
+   },
+   {
+    "type": "text",
+    "title": "Le problème avant OAuth",
+    "md": "Avant OAuth, une application tierce demandait directement **ton identifiant et ton mot de passe** pour accéder à un autre service. Conséquences :\n- l'application obtient **tous** les droits du compte, pas seulement ceux dont elle a besoin ;\n- elle stocke ton mot de passe (si elle est piratée, ton compte l'est aussi) ;\n- pour lui retirer l'accès, tu dois **changer ton mot de passe**, ce qui casse toutes les autres applications ;\n- aucune trace claire de ce que l'application a réellement fait.\n\nIl faut donc un mécanisme où l'utilisateur **autorise** une application pour un périmètre précis, pour une durée limitée, et peut **révoquer** ce droit sans toucher à son mot de passe."
+   },
+   {
+    "type": "text",
+    "title": "Définition précise",
+    "md": "**OAuth 2.0** (RFC 6749) est un framework de **délégation d'autorisation** : un propriétaire de ressource autorise une application cliente à accéder à une API en son nom, via un **access token** émis par un serveur d'autorisation.\n\nCe qu'il faut retenir : OAuth répond à la question **« que peut faire ce client ? »**, pas à « qui est connecté ? »."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 acteurs d'OAuth 2.0",
+    "head": [
+     "Acteur",
+     "Rôle",
+     "Exemple : une app Agenda qui lit mon calendrier"
+    ],
+    "rows": [
+     [
+      "**Resource Owner**",
+      "Autorise l'accès à ses données",
+      "Moi, propriétaire du calendrier"
+     ],
+     [
+      "**Client**",
+      "Application qui demande une délégation",
+      "L'application Agenda Plus (`client_id = agenda-app`)"
+     ],
+     [
+      "**Authorization Server**",
+      "Authentifie l'utilisateur et émet les jetons",
+      "Le serveur de connexion du fournisseur (`auth.example.com`)"
+     ],
+     [
+      "**Resource Server**",
+      "API qui contrôle l'access token avant de répondre",
+      "L'API Calendar (`api.example.com`)"
+     ]
+    ],
+    "note": "Le Client n'est pas l'utilisateur : c'est l'application. L'utilisateur est le Resource Owner."
+   },
+   {
+    "type": "text",
+    "title": "Scope, consentement, access token",
+    "md": "- **Scope** : la liste des opérations demandées (ex. `calendar.readonly`). Plus le scope est étroit, moins le jeton est dangereux s'il est volé.\n- **Consentement** : l'écran où l'utilisateur voit *qui* demande *quoi* et accepte ou refuse. C'est lui qui relie la demande à l'utilisateur.\n- **Access token** : la « clé temporaire » présentée à l'API. Il a une **durée limitée** et une **audience** (l'API visée) limitée.\n- **Refresh token** (optionnel) : sert à obtenir un nouvel access token sans redemander la connexion ; il est plus sensible et doit être protégé (voir leçon suivante)."
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Phrase à connaître par coeur",
+    "text": "OAuth 2.0 ne constitue pas, à lui seul, une preuve d'identité : il délègue un accès à une API. Pour authentifier l'utilisateur, on ajoute OpenID Connect (ID token)."
+   },
+   {
+    "type": "flow",
+    "title": "Authorization Code + PKCE : les 8 étapes",
+    "intro": "Flux recommandé pour les applications web, mobiles et SPA. Clique sur « Suivant » et regarde les messages décodés.",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "Resource Owner + navigateur",
+      "kind": "user"
+     },
+     {
+      "id": "c",
+      "label": "Application cliente",
+      "sub": "Agenda Plus",
+      "kind": "app"
+     },
+     {
+      "id": "as",
+      "label": "Serveur d'autorisation",
+      "sub": "IdP / token endpoint",
+      "kind": "idp"
+     },
+     {
+      "id": "rs",
+      "label": "Resource Server",
+      "sub": "API Calendar",
+      "kind": "service"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "c",
+      "label": "1. Ouvre l'application",
+      "detail": "L'utilisateur lance l'app et clique sur « Connecter mon calendrier ». Avant d'envoyer quoi que ce soit, le client génère un code_verifier aléatoire et le garde en mémoire : c'est le secret PKCE de cette tentative.",
+      "derja": "El app takhlak mot de passe sghir wa7da, ta7to f jibha w ma tgoul lil 7ad.",
+      "payload": {
+       "title": "Secrets générés par le client (jamais envoyés tels quels)",
+       "fields": [
+        {
+         "k": "code_verifier",
+         "v": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+         "note": "chaîne aléatoire, reste dans le client"
+        },
+        {
+         "k": "code_challenge",
+         "v": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+         "note": "= BASE64URL(SHA-256(code_verifier))"
+        },
+        {
+         "k": "state",
+         "v": "af0ifjsldkj",
+         "note": "valeur aléatoire liée à la session du navigateur"
+        }
+       ]
+      }
+     },
+     {
+      "from": "c",
+      "to": "as",
+      "label": "2. Authorization request",
+      "detail": "Le client redirige le navigateur vers l'endpoint d'autorisation avec ses paramètres : le code_challenge S256, le state et les scopes demandés. Le code_verifier lui-même n'est PAS envoyé.",
+      "payload": {
+       "title": "GET /authorize?response_type=code&...",
+       "fields": [
+        {
+         "k": "client_id",
+         "v": "agenda-app",
+         "note": "identifie l'application"
+        },
+        {
+         "k": "redirect_uri",
+         "v": "https://agenda.example.com/callback",
+         "note": "doit correspondre exactement à l'URI enregistrée"
+        },
+        {
+         "k": "scope",
+         "v": "calendar.readonly",
+         "note": "droits demandés"
+        },
+        {
+         "k": "state",
+         "v": "af0ifjsldkj",
+         "note": "anti-CSRF : sera renvoyé tel quel"
+        },
+        {
+         "k": "code_challenge",
+         "v": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+         "note": "empreinte du verifier"
+        },
+        {
+         "k": "code_challenge_method",
+         "v": "S256",
+         "note": "SHA-256 (méthode à utiliser)"
+        }
+       ]
+      }
+     },
+     {
+      "from": "as",
+      "to": "u",
+      "label": "3. Authentification, MFA et consentement",
+      "detail": "Le serveur d'autorisation affiche sa propre page : l'utilisateur s'y authentifie (MFA si la politique l'exige) puis accepte ou refuse les scopes. L'application cliente ne voit jamais le mot de passe.",
+      "derja": "Houni el user yhot el mot de passe 3and el serveur, mouch 3and el application. Hedha el point el mohem.",
+      "dashed": true,
+      "payload": {
+       "title": "Page du serveur d'autorisation",
+       "fields": [
+        {
+         "k": "Authentification",
+         "v": "mot de passe + second facteur",
+         "note": "chez le serveur d'autorisation uniquement"
+        },
+        {
+         "k": "Consentement",
+         "v": "« Agenda Plus veut lire tes événements »",
+         "note": "traduit le scope en phrase lisible"
+        },
+        {
+         "k": "Décision",
+         "v": "Autoriser / Refuser",
+         "note": "sans consentement, pas de code"
+        }
+       ]
+      }
+     },
+     {
+      "from": "as",
+      "to": "c",
+      "label": "4. Redirection avec authorization_code",
+      "detail": "Après accord, le serveur redirige le navigateur vers le redirect_uri enregistré en ajoutant un code temporaire. Le client doit comparer le state reçu avec celui qu'il a mémorisé.",
+      "dashed": true,
+      "payload": {
+       "title": "HTTP 302 vers redirect_uri",
+       "fields": [
+        {
+         "k": "Location",
+         "v": "https://agenda.example.com/callback",
+         "note": "l'URI exacte enregistrée"
+        },
+        {
+         "k": "code",
+         "v": "SplxlOBeZQQYbYS6WxSbIA",
+         "note": "court, à usage unique"
+        },
+        {
+         "k": "state",
+         "v": "af0ifjsldkj",
+         "note": "identique à l'étape 2, sinon on rejette"
+        }
+       ]
+      }
+     },
+     {
+      "from": "c",
+      "to": "as",
+      "label": "5. Token request : code + code_verifier",
+      "detail": "Le client appelle le token endpoint en direct (back-channel) avec le code et cette fois le code_verifier en clair. Le serveur calcule SHA-256(code_verifier) et le compare au code_challenge reçu à l'étape 2.",
+      "payload": {
+       "title": "POST /token (application/x-www-form-urlencoded)",
+       "fields": [
+        {
+         "k": "grant_type",
+         "v": "authorization_code",
+         "note": "type d'échange"
+        },
+        {
+         "k": "code",
+         "v": "SplxlOBeZQQYbYS6WxSbIA",
+         "note": "le code de l'étape 4"
+        },
+        {
+         "k": "redirect_uri",
+         "v": "https://agenda.example.com/callback",
+         "note": "même valeur qu'à l'étape 2"
+        },
+        {
+         "k": "client_id",
+         "v": "agenda-app",
+         "note": "identifie le client"
+        },
+        {
+         "k": "code_verifier",
+         "v": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+         "note": "preuve : seul l'initiateur le connaît"
+        }
+       ]
+      }
+     },
+     {
+      "from": "as",
+      "to": "c",
+      "label": "6. Access token (+ refresh token éventuel)",
+      "detail": "Si la comparaison réussit, le serveur émet l'access token, limité par scope, audience et durée. Un attaquant qui aurait volé le code à l'étape 4 n'aurait pas le code_verifier : il serait refusé.",
+      "dashed": true,
+      "tone": "good",
+      "payload": {
+       "title": "Réponse JSON du token endpoint",
+       "fields": [
+        {
+         "k": "access_token",
+         "v": "eyJhbGciOi... (exemple tronqué)",
+         "note": "à présenter à l'API"
+        },
+        {
+         "k": "token_type",
+         "v": "Bearer",
+         "note": "le porteur du jeton est cru sur parole"
+        },
+        {
+         "k": "expires_in",
+         "v": "900",
+         "note": "durée de vie courte (exemple : 15 min)"
+        },
+        {
+         "k": "scope",
+         "v": "calendar.readonly",
+         "note": "droits réellement accordés"
+        },
+        {
+         "k": "refresh_token",
+         "v": "8xLOxBtZp8 (optionnel)",
+         "note": "pour renouveler sans reconnexion"
+        }
+       ]
+      }
+     },
+     {
+      "from": "c",
+      "to": "rs",
+      "label": "7. Appel API avec Bearer access_token",
+      "detail": "Le client appelle l'API en plaçant l'access token dans l'en-tête Authorization. Jamais dans l'URL (elle finit dans les journaux).",
+      "payload": {
+       "title": "Requête HTTP vers l'API",
+       "fields": [
+        {
+         "k": "Méthode / chemin",
+         "v": "GET /v1/events",
+         "note": "lire les événements"
+        },
+        {
+         "k": "Host",
+         "v": "api.example.com",
+         "note": "l'audience visée par le jeton"
+        },
+        {
+         "k": "Authorization",
+         "v": "Bearer eyJhbGciOi...",
+         "note": "le jeton, en en-tête, sur HTTPS"
+        }
+       ]
+      }
+     },
+     {
+      "from": "rs",
+      "to": "c",
+      "label": "8. Ressource autorisée selon scopes et audience",
+      "detail": "Avant de répondre, l'API valide le jeton (signature ou introspection, expiration, audience, scope). Ici tout est bon et l'API renvoie les événements ; avec le scope calendar.write manquant, une tentative d'écriture serait refusée.",
+      "dashed": true,
+      "tone": "good",
+      "payload": {
+       "title": "Contrôles de l'API puis réponse",
+       "fields": [
+        {
+         "k": "Jeton valide ?",
+         "v": "signature / introspection, exp non dépassé",
+         "note": "validation avant CHAQUE accès"
+        },
+        {
+         "k": "aud",
+         "v": "api.example.com",
+         "note": "le jeton est bien destiné à cette API"
+        },
+        {
+         "k": "scope",
+         "v": "calendar.readonly",
+         "note": "lecture seule : GET ok, POST refusé (403)"
+        },
+        {
+         "k": "Réponse",
+         "v": "200 OK + liste des événements",
+         "note": "accès accordé"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Pourquoi PKCE ?",
+    "md": "Le **code d'autorisation** transite par le navigateur (redirection). Sur mobile ou dans une SPA, une autre application ou un script malveillant peut l'**intercepter**. Un client « public » (mobile, SPA) ne peut pas non plus garder un `client_secret` : il serait lisible dans l'application.\n\n**PKCE** (RFC 7636) règle cela : le client invente un secret à usage unique (`code_verifier`), n'envoie au départ que son **empreinte** (`code_challenge`, méthode **S256**), puis prouve à la fin qu'il connaît le secret. Un code volé sans le verifier est inutilisable.\n\nPKCE est indispensable pour les clients publics et recommandé pour tous les clients dans les bonnes pratiques actuelles (RFC 9700)."
+   },
+   {
+    "type": "decode",
+    "title": "Décoder une authorization request",
+    "raw": "https://auth.example.com/authorize?response_type=code&client_id=agenda-app&redirect_uri=https%3A%2F%2Fagenda.example.com%2Fcallback&scope=calendar.readonly&state=af0ifjsldkj&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256",
+    "parts": [
+     {
+      "s": "https://auth.example.com/authorize",
+      "label": "Authorization endpoint",
+      "note": "URL du serveur d'autorisation où le navigateur est envoyé"
+     },
+     {
+      "s": "response_type=code",
+      "label": "Type de réponse",
+      "note": "on demande un code temporaire (flux Authorization Code), pas un token directement"
+     },
+     {
+      "s": "client_id=agenda-app",
+      "label": "Client",
+      "note": "identifiant public de l'application enregistrée"
+     },
+     {
+      "s": "redirect_uri=https%3A%2F%2Fagenda.example.com%2Fcallback",
+      "label": "URI de retour (encodée)",
+      "note": "%3A = « : » et %2F = « / ». Le serveur la compare EXACTEMENT à celle enregistrée"
+     },
+     {
+      "s": "scope=calendar.readonly",
+      "label": "Scope",
+      "note": "opérations demandées : lecture seule du calendrier"
+     },
+     {
+      "s": "state=af0ifjsldkj",
+      "label": "State",
+      "note": "valeur aléatoire anti-CSRF, renvoyée à l'identique au retour"
+     },
+     {
+      "s": "code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+      "label": "PKCE challenge",
+      "note": "BASE64URL(SHA-256(code_verifier)) : empreinte, pas le secret"
+     },
+     {
+      "s": "code_challenge_method=S256",
+      "label": "Méthode PKCE",
+      "note": "S256 = SHA-256 ; la méthode « plain » est à éviter"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les contrôles à connaître (et ce qu'ils bloquent)",
+    "head": [
+     "Contrôle",
+     "Menace bloquée",
+     "Comment"
+    ],
+    "rows": [
+     [
+      "**redirect_uri exact**",
+      "Code ou token envoyé sur le site d'un attaquant",
+      "Comparer caractère par caractère à l'URI enregistrée ; pas de wildcard"
+     ],
+     [
+      "**state**",
+      "CSRF : l'attaquant injecte son propre code dans ta session",
+      "Valeur aléatoire liée au navigateur, vérifiée au retour"
+     ],
+     [
+      "**PKCE (S256)**",
+      "Interception du code d'autorisation",
+      "code_verifier prouvé au token endpoint"
+     ],
+     [
+      "**Durée + audience + scope limités**",
+      "Vol d'un access token : dégâts élargis",
+      "Jeton court, destiné à une seule API, privilèges minimaux"
+     ],
+     [
+      "**Refresh token : rotation**",
+      "Refresh token volé réutilisable longtemps",
+      "Nouveau refresh à chaque usage, ancien invalidé, stockage sécurisé, révocation possible"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Bearer = « celui qui porte »",
+    "text": "Un Bearer token est accepté de n'importe qui le présente, comme une clé de voiture. Donc : HTTPS obligatoire, jeton en en-tête (jamais dans l'URL), durée courte, et ne jamais le logguer."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : wildcard dans le redirect_uri",
+    "situation": "Un développeur enregistre pour son application le redirect_uri `https://*.example.com/*` « pour simplifier les tests » sur plusieurs sous-domaines. Un des sous-domaines héberge une vieille page vulnérable à une redirection ouverte.",
+    "q": "Quel est le risque principal et la bonne pratique ?",
+    "opts": [
+     {
+      "t": "Aucun risque : le code est à usage unique donc inutilisable par un tiers",
+      "ok": false,
+      "why": "Un attaquant qui reçoit le code peut l'échanger avant la victime, surtout sans PKCE ; le usage unique ne protège pas contre une redirection vers un site hostile."
+     },
+     {
+      "t": "Un attaquant peut faire renvoyer le code vers une page qu'il contrôle ; il faut enregistrer des redirect_uri exactes, sans wildcard",
+      "ok": true,
+      "why": "La correspondance exacte du redirect_uri est un contrôle fondamental. PKCE ajoute une seconde barrière, mais ne remplace pas ce contrôle."
+     },
+     {
+      "t": "Le risque est uniquement lié à l'expiration du code ; il suffit de le raccourcir",
+      "ok": false,
+      "why": "Raccourcir le code ne règle pas le fait qu'il est livré à une adresse non prévue."
+     },
+     {
+      "t": "Il faut ajouter un client_secret dans l'URL de redirection",
+      "ok": false,
+      "why": "Mettre un secret dans une URL est une erreur : elle est visible dans l'historique et les journaux."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le state ne correspond pas",
+    "situation": "Au retour sur `/callback`, l'application reçoit `code=...&state=zzz999` alors que le state qu'elle avait mémorisé pour cette session est `af0ifjsldkj`.",
+    "q": "Que doit faire l'application ?",
+    "opts": [
+     {
+      "t": "Continuer : le code est valide, c'est l'essentiel",
+      "ok": false,
+      "why": "Le code pourrait provenir d'une requête forgée par un attaquant (CSRF) : tu lierais son compte à ta session."
+     },
+     {
+      "t": "Remplacer son state mémorisé par celui reçu puis continuer",
+      "ok": false,
+      "why": "Cela annule la protection : le state n'a de valeur que s'il est comparé à une valeur propre à la session."
+     },
+     {
+      "t": "Rejeter la réponse, ne pas appeler le token endpoint, et recommencer le flux",
+      "ok": true,
+      "why": "Un state différent signale une réponse qui ne correspond pas à une demande initiée par ce navigateur : on arrête tout."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Resource Owner",
+    "d": "L'utilisateur propriétaire des données, qui donne ou refuse son autorisation.",
+    "derja": "Houwa sa7eb el 7aja, li yodhi."
+   },
+   {
+    "t": "Client",
+    "d": "L'application qui demande l'accès à une API au nom de l'utilisateur.",
+    "derja": "El application, mouch el user."
+   },
+   {
+    "t": "Authorization Server",
+    "d": "Serveur qui authentifie l'utilisateur, recueille le consentement et émet les jetons."
+   },
+   {
+    "t": "Resource Server",
+    "d": "L'API protégée : elle valide l'access token avant chaque accès."
+   },
+   {
+    "t": "Scope",
+    "d": "Liste des opérations demandées, qui borne les droits du jeton.",
+    "derja": "Chnoua bidhabt ynajjem ya3mel el token."
+   },
+   {
+    "t": "Access token",
+    "d": "Jeton de durée et d'audience limitées présenté à l'API pour prouver la délégation."
+   },
+   {
+    "t": "PKCE",
+    "d": "Extension (RFC 7636) qui lie le code d'autorisation au client qui a lancé la demande via code_verifier / code_challenge."
+   },
+   {
+    "t": "redirect_uri",
+    "d": "URL de retour enregistrée où le serveur renvoie le code ; elle doit correspondre exactement."
+   },
+   {
+    "t": "state",
+    "d": "Valeur aléatoire envoyée puis comparée au retour pour empêcher les attaques CSRF."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce qu'OAuth 2.0 et à quoi sert-il ?",
+    "a": "OAuth 2.0 est un framework de délégation d'autorisation. Il permet à un propriétaire de ressource d'autoriser une application cliente à accéder à une API en son nom, grâce à un access token émis par un serveur d'autorisation, sans partager son mot de passe. Le jeton a un scope, une durée et une audience limités. Exemple : autoriser une application à lire mon calendrier en lecture seule. OAuth répond à « que peut faire le client ? », il ne prouve pas à lui seul l'identité de l'utilisateur.",
+    "keys": [
+     "délégation d'autorisation",
+     "access token",
+     "scope",
+     "pas d'authentification"
+    ]
+   },
+   {
+    "q": "Décris le flux Authorization Code avec PKCE.",
+    "a": "Le client génère un code_verifier et en dérive un code_challenge S256. Il redirige le navigateur vers l'endpoint d'autorisation avec le challenge, un state et les scopes. L'utilisateur s'authentifie, avec MFA si besoin, et consent chez le serveur d'autorisation. Le serveur renvoie un code temporaire au redirect_uri enregistré. Le client échange ce code et le code_verifier au token endpoint ; le serveur compare SHA-256 du verifier au challenge et émet l'access token, éventuellement un refresh token. Le client appelle enfin l'API avec Bearer access_token et l'API valide le jeton avant chaque accès.",
+    "keys": [
+     "code_verifier",
+     "code_challenge S256",
+     "state",
+     "redirect_uri",
+     "token endpoint",
+     "Bearer"
+    ]
+   },
+   {
+    "q": "Pourquoi utiliser PKCE ?",
+    "a": "Le code d'autorisation passe par le navigateur, donc il peut être intercepté, surtout sur mobile ou dans une SPA. Un client public ne peut pas garder de secret statique. Avec PKCE, le client prouve à l'échange qu'il est celui qui a lancé la demande en présentant le code_verifier dont seule l'empreinte avait été envoyée. Un code volé seul est inutilisable. C'est indispensable pour les clients publics et recommandé pour tous.",
+    "keys": [
+     "interception du code",
+     "client public",
+     "preuve de possession du verifier"
+    ]
+   },
+   {
+    "q": "Quels contrôles de sécurité faut-il appliquer dans OAuth 2.0 ?",
+    "a": "Premièrement, une correspondance exacte du redirect_uri, sans wildcard. Deuxièmement, un state aléatoire vérifié au retour pour bloquer le CSRF. Troisièmement, PKCE. Quatrièmement, un access token à durée courte, limité à une audience et à des scopes précis, validé par l'API à chaque appel. Cinquièmement, pour les refresh tokens, une rotation, un stockage sécurisé et une possibilité de révocation.",
+    "keys": [
+     "redirect_uri exact",
+     "state anti-CSRF",
+     "durée/audience limitées",
+     "rotation du refresh token"
+    ]
+   },
+   {
+    "q": "OAuth 2.0 authentifie-t-il l'utilisateur ?",
+    "a": "Non, pas à lui seul. L'access token est destiné à l'API et exprime ce que le client peut faire, pas qui vient de se connecter. Pour authentifier l'utilisateur on utilise OpenID Connect, qui ajoute un ID token signé destiné à l'application cliente.",
+    "keys": [
+     "autorisation ≠ authentification",
+     "OpenID Connect",
+     "ID token"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Dire « OAuth sert à se connecter » : OAuth délègue un accès, c'est OpenID Connect qui authentifie.",
+   "Confondre le Client (l'application) et le Resource Owner (l'utilisateur).",
+   "Croire que PKCE remplace le redirect_uri exact ou le state : ce sont trois protections complémentaires.",
+   "Envoyer le code_verifier à l'étape 2 : seul le code_challenge (l'empreinte) part au début ; le verifier n'est envoyé qu'à l'étape 5.",
+   "Mettre l'access token dans l'URL ou dans les journaux : un Bearer token est utilisable par quiconque le possède.",
+   "Utiliser le flux Implicit (jeton directement dans l'URL de retour) : il est déconseillé aujourd'hui au profit de Authorization Code + PKCE."
+  ],
+  "quiz": [
+   {
+    "q": "Quel acteur authentifie l'utilisateur, recueille son consentement et émet les jetons ?",
+    "opts": [
+     "Resource Server",
+     "Authorization Server",
+     "Client",
+     "Resource Owner"
+    ],
+    "ans": 1,
+    "why": "C'est le rôle de l'Authorization Server. Le Resource Server (API) ne fait que contrôler le jeton."
+   },
+   {
+    "q": "Que prouve le code_verifier envoyé au token endpoint ?",
+    "opts": [
+     "Que l'utilisateur a validé son MFA",
+     "Que le client qui échange le code est bien celui qui a lancé la demande",
+     "Que l'API est autorisée à répondre",
+     "Que le redirect_uri est enregistré"
+    ],
+    "ans": 1,
+    "why": "Le serveur calcule SHA-256 du verifier et le compare au code_challenge de l'étape 2 : seul l'initiateur peut le fournir."
+   },
+   {
+    "q": "Quelle protection apporte le paramètre state ?",
+    "opts": [
+     "Il chiffre le code d'autorisation",
+     "Il limite la durée de l'access token",
+     "Il protège contre le CSRF en liant la réponse à la session du navigateur",
+     "Il remplace PKCE"
+    ],
+    "ans": 2,
+    "why": "Le client compare le state reçu à celui mémorisé ; une valeur différente indique une réponse forgée ou rejouée."
+   },
+   {
+    "q": "L'authorization code est renvoyé à :",
+    "opts": [
+     "N'importe quelle URL demandée par le client dans la requête",
+     "Le redirect_uri enregistré, comparé exactement",
+     "Le Resource Server",
+     "L'adresse e-mail de l'utilisateur"
+    ],
+    "ans": 1,
+    "why": "Une correspondance exacte avec l'URI enregistrée empêche de détourner le code vers un site hostile."
+   },
+   {
+    "q": "Une application a un access token avec le scope calendar.readonly. Elle tente un POST pour créer un événement. Résultat attendu ?",
+    "opts": [
+     "Autorisé, car le jeton est valide",
+     "Refusé par l'API : le scope ne couvre pas l'écriture",
+     "Autorisé si l'utilisateur est connecté",
+     "Refusé uniquement si le jeton a expiré"
+    ],
+    "ans": 1,
+    "why": "Un jeton valide ne suffit pas : l'API contrôle aussi le scope et l'audience."
+   },
+   {
+    "q": "Quelle affirmation sur OAuth 2.0 est exacte ?",
+    "opts": [
+     "Il prouve l'identité de l'utilisateur sans autre brique",
+     "Il remplace SAML pour le SSO d'entreprise",
+     "Il délègue l'accès à une API via un access token limité",
+     "Il transporte les attributs dans une assertion XML"
+    ],
+    "ans": 2,
+    "why": "OAuth 2.0 = délégation d'autorisation. L'identité est le rôle d'OIDC, l'assertion XML celui de SAML."
+   }
+  ],
+  "recap": [
+   "OAuth 2.0 = délégation d'autorisation : « que peut faire le client ? », pas « qui est connecté ? ».",
+   "4 acteurs : Resource Owner, Client, Authorization Server, Resource Server.",
+   "Access token = durée, audience et scope limités ; l'API le valide avant chaque accès.",
+   "Authorization Code + PKCE : verifier gardé par le client, challenge S256 envoyé, verifier prouvé au token endpoint.",
+   "Contrôles : redirect_uri exact, state anti-CSRF, jeton court et ciblé, rotation du refresh token.",
+   "Le Bearer token se protège comme une clé : HTTPS, en-tête, jamais dans l'URL."
+  ]
+ },
+ {
+  "id": "ch2a-08",
+  "part": "ch2a",
+  "title": "OpenID Connect : savoir qui vient de se connecter",
+  "emoji": "🪪",
+  "level": 1,
+  "minutes": 15,
+  "core": true,
+  "src": "CH2 slides 27-29",
+  "hook": {
+   "fr": "OpenID Connect ajoute à OAuth 2.0 une couche d'authentification : l'ID token signé dit qui vient de se connecter.",
+   "derja": "OAuth hiya clé mta3 el voiture li t3atiha lel valet: tgoulou chnoua ynajjem ya3mel, mais el valet ma ya3rafch inti chkoun. OpenID Connect houwa el CIN: el application tchouf « el token hedha, signé men 3and el IdP, yo9ol hedha flen, tconnecta tawa ». Ya3ni OAuth = chnoua yetsama7 lel client, OIDC = chkoun dkhal."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Raja3 lel valet: el valet ya5ou clé, yparki, w ma ye3refch esmek wala rakek. Ama ki tod5ol lel bank, el employé yatlob el CIN mta3ek bch ya3raf inti chkoun. OAuth = el clé. OpenID Connect = el CIN w el ma3loumet li fiha (esm, identifiant, wa9tech tconnectit). Zid 3lihom: el CIN hedhi mamdhiya (signature) men 3and dawla (el IdP), donc tnajjem ta3ti thi9a fiha ken ta3mel el vérifications. Hakka el application ta3raf mel début « hedha flen »."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : OAuth seul ne dit pas qui est connecté",
+    "md": "Avec OAuth 2.0 seul, l'application obtient un **access token destiné à une API**. Beaucoup d'applications l'utilisaient quand même pour « se connecter » en appelant une API de profil. C'est fragile :\n- chaque fournisseur faisait à sa manière, sans standard ;\n- l'access token n'est pas fait pour être lu ni vérifié par l'application cliente ;\n- sans contrôle de l'audience, une application peut accepter un jeton émis pour une **autre** application.\n\nIl fallait un **standard d'authentification** construit sur OAuth, avec un jeton prévu pour l'application cliente et des règles de validation claires."
+   },
+   {
+    "type": "text",
+    "title": "Définition : ce qu'OIDC ajoute",
+    "md": "**OpenID Connect (OIDC)** est une couche d'**authentification** construite au-dessus d'OAuth 2.0. Il garde les mêmes flux (Authorization Code + PKCE) et ajoute quatre éléments :\n- un **ID token** : jeton signé (JWT) qui décrit l'événement d'authentification ;\n- le scope **`openid`** : sans lui, c'est du simple OAuth ; avec lui, le serveur renvoie un ID token ;\n- un endpoint **UserInfo** pour obtenir des attributs autorisés (nom, e-mail…) avec l'access token ;\n- des mécanismes de **découverte** (`/.well-known/openid-configuration`) et de **clés publiques** (JWKS) pour que le client trouve les endpoints et vérifie les signatures sans configuration manuelle."
+   },
+   {
+    "type": "steps",
+    "title": "Ce qui change dans le flux Authorization Code",
+    "items": [
+     {
+      "t": "Le client lit la configuration",
+      "d": "Via la découverte (`/.well-known/openid-configuration`) il obtient les endpoints et l'URL des clés publiques (`jwks_uri`)."
+     },
+     {
+      "t": "La requête d'authentification ajoute `scope=openid` et un `nonce`",
+      "d": "Mêmes paramètres qu'OAuth (client_id, redirect_uri, state, code_challenge) plus le scope openid et un nonce aléatoire mémorisé par le client."
+     },
+     {
+      "t": "Le serveur authentifie l'utilisateur",
+      "d": "Login, MFA, consentement : comme en OAuth, mais chez l'IdP, qui devient le garant de l'identité."
+     },
+     {
+      "t": "Le token endpoint renvoie un `id_token` en plus de l'access token",
+      "d": "Le client échange toujours code + code_verifier. La réponse contient `id_token` (pour le client) et `access_token` (pour l'API)."
+     },
+     {
+      "t": "Le client VALIDE l'ID token avant de créer la session",
+      "d": "Signature et algorithme attendu, iss, aud, exp, nonce. Il peut ensuite appeler UserInfo avec l'access token si besoin d'attributs."
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Anatomie d'un ID token (JWT compact)",
+    "raw": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI1LTAxIn0.eyJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwic3ViIjoiMjQ4Mjg5NzYxMDAxIiwiYXVkIjoiYWdlbmRhLWFwcCIsImV4cCI6MTc2NzIyMjMwMCwiaWF0IjoxNzY3MjIyMDAwLCJub25jZSI6Im4tMFM2X1d6QTJNaiJ9.Q3xT9mZk2VwYb7LpN4uRfA8sHcJd1eGoXyKq6tUvWzIaMnBrC5DhEjFgS0lOPiTk",
+    "parts": [
+     {
+      "s": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI1LTAxIn0",
+      "label": "1. Header",
+      "note": "Base64URL de {\"alg\": \"RS256\", \"typ\": \"JWT\", \"kid\": \"key-2025-01\"} : algorithme de signature (RS256 = RSA + SHA-256) et kid, l'identifiant de la clé à chercher dans le JWKS"
+     },
+     {
+      "s": "eyJpc3MiOiJodHRwczovL2xvZ2luLmV4YW1wbGUuY29tIiwic3ViIjoiMjQ4Mjg5NzYxMDAxIiwiYXVkIjoiYWdlbmRhLWFwcCIsImV4cCI6MTc2NzIyMjMwMCwiaWF0IjoxNzY3MjIyMDAwLCJub25jZSI6Im4tMFM2X1d6QTJNaiJ9",
+      "label": "2. Payload (claims)",
+      "note": "Base64URL de {\"iss\": \"https://login.example.com\", \"sub\": \"248289761001\", \"aud\": \"agenda-app\", \"exp\": 1767222300, \"iat\": 1767222000, \"nonce\": \"n-0S6_WzA2Mj\"}. Le contenu est LISIBLE par n'importe qui : il est signé, pas chiffré."
+     },
+     {
+      "s": "Q3xT9mZk2VwYb7LpN4uRfA8sHcJd1eGoXyKq6tUvWzIaMnBrC5DhEjFgS0lOPiTk",
+      "label": "3. Signature",
+      "note": "Signature de header.payload avec la clé privée de l'IdP (valeur fictive et raccourcie ici). Le client la vérifie avec la clé publique du JWKS."
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Les claims du payload, un par un",
+    "raw": "{\n  \"iss\": \"https://login.example.com\",\n  \"sub\": \"248289761001\",\n  \"aud\": \"agenda-app\",\n  \"exp\": 1767222300,\n  \"iat\": 1767222000,\n  \"nonce\": \"n-0S6_WzA2Mj\"\n}",
+    "parts": [
+     {
+      "s": "\"iss\": \"https://login.example.com\"",
+      "label": "Issuer (iss)",
+      "note": "qui a émis le jeton : doit être exactement l'IdP attendu (URL de l'issuer)"
+     },
+     {
+      "s": "\"sub\": \"248289761001\"",
+      "label": "Subject (sub)",
+      "note": "identifiant stable et unique de l'utilisateur chez cet IdP (à préférer à l'e-mail pour reconnaître un compte)"
+     },
+     {
+      "s": "\"aud\": \"agenda-app\"",
+      "label": "Audience (aud)",
+      "note": "à qui le jeton est destiné : doit contenir le client_id de MON application"
+     },
+     {
+      "s": "\"exp\": 1767222300",
+      "label": "Expiration (exp)",
+      "note": "date limite (secondes Unix) ; au-delà, jeton refusé"
+     },
+     {
+      "s": "\"iat\": 1767222000",
+      "label": "Issued at (iat)",
+      "note": "date d'émission ; ici exp = iat + 300 s (5 min)"
+     },
+     {
+      "s": "\"nonce\": \"n-0S6_WzA2Mj\"",
+      "label": "Nonce (nonce)",
+      "note": "valeur envoyée par le client dans la requête d'authentification et renvoyée dans le jeton : lie le jeton à cette session"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Contrôles du client avant de faire confiance à l'ID token",
+    "head": [
+     "Contrôle",
+     "Ce qu'on vérifie",
+     "Menace bloquée"
+    ],
+    "rows": [
+     [
+      "**Signature + algorithme**",
+      "Signature valide avec une clé du JWKS de l'IdP ; algorithme attendu (jamais « none »)",
+      "Jeton forgé ou modifié"
+     ],
+     [
+      "**iss**",
+      "Égal à l'issuer de l'IdP configuré",
+      "Jeton émis par un autre fournisseur"
+     ],
+     [
+      "**aud**",
+      "Contient le client_id de MON application",
+      "Jeton émis pour une autre application, accepté par erreur"
+     ],
+     [
+      "**exp** (et iat)",
+      "Date d'expiration non dépassée",
+      "Rejeu d'un vieux jeton"
+     ],
+     [
+      "**nonce**",
+      "Identique à celui envoyé dans la requête d'authentification",
+      "Rejeu ou injection d'un ID token dans une autre session"
+     ]
+    ],
+    "note": "Autres règles : l'access token sert uniquement à appeler l'API ; l'ID token n'est jamais une autorisation métier (on ne s'en sert pas pour décider ce que l'utilisateur a le droit de faire)."
+   },
+   {
+    "type": "table",
+    "title": "Les 3 jetons à ne pas confondre",
+    "head": [
+     "Jeton",
+     "Destinataire",
+     "Rôle",
+     "Bonne pratique"
+    ],
+    "rows": [
+     [
+      "**ID token**",
+      "Client OIDC (l'application)",
+      "Décrire l'authentification et l'identité",
+      "Valider issuer, audience, nonce et signature"
+     ],
+     [
+      "**Access token**",
+      "API protégée (Resource Server)",
+      "Porter la délégation et les scopes",
+      "Limiter audience, portée et durée"
+     ],
+     [
+      "**Refresh token**",
+      "Serveur d'autorisation",
+      "Obtenir un nouvel access token",
+      "Rotation, stockage sécurisé, révocation"
+     ]
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "OAuth 2.0 vs OpenID Connect",
+    "cols": [
+     {
+      "name": "OAuth 2.0",
+      "tag": "Délégation",
+      "points": [
+       "Objectif : déléguer l'accès à une ressource",
+       "Jeton central : access token",
+       "Audience : le Resource Server (l'API)",
+       "Question : « Que peut faire le client ? »"
+      ],
+      "use": "Autoriser une application à lire un calendrier."
+     },
+     {
+      "name": "OpenID Connect",
+      "tag": "Authentification",
+      "points": [
+       "Objectif : authentifier un utilisateur",
+       "Jeton central : ID token (+ access token si besoin)",
+       "Audience : l'application cliente",
+       "Question : « Qui vient de se connecter ? »"
+      ],
+      "use": "Se connecter à une application avec un fournisseur d'identité."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Règle d'or à réciter",
+    "text": "OAuth = que peut faire le client ? OIDC = qui vient de se connecter ? L'ID token est pour l'application, l'access token est pour l'API."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : un ID token destiné à une autre application",
+    "situation": "Ton application (client_id `agenda-app`) reçoit un ID token valide : signature correcte, issuer attendu, non expiré. Mais dans le payload, `aud` vaut `autre-app`.",
+    "q": "Que fais-tu ?",
+    "opts": [
+     {
+      "t": "J'accepte : la signature est valide, c'est le principal",
+      "ok": false,
+      "why": "Une signature valide prouve seulement l'origine du jeton, pas qu'il est destiné à toi. Sans contrôle de aud, un jeton volé ou émis pour une autre application serait accepté."
+     },
+     {
+      "t": "Je rejette le jeton : l'audience ne contient pas mon client_id",
+      "ok": true,
+      "why": "Le contrôle de aud est obligatoire. Il garantit que l'ID token a été émis pour cette application."
+     },
+     {
+      "t": "Je l'accepte mais je demande à l'utilisateur de se reconnecter plus tard",
+      "ok": false,
+      "why": "On ne crée pas de session à partir d'un jeton invalide ; reporter la reconnexion ne corrige rien."
+     },
+     {
+      "t": "Je remplace aud par mon client_id puis je continue",
+      "ok": false,
+      "why": "Modifier le payload invalide la signature, et ce serait contourner le contrôle de sécurité."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : utiliser l'ID token pour appeler l'API",
+    "situation": "Un développeur front envoie l'ID token dans l'en-tête `Authorization: Bearer` de ses appels vers l'API de l'entreprise « parce que ça marche en test ».",
+    "q": "Quelle est la bonne correction ?",
+    "opts": [
+     {
+      "t": "C'est correct : l'ID token contient les droits de l'utilisateur",
+      "ok": false,
+      "why": "L'ID token décrit l'authentification, pas des droits métier ; il est destiné à l'application cliente."
+     },
+     {
+      "t": "Utiliser l'access token (audience = l'API, scopes limités) pour appeler l'API",
+      "ok": true,
+      "why": "Chaque jeton a son destinataire : ID token pour le client, access token pour l'API, qui valide audience, scopes et durée."
+     },
+     {
+      "t": "Allonger la durée de vie de l'ID token pour éviter les erreurs",
+      "ok": false,
+      "why": "Cela augmente la fenêtre d'abus sans corriger la confusion de jetons."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "OpenID Connect (OIDC)",
+    "d": "Couche d'authentification standard construite sur OAuth 2.0, qui fournit un ID token.",
+    "derja": "El CIN numérique fou9 OAuth."
+   },
+   {
+    "t": "ID token",
+    "d": "JWT signé émis pour le client, décrivant l'authentification (qui, quand, par qui)."
+   },
+   {
+    "t": "Scope openid",
+    "d": "Scope obligatoire qui active OIDC et déclenche l'émission d'un ID token."
+   },
+   {
+    "t": "UserInfo",
+    "d": "Endpoint appelé avec l'access token pour obtenir des attributs autorisés de l'utilisateur."
+   },
+   {
+    "t": "JWKS",
+    "d": "Ensemble de clés publiques de l'IdP permettant de vérifier la signature des jetons."
+   },
+   {
+    "t": "nonce",
+    "d": "Valeur aléatoire liant l'ID token à la requête d'authentification de la session."
+   },
+   {
+    "t": "Claim",
+    "d": "Information contenue dans le jeton (iss, sub, aud, exp, iat, nonce…)."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Quelle est la différence entre OAuth 2.0 et OpenID Connect ?",
+    "a": "OAuth 2.0 délègue l'accès à une ressource : son jeton central est l'access token, destiné à l'API, et il répond à « que peut faire le client ? ». OpenID Connect est construit sur OAuth et authentifie l'utilisateur : son jeton central est l'ID token, destiné à l'application cliente, et il répond à « qui vient de se connecter ? ». Exemple : OAuth pour autoriser une app à lire un calendrier, OIDC pour se connecter à une app avec son compte d'entreprise.",
+    "keys": [
+     "délégation vs authentification",
+     "access token vs ID token",
+     "audience différente"
+    ]
+   },
+   {
+    "q": "Qu'ajoute OpenID Connect à OAuth 2.0 ?",
+    "a": "Quatre choses : un ID token signé qui décrit l'authentification, le scope openid qui active le protocole, un endpoint UserInfo pour récupérer des attributs autorisés, et des mécanismes standardisés de découverte et de publication des clés publiques (JWKS). Les flux restent ceux d'OAuth, par exemple Authorization Code avec PKCE.",
+    "keys": [
+     "ID token",
+     "scope openid",
+     "UserInfo",
+     "discovery + JWKS"
+    ]
+   },
+   {
+    "q": "Quels contrôles le client doit-il faire sur un ID token ?",
+    "a": "Il vérifie la signature avec la clé publique de l'IdP et l'algorithme attendu, puis le claim iss qui doit être l'issuer configuré, aud qui doit contenir son client_id, exp pour l'expiration, et nonce qui doit correspondre à celui envoyé au départ. Il n'utilise l'access token que pour l'API, et ne traite jamais l'ID token comme une autorisation métier.",
+    "keys": [
+     "signature",
+     "iss",
+     "aud",
+     "exp",
+     "nonce"
+    ]
+   },
+   {
+    "q": "Présente les trois jetons ID, Access et Refresh.",
+    "a": "L'ID token est destiné au client OIDC et décrit l'authentification : on valide issuer, audience, nonce et signature. L'access token est destiné à l'API et porte la délégation et les scopes : on limite son audience, sa portée et sa durée. Le refresh token est destiné au serveur d'autorisation et sert à obtenir un nouvel access token : on applique rotation, stockage sécurisé et révocation.",
+    "keys": [
+     "ID token → client",
+     "access token → API",
+     "refresh token → serveur d'autorisation"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Envoyer l'ID token à l'API à la place de l'access token : chaque jeton a un destinataire précis.",
+   "Valider seulement la signature : sans contrôle de iss, aud, exp et nonce, le jeton peut venir d'ailleurs ou être rejoué.",
+   "Croire qu'un JWT est chiffré : header et payload sont seulement encodés en Base64URL, lisibles par tous ; la signature garantit l'intégrité, pas le secret.",
+   "Identifier un utilisateur par son e-mail plutôt que par le couple iss + sub, qui est stable.",
+   "Confondre « OAuth = login » : sans scope openid il n'y a pas d'ID token, donc pas d'authentification standardisée."
+  ],
+  "quiz": [
+   {
+    "q": "Quel scope active OpenID Connect ?",
+    "opts": [
+     "profile",
+     "email",
+     "openid",
+     "offline_access"
+    ],
+    "ans": 2,
+    "why": "Sans le scope openid, le serveur fait du simple OAuth 2.0 et ne renvoie pas d'ID token. profile et email servent à demander des attributs."
+   },
+   {
+    "q": "Le claim aud d'un ID token doit contenir :",
+    "opts": [
+     "L'URL de l'API protégée",
+     "Le client_id de l'application qui reçoit le jeton",
+     "Le nom de l'utilisateur",
+     "L'URL de l'IdP"
+    ],
+    "ans": 1,
+    "why": "L'ID token est destiné à l'application cliente ; l'audience de l'access token, elle, désigne l'API. L'URL de l'IdP correspond à iss."
+   },
+   {
+    "q": "À quoi sert le nonce ?",
+    "opts": [
+     "Chiffrer l'ID token",
+     "Lier l'ID token à la session qui a lancé la demande pour éviter le rejeu",
+     "Limiter la durée de l'access token",
+     "Identifier l'utilisateur de façon stable"
+    ],
+    "ans": 1,
+    "why": "Le client génère le nonce, le mémorise et vérifie qu'il revient à l'identique dans l'ID token. L'identifiant stable est sub."
+   },
+   {
+    "q": "Quelle clé permet au client de vérifier la signature d'un ID token RS256 ?",
+    "opts": [
+     "La clé privée de l'IdP",
+     "Le client_secret du client",
+     "La clé publique de l'IdP, publiée dans le JWKS",
+     "Le refresh token"
+    ],
+    "ans": 2,
+    "why": "L'IdP signe avec sa clé privée ; tout client vérifie avec la clé publique, retrouvée grâce au kid du header dans le JWKS."
+   },
+   {
+    "q": "Quelle association jeton / destinataire est correcte ?",
+    "opts": [
+     "ID token → API protégée",
+     "Access token → application cliente pour créer sa session",
+     "Refresh token → serveur d'autorisation",
+     "Access token → utilisateur final"
+    ],
+    "ans": 2,
+    "why": "ID token → client, access token → API, refresh token → serveur d'autorisation."
+   },
+   {
+    "q": "Quelle question résume OIDC ?",
+    "opts": [
+     "Que peut faire le client ?",
+     "Qui vient de se connecter ?",
+     "Quelles ressources sont taguées ?",
+     "Quel compte doit être désactivé ?"
+    ],
+    "ans": 1,
+    "why": "« Que peut faire le client ? » caractérise OAuth 2.0 ; « Qui vient de se connecter ? » caractérise OpenID Connect."
+   }
+  ],
+  "recap": [
+   "OIDC = authentification construite sur OAuth 2.0 : même flux, plus ID token et scope openid.",
+   "Éléments ajoutés : ID token signé, scope openid, UserInfo, discovery + JWKS.",
+   "Le client valide signature + algorithme, iss, aud, exp, nonce avant de créer la session.",
+   "3 jetons : ID token (→ client), access token (→ API), refresh token (→ serveur d'autorisation).",
+   "Un JWT est signé, pas chiffré : header.payload.signature, lisible par tous.",
+   "Règle d'or : OAuth = que peut faire le client ? / OIDC = qui vient de se connecter ?"
+  ]
+ },
+ {
+  "id": "ch2a-09",
+  "part": "ch2a",
+  "title": "RBAC vs ABAC : décider par le rôle ou par les attributs",
+  "emoji": "🏷️",
+  "level": 1,
+  "minutes": 14,
+  "core": true,
+  "src": "CH2 slide 30",
+  "hook": {
+   "fr": "RBAC donne des droits selon la fonction ; ABAC les calcule selon les attributs de la personne, de la ressource et du contexte.",
+   "derja": "RBAC = badge mta3 el fonction: kol « prof » yod5el lel salle des profs. ABAC = el bawab ysael: « inti men nafs el département mta3 el dossier? el wa9t mnaseb? ». Ya3ni RBAC sahel w wadhe7, ama ki ykthrou el départements w el projets, tod5el f 3ajka mta3 roles. ABAC y7el el mochkla b 7ala wa7da: policy wa7da w tags."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fi el madrasa: badge « prof » ytfa7lek el salle des profs, w hedha RBAC (el fonction t7added el 7a9). Ama ki t7eb « kol prof yekhdem ken 3al notes mta3 les classes mta3ou »? Lazem tzid badge l kol classe… w ma y5alsouch. Houni ya5ou el ABAC blasto: el système yo9arn « classe mta3 el prof = classe mta3 el note? » w yod5ol wala la, men gher ma tkhallak bch tsna3 100 badge. Ma3neha: RBAC = « chkoun inti f el société », ABAC = « chnoua el contexte tawa »."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : comment dire qui peut faire quoi, à grande échelle ?",
+    "md": "Une application ou un compte cloud contient des **centaines d'identités** et des **milliers de ressources**. Écrire à la main « Alice peut lire la ressource 1, 2, 3… » ne tient pas. Il faut un **modèle** qui regroupe les droits. Deux familles dominent :\n- on regroupe par **fonction** : c'est le **RBAC** ;\n- on décide à partir de **propriétés** (attributs) : c'est l'**ABAC**."
+   },
+   {
+    "type": "text",
+    "title": "RBAC : Role-Based Access Control",
+    "md": "**Définition** : la décision d'accès dépend du **rôle attribué au principal**. On crée des rôles métier (Développeur, Auditeur, Analyste), on leur associe des permissions, puis on affecte les rôles aux personnes.\n\n**Exemple** : le rôle **Analyste** peut lire les rapports ; Alice reçoit ce rôle, donc Alice peut les lire.\n\n**Dans AWS** : rôles IAM, groupes IAM, et permission sets d'IAM Identity Center jouent ce rôle de « catalogue de fonctions »."
+   },
+   {
+    "type": "text",
+    "title": "ABAC : Attribute-Based Access Control",
+    "md": "**Définition** : la décision dépend des **attributs du principal, de la ressource et du contexte** (heure, réseau, risque…), évalués au moment de la requête.\n\n**Exemple** : accès autorisé **si l'équipe du principal = l'équipe de la ressource**. Une seule règle couvre toutes les équipes, présentes et futures.\n\n**Dans AWS** : les attributs sont des **tags** (`aws:PrincipalTag/team` sur l'identité, `aws:ResourceTag/team` sur la ressource) et des **clés de condition** comparés dans une condition de policy."
+   },
+   {
+    "type": "table",
+    "title": "RBAC et ABAC côte à côte",
+    "head": [
+     "Critère",
+     "RBAC",
+     "ABAC"
+    ],
+    "rows": [
+     [
+      "**Décision**",
+      "Rôle attribué au principal",
+      "Attributs du principal, de la ressource et du contexte"
+     ],
+     [
+      "**Exemple**",
+      "Rôle Analyste avec lecture des rapports",
+      "Accès si équipe du principal = équipe de la ressource"
+     ],
+     [
+      "**Atout**",
+      "Lisible, adapté aux fonctions stables",
+      "Flexible pour de nombreuses ressources"
+     ],
+     [
+      "**Limite**",
+      "Explosion du nombre de rôles",
+      "Dépend de la qualité des attributs"
+     ],
+     [
+      "**Usage conseillé**",
+      "Socle des responsabilités métiers",
+      "Extension dynamique à grande échelle"
+     ]
+    ]
+   },
+   {
+    "type": "text",
+    "title": "L'explosion des rôles, chiffrée",
+    "md": "Une entreprise a **5 équipes**, **3 environnements** (dev, test, prod) et **4 fonctions** (lecture, exploitation, développement, administration).\n- En **RBAC pur**, chaque combinaison a son rôle : 5 x 3 x 4 = **60 rôles**, et chaque nouvelle équipe en ajoute 12.\n- En **ABAC**, on garde **4 rôles de fonction** et on ajoute une condition « tag équipe du principal = tag équipe de la ressource » (et pareil pour l'environnement) : la **même policy** couvre toutes les équipes.\n\nC'est exactement la limite du RBAC citée dans le cours : **l'explosion du nombre de rôles**."
+   },
+   {
+    "type": "arch",
+    "title": "ABAC dans AWS : comparer les tags",
+    "groups": [
+     {
+      "id": "gp",
+      "label": "Principal",
+      "kind": "generic",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "alice",
+        "label": "Alice",
+        "sub": "tag team = data",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "gpol",
+      "label": "Policy (identity-based)",
+      "kind": "zone",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pol",
+        "label": "Condition ABAC",
+        "sub": "ResourceTag/team = PrincipalTag/team",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "gres",
+      "label": "Compte AWS : instances EC2",
+      "kind": "account",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "r1",
+        "label": "EC2 i-0a1",
+        "sub": "tag team = data",
+        "icon": "compute"
+       },
+       {
+        "id": "r2",
+        "label": "EC2 i-0b2",
+        "sub": "tag team = web",
+        "icon": "compute"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "alice",
+      "to": "pol",
+      "label": "1. StopInstances",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "pol",
+      "to": "r1",
+      "label": "2. tags égaux : Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "pol",
+      "to": "r2",
+      "label": "3. tags différents : refus",
+      "style": "deny"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "alice",
+       "pol"
+      ],
+      "caption": "Alice demande d'arrêter une instance. IAM lit son tag de principal : team = data."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "r1"
+      ],
+      "caption": "L'instance i-0a1 a le tag team = data. La condition est vraie, le Allow s'applique : action autorisée."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "r2"
+      ],
+      "caption": "L'instance i-0b2 a team = web. La condition est fausse : aucun Allow ne correspond, l'accès est refusé (refus implicite). Aucune nouvelle policy à écrire pour une nouvelle équipe."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Policy ABAC : même équipe que la ressource",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"ListInstances\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"ec2:DescribeInstances\",",
+     "      \"Resource\": \"*\"",
+     "    },",
+     "    {",
+     "      \"Sid\": \"StartStopSameTeam\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"ec2:StartInstances\",",
+     "        \"ec2:StopInstances\"",
+     "      ],",
+     "      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:ResourceTag/team\": \"${aws:PrincipalTag/team}\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5,
+       8
+      ],
+      "text": "DescribeInstances ne supporte pas de condition par tag de ressource : on l'autorise sur toutes les ressources pour lister.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       13,
+       15
+      ],
+      "text": "Seules les actions Start et Stop sont autorisées (pas Terminate).",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       17
+      ],
+      "text": "Toutes les instances EC2 de tous les comptes visés : le filtrage se fait par la condition, pas par la liste d'ARN.",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       18,
+       20
+      ],
+      "text": "Coeur de l'ABAC : le tag team de la ressource doit être égal au tag team du principal (variable de policy ${aws:PrincipalTag/team}).",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Alice (tag team = data) peut-elle arrêter une instance taguée team = data ?",
+      "ans": true,
+      "why": "Les deux tags sont égaux : la condition du statement StartStopSameTeam est vraie."
+     },
+     {
+      "q": "Alice (team = data) peut-elle arrêter une instance taguée team = web ?",
+      "ans": false,
+      "why": "La condition est fausse et aucun autre Allow ne couvre l'action : refus implicite."
+     },
+     {
+      "q": "Alice peut-elle terminer (ec2:TerminateInstances) une instance team = data ?",
+      "ans": false,
+      "why": "L'action TerminateInstances n'est autorisée par aucun statement."
+     },
+     {
+      "q": "Alice peut-elle lister les instances avec ec2:DescribeInstances ?",
+      "ans": true,
+      "why": "Le premier statement autorise cette action sur Resource *."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Quand combiner RBAC et ABAC ?",
+    "md": "En pratique on **combine** :\n- **RBAC = le socle** : le rôle définit *ce qu'on a le droit de faire* (actions d'un Développeur, d'un Auditeur) ;\n- **ABAC = la précision dynamique** : les attributs définissent *sur quelles ressources et dans quel contexte* (même équipe, même projet, bon environnement, réseau de confiance).\n\n**Règle simple** : fonctions stables et peu nombreuses → RBAC ; nombreuses ressources, équipes ou projets qui changent → ajouter ABAC pour éviter une policy ou un rôle par ressource."
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "ABAC = la qualité des attributs",
+    "text": "Si un utilisateur peut modifier son propre tag « team » ou les tags d'une ressource, il peut s'attribuer des accès. En ABAC, il faut contrôler QUI peut poser et modifier les tags, imposer des tags à la création et surveiller les ressources non taguées : une ressource sans tag est simplement hors du modèle."
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Compare RBAC et ABAC sur 5 critères : décision, exemple, atout, limite, usage conseillé. Limite du RBAC = explosion des rôles. Limite de l'ABAC = dépendance à la qualité des attributs."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : 12 équipes projet qui changent chaque trimestre",
+    "situation": "Une entreprise crée chaque trimestre de nouveaux projets. Les développeurs doivent gérer uniquement les ressources de leur projet. L'équipe sécurité a déjà 85 rôles IAM et en ajoute 10 à chaque trimestre.",
+    "q": "Quelle approche est la plus adaptée ?",
+    "opts": [
+     {
+      "t": "Continuer à créer un rôle par projet : c'est plus simple à lire",
+      "ok": false,
+      "why": "C'est précisément l'explosion des rôles : la charge d'administration croît avec chaque projet."
+     },
+     {
+      "t": "Un rôle Développeur commun et une policy ABAC qui compare le tag projet du principal et celui de la ressource",
+      "ok": true,
+      "why": "Le RBAC donne le socle de fonction et l'ABAC adapte l'accès au projet. Un nouveau projet ne demande que des tags, pas un nouveau rôle."
+     },
+     {
+      "t": "Donner AdministratorAccess à tous les développeurs",
+      "ok": false,
+      "why": "Cela viole le moindre privilège."
+     },
+     {
+      "t": "Supprimer tous les rôles et gérer les droits utilisateur par utilisateur",
+      "ok": false,
+      "why": "Cela rend l'administration ingérable et l'audit quasi impossible."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : un auditeur interne unique",
+    "situation": "L'entreprise doit donner à 3 auditeurs une lecture seule sur les journaux de toutes les équipes. La fonction est stable et les droits sont identiques pour tous.",
+    "q": "Quel modèle choisir ?",
+    "opts": [
+     {
+      "t": "Un rôle Auditeur en lecture seule (RBAC) : c'est une fonction stable avec des droits identiques",
+      "ok": true,
+      "why": "Le RBAC est lisible et adapté aux fonctions stables. Pas besoin de calcul d'attributs ici."
+     },
+     {
+      "t": "ABAC obligatoire avec une condition sur chaque ressource",
+      "ok": false,
+      "why": "Complexité inutile : aucune distinction par équipe n'est demandée."
+     },
+     {
+      "t": "Un compte partagé « audit » avec mot de passe commun",
+      "ok": false,
+      "why": "Un compte partagé détruit la traçabilité : on ne sait plus qui a fait quoi."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "RBAC",
+    "d": "Contrôle d'accès où les droits dépendent du rôle attribué au principal.",
+    "derja": "El 7a9 yji men el fonction."
+   },
+   {
+    "t": "ABAC",
+    "d": "Contrôle d'accès où la décision compare des attributs du principal, de la ressource et du contexte.",
+    "derja": "El 7a9 yji men el attributs w el contexte."
+   },
+   {
+    "t": "Attribut",
+    "d": "Propriété utilisée pour décider : équipe, projet, sensibilité, heure, réseau."
+   },
+   {
+    "t": "Tag (AWS)",
+    "d": "Paire clé/valeur posée sur une identité ou une ressource, utilisée comme attribut ABAC."
+   },
+   {
+    "t": "Explosion des rôles",
+    "d": "Multiplication des rôles quand chaque combinaison équipe/projet/environnement exige un rôle distinct."
+   },
+   {
+    "t": "Clé de condition",
+    "d": "Valeur de contexte comparée dans une policy IAM (ex. aws:PrincipalTag, aws:ResourceTag, aws:SourceIp)."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Quelle est la différence entre RBAC et ABAC ?",
+    "a": "Le RBAC décide selon le rôle attribué au principal : par exemple le rôle Analyste peut lire les rapports. L'ABAC décide selon les attributs du principal, de la ressource et du contexte : par exemple l'accès est autorisé si l'équipe du principal est égale à l'équipe de la ressource. Le RBAC est lisible et adapté aux fonctions stables mais subit l'explosion des rôles ; l'ABAC est flexible à grande échelle mais dépend de la qualité des attributs.",
+    "keys": [
+     "rôle vs attributs",
+     "explosion des rôles",
+     "qualité des attributs"
+    ]
+   },
+   {
+    "q": "Qu'est-ce que l'explosion des rôles et comment l'éviter ?",
+    "a": "C'est la multiplication des rôles quand il faut un rôle pour chaque combinaison d'équipe, de projet, d'environnement et de fonction : 5 équipes, 3 environnements et 4 fonctions donnent déjà 60 rôles. On l'évite en gardant un petit nombre de rôles de fonction et en ajoutant des conditions ABAC basées sur les tags, de sorte qu'une seule policy serve toutes les équipes.",
+    "keys": [
+     "multiplication des rôles",
+     "rôles de fonction + ABAC",
+     "tags"
+    ]
+   },
+   {
+    "q": "Comment fait-on de l'ABAC dans AWS ?",
+    "a": "On pose des tags sur les principaux et sur les ressources, puis on écrit une policy dont la condition compare les deux, par exemple aws:ResourceTag/team égal à ${aws:PrincipalTag/team}. Cette policy unique s'applique à toutes les équipes. Il faut aussi contrôler qui peut créer et modifier les tags, sinon un utilisateur peut s'octroyer des accès.",
+    "keys": [
+     "tags",
+     "aws:PrincipalTag",
+     "aws:ResourceTag",
+     "gouvernance des tags"
+    ]
+   },
+   {
+    "q": "Faut-il choisir RBAC ou ABAC ?",
+    "a": "Ce n'est pas un choix exclusif. Le RBAC sert de socle des responsabilités métier, car il est simple à lire et à auditer. L'ABAC vient en extension dynamique quand il y a beaucoup de ressources, d'équipes ou de projets, pour restreindre selon l'équipe, le projet ou le contexte sans multiplier les rôles. En pratique on combine les deux.",
+    "keys": [
+     "RBAC = socle",
+     "ABAC = extension dynamique",
+     "combiner"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Dire que l'ABAC remplace le RBAC : le cours recommande RBAC comme socle et ABAC comme extension.",
+   "Oublier que l'ABAC n'est sûr que si les attributs (tags) sont fiables et protégés contre la modification.",
+   "Croire que RBAC = « un rôle par personne » : un rôle est une fonction partagée par plusieurs personnes.",
+   "Confondre tag de principal (sur l'identité) et tag de ressource : la condition ABAC compare les deux.",
+   "Citer comme limite du RBAC « il est compliqué » : la limite attendue est l'explosion du nombre de rôles."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle est la limite principale du RBAC selon le cours ?",
+    "opts": [
+     "Il ne permet pas de journaliser",
+     "L'explosion du nombre de rôles",
+     "Il dépend de la qualité des attributs",
+     "Il ne supporte pas les groupes"
+    ],
+    "ans": 1,
+    "why": "La dépendance à la qualité des attributs est la limite de l'ABAC. Pour le RBAC, c'est l'explosion du nombre de rôles."
+   },
+   {
+    "q": "Dans AWS, quelle condition illustre une règle ABAC « même équipe » ?",
+    "opts": [
+     "aws:SourceIp égale à l'adresse du bureau",
+     "aws:ResourceTag/team égale à ${aws:PrincipalTag/team}",
+     "aws:MultiFactorAuthPresent égale à true",
+     "aws:CurrentTime inférieure à une date"
+    ],
+    "ans": 1,
+    "why": "On compare le tag de la ressource au tag du principal. Les autres conditions portent sur le réseau, le MFA ou le temps, pas sur l'équipe."
+   },
+   {
+    "q": "Quel usage est conseillé pour l'ABAC ?",
+    "opts": [
+     "Socle des responsabilités métier",
+     "Extension dynamique à grande échelle",
+     "Remplacement des journaux d'audit",
+     "Distribution de clés d'accès permanentes"
+    ],
+    "ans": 1,
+    "why": "RBAC est le socle ; l'ABAC est l'extension dynamique à grande échelle."
+   },
+   {
+    "q": "Avec la policy ABAC du cours, Alice (team = data) veut arrêter une instance taguée team = web. Résultat ?",
+    "opts": [
+     "Autorisé car elle a ec2:StopInstances",
+     "Refusé : la condition est fausse donc aucun Allow ne s'applique",
+     "Autorisé si elle utilise le MFA",
+     "Refusé uniquement le week-end"
+    ],
+    "ans": 1,
+    "why": "Le Allow est conditionné par l'égalité des tags ; faute de correspondance, le refus implicite s'applique."
+   },
+   {
+    "q": "Quel risque spécifique à l'ABAC faut-il maîtriser ?",
+    "opts": [
+     "Le nombre de rôles qui explose",
+     "La modification non contrôlée des tags qui servent d'attributs",
+     "L'absence de conditions dans IAM",
+     "L'impossibilité d'utiliser des groupes"
+    ],
+    "ans": 1,
+    "why": "Si un utilisateur peut changer les tags de décision, il peut s'ouvrir des accès : la gouvernance des attributs est critique."
+   }
+  ],
+  "recap": [
+   "RBAC = décision par le rôle attribué ; ABAC = décision par attributs du principal, de la ressource et du contexte.",
+   "RBAC : lisible, fonctions stables, mais explosion des rôles.",
+   "ABAC : flexible à grande échelle, mais dépend de la qualité des attributs.",
+   "Dans AWS, l'ABAC compare des tags : aws:ResourceTag/... et aws:PrincipalTag/....",
+   "On combine : RBAC comme socle de responsabilités, ABAC comme extension dynamique.",
+   "Gouverner les tags : qui peut les poser et les modifier ?"
+  ]
+ },
+ {
+  "id": "ch2a-10",
+  "part": "ch2a",
+  "title": "XACML et l'autorisation par attributs : PEP, PDP, PIP, PAP",
+  "emoji": "⚖️",
+  "level": 2,
+  "minutes": 18,
+  "core": true,
+  "src": "CH2 slides 31-33",
+  "hook": {
+   "fr": "XACML modélise une décision d'autorisation en quatre composants (PEP, PDP, PIP, PAP) et se retrouve, en pratique, dans le moteur de politiques d'AWS IAM.",
+   "derja": "Fi sbitar: el agent de sécurité 3and el bab (PEP) yo9felek, yos2el el directeur (PDP): « el docteur hedha ynajjem y3adel el dossier?». El directeur yet2aked fi el 9anoun mta3 el sbitar (PAP) w ykallem el secrétariat (PIP) bch yjib el ma3loumet li na9sa: service, sensibilité. W yjaweb: Permit wala Deny. El agent yo9fel wala yfta7. W f AWS? Nafs el fekra: el service yotbe9, el moteur IAM ye7kem."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawwar docteur ya7eb ya3mel modification f dossier patient fi 2 sbe7 (02:00). El agent mta3 el bab ma yfassarch weyel: yel9a rouhou ma3andouch 7a9 yfassar, donc yseb el dossier lel directeur: « docteur, cardiologie, yheb ymodifi dossier sensible, el sa3a 02:00 ». El directeur yfta7 el règlement: « docteur men el service concerné bin 08:00 w 18:00 ». El sa3a 02:00, donc **Deny**. Ma3neha el décision tetaked mel contexte mouch ken mel rôle. Hedha houwa el ABAC fi shakl formel."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : un rôle ne suffit pas toujours",
+    "md": "Dans un hôpital, « Médecin » ne suffit pas : un médecin peut-il modifier **n'importe quel** dossier, à **n'importe quelle** heure, depuis **n'importe quel** réseau ? On a besoin d'une décision qui tient compte du **service**, de la **sensibilité** du dossier, de l'**action** et du **contexte**. Il faut aussi un **modèle d'architecture** pour que ces décisions soient prises au même endroit, de façon cohérente, au lieu d'être codées dans chaque application."
+   },
+   {
+    "type": "text",
+    "title": "Définition",
+    "md": "**XACML 3.0** (norme OASIS) est un **langage de politiques** et un **modèle de traitement** pour prendre des décisions d'autorisation à partir d'**attributs**. Il répond à une seule question :\n\n> Le **sujet** peut-il effectuer cette **action** sur cette **ressource** dans ce **contexte** ?\n\nC'est la formalisation de l'ABAC. Dans ce cours, XACML sert surtout de **modèle de référence** pour comprendre comment une plateforme décide ; AWS IAM n'utilise pas la syntaxe XACML mais suit la même logique."
+   },
+   {
+    "type": "table",
+    "title": "Une requête XACML : 4 familles d'attributs",
+    "head": [
+     "Famille",
+     "Contenu",
+     "Exemples (dossier médical)"
+    ],
+    "rows": [
+     [
+      "**Sujet**",
+      "Qui demande",
+      "Rôle : Médecin ; Département : Cardiologie ; Niveau d'habilitation"
+     ],
+     [
+      "**Ressource**",
+      "Ce qui est visé",
+      "Type : dossier patient ; Propriétaire ; Sensibilité : élevée"
+     ],
+     [
+      "**Action**",
+      "Ce qu'on veut faire",
+      "Lire, Modifier, Supprimer"
+     ],
+     [
+      "**Environnement**",
+      "Le contexte",
+      "Heure : 02:00 ; Localisation : réseau de l'hôpital ; Niveau de risque"
+     ]
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Architecture XACML : qui fait quoi ?",
+    "groups": [
+     {
+      "id": "gu",
+      "label": "Demandeurs",
+      "kind": "generic",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "user",
+        "label": "Médecin / infirmier",
+        "sub": "ou application",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "gapp",
+      "label": "Application protégée",
+      "kind": "zone",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pep",
+        "label": "PEP",
+        "sub": "intercepte et applique",
+        "icon": "shield"
+       },
+       {
+        "id": "res",
+        "label": "Dossiers patients",
+        "sub": "ressource",
+        "icon": "db"
+       }
+      ]
+     },
+     {
+      "id": "gdec",
+      "label": "Décision centralisée",
+      "kind": "zone",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pdp",
+        "label": "PDP",
+        "sub": "évalue la politique",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "gsrc",
+      "label": "Sources du PDP",
+      "kind": "zone",
+      "col": 2,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "pip",
+        "label": "PIP",
+        "sub": "fournit les attributs manquants",
+        "icon": "db"
+       },
+       {
+        "id": "pap",
+        "label": "PAP",
+        "sub": "administre les politiques",
+        "icon": "org"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "user",
+      "to": "pep",
+      "label": "1. Demande d'accès",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "pep",
+      "to": "pdp",
+      "label": "2. Requête de décision",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "pdp",
+      "to": "pip",
+      "label": "3. Attributs manquants ?",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "pap",
+      "to": "pdp",
+      "label": "Politiques",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "pdp",
+      "to": "pep",
+      "label": "4. Décision",
+      "style": "dashed"
+     },
+     {
+      "id": "e6",
+      "from": "pep",
+      "to": "res",
+      "label": "5a. Permit : accès",
+      "style": "solid"
+     },
+     {
+      "id": "e7",
+      "from": "pep",
+      "to": "user",
+      "label": "5b. Deny : refus",
+      "style": "deny"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "user",
+       "pep"
+      ],
+      "caption": "Le PEP (Policy Enforcement Point) est le garde devant la ressource : il intercepte chaque demande. Il ne décide rien lui-même."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "pep",
+       "pdp"
+      ],
+      "caption": "Le PEP construit une requête de décision avec les attributs du sujet, de la ressource, de l'action et de l'environnement, et la transmet au PDP."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4"
+      ],
+      "nodes": [
+       "pdp",
+       "pip",
+       "pap"
+      ],
+      "caption": "Le PDP (Policy Decision Point) évalue les politiques administrées via le PAP (Policy Administration Point). S'il lui manque des attributs, il les demande au PIP (Policy Information Point)."
+     },
+     {
+      "edges": [
+       "e5"
+      ],
+      "nodes": [
+       "pdp",
+       "pep"
+      ],
+      "caption": "Le PDP renvoie sa décision au PEP : Permit, Deny, NotApplicable ou Indeterminate."
+     },
+     {
+      "edges": [
+       "e6",
+       "e7"
+      ],
+      "nodes": [
+       "pep",
+       "res",
+       "user"
+      ],
+      "caption": "Le PEP applique : accès à la ressource si Permit, refus si Deny. La décision est centralisée, l'application est locale."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les 4 composants en une phrase",
+    "head": [
+     "Composant",
+     "Nom complet",
+     "Rôle"
+    ],
+    "rows": [
+     [
+      "**PEP**",
+      "Policy Enforcement Point",
+      "Intercepte la demande et applique la décision"
+     ],
+     [
+      "**PDP**",
+      "Policy Decision Point",
+      "Évalue la politique et décide"
+     ],
+     [
+      "**PIP**",
+      "Policy Information Point",
+      "Fournit les attributs manquants"
+     ],
+     [
+      "**PAP**",
+      "Policy Administration Point",
+      "Crée et administre les politiques"
+     ]
+    ],
+    "note": "Moyen mnémotechnique : le PEP exécute, le PDP décide, le PIP informe, le PAP administre."
+   },
+   {
+    "type": "flow",
+    "title": "Dossier médical à 02:00 : la décision pas à pas",
+    "intro": "Un médecin de cardiologie veut modifier un dossier patient sensible à 02:00 depuis le réseau de l'hôpital. Politique : un médecin du service concerné peut accéder entre 08:00 et 18:00.",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Dr Ben Ali",
+      "sub": "Médecin, Cardiologie",
+      "kind": "user"
+     },
+     {
+      "id": "pep",
+      "label": "Application dossiers",
+      "sub": "PEP",
+      "kind": "app"
+     },
+     {
+      "id": "pdp",
+      "label": "PDP",
+      "sub": "moteur de décision",
+      "kind": "service"
+     },
+     {
+      "id": "pip",
+      "label": "PIP",
+      "sub": "annuaire RH + métadonnées",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "pep",
+      "label": "1. Demande : modifier le dossier du patient",
+      "detail": "Le médecin ouvre le dossier et clique sur « Modifier ». Le PEP intercepte la demande avant tout accès aux données.",
+      "payload": {
+       "title": "Demande d'accès",
+       "fields": [
+        {
+         "k": "Utilisateur",
+         "v": "dr.benali",
+         "note": "identité authentifiée"
+        },
+        {
+         "k": "Ressource",
+         "v": "dossier patient #4521",
+         "note": "objet visé"
+        },
+        {
+         "k": "Action",
+         "v": "Modifier",
+         "note": "opération demandée"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pep",
+      "to": "pdp",
+      "label": "2. Requête de décision XACML",
+      "detail": "Le PEP envoie au PDP ce qu'il sait : rôle, ressource, action et environnement (heure, réseau).",
+      "derja": "El agent ma ya7kemch: yseb el 7alla lel directeur.",
+      "payload": {
+       "title": "Requête XACML (attributs connus du PEP)",
+       "fields": [
+        {
+         "k": "Sujet",
+         "v": "rôle = Médecin",
+         "note": "service pas encore transmis"
+        },
+        {
+         "k": "Ressource",
+         "v": "dossier patient #4521",
+         "note": "sensibilité à compléter"
+        },
+        {
+         "k": "Action",
+         "v": "Modifier",
+         "note": ""
+        },
+        {
+         "k": "Environnement",
+         "v": "heure = 02:00 ; réseau hôpital",
+         "note": "contexte de la requête"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pdp",
+      "to": "pip",
+      "label": "3. Attributs manquants ?",
+      "detail": "La politique exige le service du médecin et la sensibilité du dossier. Le PDP interroge le PIP, la source de vérité de ces attributs.",
+      "payload": {
+       "title": "Demande d'attributs au PIP",
+       "fields": [
+        {
+         "k": "Pour le sujet",
+         "v": "dr.benali",
+         "note": "quel service ?"
+        },
+        {
+         "k": "Pour la ressource",
+         "v": "dossier #4521",
+         "note": "quelle sensibilité ?"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pip",
+      "to": "pdp",
+      "label": "4. Attributs fournis",
+      "dashed": true,
+      "detail": "Le PIP répond avec les attributs demandés. Le PDP a maintenant tout ce qu'il faut.",
+      "payload": {
+       "title": "Réponse du PIP",
+       "fields": [
+        {
+         "k": "service du sujet",
+         "v": "Cardiologie",
+         "note": "même service que le dossier"
+        },
+        {
+         "k": "sensibilité de la ressource",
+         "v": "élevée",
+         "note": "dossier à protéger"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pdp",
+      "to": "pdp",
+      "label": "5. Évalue la politique",
+      "tone": "bad",
+      "detail": "Politique : autoriser un médecin du service concerné entre 08:00 et 18:00. Le rôle est bon, le service est bon, mais l'heure est 02:00 : la condition horaire échoue.",
+      "payload": {
+       "title": "Évaluation (politique écrite via le PAP)",
+       "fields": [
+        {
+         "k": "Rôle = Médecin",
+         "v": "vrai",
+         "note": ""
+        },
+        {
+         "k": "Service concerné",
+         "v": "vrai",
+         "note": "Cardiologie"
+        },
+        {
+         "k": "Heure entre 08:00 et 18:00",
+         "v": "FAUX (02:00)",
+         "note": "la condition horaire échoue"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pdp",
+      "to": "pep",
+      "label": "6. Décision : Deny",
+      "dashed": true,
+      "tone": "bad",
+      "detail": "Le PDP renvoie la décision au PEP. Une des conditions est fausse : la décision est Deny.",
+      "payload": {
+       "title": "Réponse XACML",
+       "fields": [
+        {
+         "k": "Decision",
+         "v": "Deny",
+         "note": "autres valeurs possibles : Permit, NotApplicable, Indeterminate"
+        }
+       ]
+      }
+     },
+     {
+      "from": "pep",
+      "to": "u",
+      "label": "7. Accès refusé",
+      "dashed": true,
+      "tone": "bad",
+      "detail": "Le PEP applique la décision : aucune modification du dossier. L'événement (qui, quoi, quand, décision) est journalisé pour l'audit.",
+      "derja": "El agent yo9fel el bab, w yseggel kol chay."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les 4 décisions possibles",
+    "head": [
+     "Décision",
+     "Signification",
+     "Côté AWS IAM"
+    ],
+    "rows": [
+     [
+      "**Permit**",
+      "Une politique applicable autorise la requête",
+      "Allow explicite, sans Deny"
+     ],
+     [
+      "**Deny**",
+      "Une politique applicable refuse la requête",
+      "Deny explicite, ou refus implicite (par défaut)"
+     ],
+     [
+      "**NotApplicable**",
+      "Aucune politique ne s'applique à cette requête",
+      "Pas de statement correspondant : refus implicite"
+     ],
+     [
+      "**Indeterminate**",
+      "La décision ne peut pas être calculée (erreur, attribut manquant)",
+      "Pas de notion équivalente : IAM tranche en Allow ou Deny"
+     ]
+    ],
+    "note": "Bonne pratique côté PEP : si le PDP est injoignable ou renvoie Indeterminate / NotApplicable, on refuse (fail closed)."
+   },
+   {
+    "type": "table",
+    "title": "Correspondance conceptuelle XACML / AWS IAM",
+    "head": [
+     "XACML",
+     "AWS IAM"
+    ],
+    "rows": [
+     [
+      "**PEP**",
+      "Le service AWS reçoit la requête et applique la décision"
+     ],
+     [
+      "**PDP**",
+      "Le moteur d'évaluation des politiques IAM"
+     ],
+     [
+      "**PIP**",
+      "Contexte de requête, clés de condition et tags"
+     ],
+     [
+      "**PAP**",
+      "IAM, AWS Organizations et outils de déploiement"
+     ],
+     [
+      "**Politique**",
+      "Politiques IAM JSON, SCP, resource policies et boundaries"
+     ]
+    ],
+    "note": "La correspondance est conceptuelle : AWS IAM n'utilise pas la syntaxe XACML."
+   },
+   {
+    "type": "text",
+    "title": "Dans AWS : un Deny explicite l'emporte",
+    "md": "AWS exprime ses décisions avec des **politiques IAM JSON**. Pour une requête, IAM rassemble les politiques applicables et la logique est :\n1. **par défaut tout est refusé** (refus implicite) ;\n2. un **Allow explicite** peut autoriser ;\n3. un **Deny explicite** dans n'importe quelle politique applicable **l'emporte toujours** sur tout Allow.\n\nLes **tags de principal et de ressource** permettent d'appliquer l'ABAC à grande échelle (voir la leçon précédente).\n\nAttention au temps : la condition `aws:CurrentTime` compare à une date et heure **absolues** (par exemple « jusqu'au 31 mars »). Elle sert aux accès temporaires, pas à exprimer « chaque jour de 08:00 à 18:00 »."
+   },
+   {
+    "type": "policy",
+    "title": "L'esprit du dossier médical en policy IAM",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"AllowSameServiceRead\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:GetObject\",",
+     "      \"Resource\": \"arn:aws:s3:::hopital-dossiers/*\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"s3:ExistingObjectTag/service\": \"${aws:PrincipalTag/service}\"",
+     "        }",
+     "      }",
+     "    },",
+     "    {",
+     "      \"Sid\": \"DenyOutsideHospitalNetwork\",",
+     "      \"Effect\": \"Deny\",",
+     "      \"Action\": \"s3:*\",",
+     "      \"Resource\": [",
+     "        \"arn:aws:s3:::hopital-dossiers\",",
+     "        \"arn:aws:s3:::hopital-dossiers/*\"",
+     "      ],",
+     "      \"Condition\": {",
+     "        \"NotIpAddress\": {",
+     "          \"aws:SourceIp\": \"203.0.113.0/24\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5,
+       11
+      ],
+      "text": "Allow ABAC : lecture permise si le tag service de l'objet = le tag service du principal.",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       16,
+       24
+      ],
+      "text": "Deny explicite : toute action est refusée si la requête ne vient pas du réseau de l'hôpital (plage d'exemple 203.0.113.0/24).",
+      "tone": "bad"
+     },
+     {
+      "lines": [
+       18
+      ],
+      "text": "Le Deny porte sur s3:* : même un Allow ailleurs ne pourra pas le contourner.",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Un cardiologue (tag service = cardiologie) lit un objet taggé service = cardiologie depuis le réseau de l'hôpital. Autorisé ?",
+      "ans": true,
+      "why": "L'Allow s'applique (tags égaux) et le Deny ne s'applique pas (IP dans la plage)."
+     },
+     {
+      "q": "Le même médecin lit le même objet depuis son domicile (IP hors plage). Autorisé ?",
+      "ans": false,
+      "why": "Le Deny explicite s'applique et l'emporte sur l'Allow."
+     },
+     {
+      "q": "Le même médecin lit un objet taggé service = pédiatrie depuis l'hôpital. Autorisé ?",
+      "ans": false,
+      "why": "Aucun Allow ne correspond (tags différents) : refus implicite."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Le PEP intercepte la demande. Le PDP décide. Le PIP fournit les attributs. Le PAP administre les politiques. Décision : Permit, Deny, NotApplicable ou Indeterminate. Dans AWS : un refus explicite prévaut sur une autorisation."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le PDP est injoignable",
+    "situation": "Le PEP d'une application de dossiers médicaux n'arrive plus à joindre le PDP (panne réseau). Des médecins attendent pour consulter des dossiers urgents.",
+    "q": "Quel comportement du PEP est le plus conforme aux bonnes pratiques de sécurité ?",
+    "opts": [
+     {
+      "t": "Autoriser tout le monde temporairement pour ne pas bloquer les soins",
+      "ok": false,
+      "why": "C'est un fail open : en cas de panne, tout accès devient possible, y compris pour un attaquant."
+     },
+     {
+      "t": "Refuser par défaut (fail closed), alerter, et prévoir une procédure d'urgence journalisée de type break-glass",
+      "ok": true,
+      "why": "On ne décide jamais sans PDP. Pour les urgences, on utilise un accès d'exception tracé et temporaire plutôt qu'un contournement général."
+     },
+     {
+      "t": "Utiliser la dernière décision Permit en cache sans limite de durée",
+      "ok": false,
+      "why": "Un cache sans expiration ignore les changements de politique et de contexte (heure, risque)."
+     },
+     {
+      "t": "Laisser le PEP prendre lui-même la décision d'après le rôle",
+      "ok": false,
+      "why": "Cela casse la séparation des composants : la décision doit rester au PDP, selon les politiques du PAP."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : quel composant corriger ?",
+    "situation": "Une règle indique « autoriser les médecins du service concerné ». Mais l'attribut « service » d'un nouveau médecin n'est pas renseigné dans l'annuaire, et le PDP ne peut pas le calculer.",
+    "q": "Quel composant fournit habituellement cet attribut manquant au PDP ?",
+    "opts": [
+     {
+      "t": "Le PEP",
+      "ok": false,
+      "why": "Le PEP intercepte et applique ; il peut transmettre quelques attributs de la requête mais ne gère pas les sources d'attributs."
+     },
+     {
+      "t": "Le PIP",
+      "ok": true,
+      "why": "Le Policy Information Point fournit les attributs manquants (annuaire, base RH, métadonnées de ressource)."
+     },
+     {
+      "t": "Le PAP",
+      "ok": false,
+      "why": "Le PAP administre les politiques, pas les attributs des sujets."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "XACML",
+    "d": "Norme OASIS décrivant un langage de politiques et un modèle de traitement des décisions d'autorisation par attributs."
+   },
+   {
+    "t": "PEP",
+    "d": "Policy Enforcement Point : intercepte la demande et applique la décision.",
+    "derja": "El agent mta3 el bab."
+   },
+   {
+    "t": "PDP",
+    "d": "Policy Decision Point : évalue les politiques et rend la décision.",
+    "derja": "El directeur li ya7kem."
+   },
+   {
+    "t": "PIP",
+    "d": "Policy Information Point : fournit au PDP les attributs manquants.",
+    "derja": "El secrétariat li ye3ti el ma3loumet."
+   },
+   {
+    "t": "PAP",
+    "d": "Policy Administration Point : crée et administre les politiques.",
+    "derja": "Elli yekteb el 9anoun."
+   },
+   {
+    "t": "Permit / Deny / NotApplicable / Indeterminate",
+    "d": "Les quatre décisions XACML : autorisé, refusé, aucune politique applicable, décision non calculable."
+   },
+   {
+    "t": "Refus explicite",
+    "d": "Deny écrit dans une politique AWS : il l'emporte sur tout Allow."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Présente l'architecture XACML.",
+    "a": "XACML décrit quatre composants. Le PEP intercepte la demande d'accès et applique la décision. Il envoie une requête contenant des attributs du sujet, de la ressource, de l'action et de l'environnement au PDP. Le PDP évalue les politiques administrées par le PAP et, si des attributs manquent, les demande au PIP. Il renvoie une décision Permit, Deny, NotApplicable ou Indeterminate au PEP, qui l'applique.",
+    "keys": [
+     "PEP intercepte",
+     "PDP décide",
+     "PIP attributs",
+     "PAP politiques"
+    ]
+   },
+   {
+    "q": "Explique l'exemple du dossier médical à 02:00.",
+    "a": "Un médecin de cardiologie veut modifier un dossier patient de sensibilité élevée à 02:00 depuis le réseau de l'hôpital. Le PEP envoie la requête au PDP, qui récupère auprès du PIP les attributs manquants. La politique autorise un médecin du service concerné entre 08:00 et 18:00. Le rôle et le service sont corrects, mais la condition horaire échoue : la décision est Deny et le PEP bloque l'accès. Cela montre que la décision dépend du contexte, pas seulement du rôle.",
+    "keys": [
+     "contexte (heure)",
+     "condition horaire échoue",
+     "Deny",
+     "attributs via PIP"
+    ]
+   },
+   {
+    "q": "Quelle est la correspondance entre XACML et AWS IAM ?",
+    "a": "Conceptuellement, le PEP est le service AWS qui reçoit et applique la décision, le PDP est le moteur d'évaluation des politiques IAM, le PIP correspond au contexte de la requête, aux clés de condition et aux tags, et le PAP à IAM, AWS Organizations et aux outils de déploiement. Les politiques sont les politiques IAM JSON, les SCP, les resource policies et les boundaries. AWS n'utilise pas la syntaxe XACML.",
+    "keys": [
+     "PEP = service AWS",
+     "PDP = moteur IAM",
+     "PIP = contexte/tags",
+     "PAP = IAM/Organizations"
+    ]
+   },
+   {
+    "q": "Que se passe-t-il quand une politique autorise et une autre refuse ?",
+    "a": "Dans AWS, un Deny explicite l'emporte toujours sur un Allow. Par défaut, tout est refusé : sans Allow explicite, la requête est refusée de façon implicite. Il faut donc un Allow et aucun Deny applicable pour que l'accès soit accordé.",
+    "keys": [
+     "Deny explicite l'emporte",
+     "refus implicite par défaut"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Inverser PEP et PDP : le PEP applique, le PDP décide.",
+   "Dire que le PIP stocke les politiques : ce sont les attributs (le PAP gère les politiques).",
+   "Croire qu'AWS IAM utilise XACML : la correspondance est seulement conceptuelle.",
+   "Oublier que le Deny explicite l'emporte sur tout Allow, quel que soit l'ordre des statements.",
+   "Confondre NotApplicable (aucune politique ne s'applique) et Indeterminate (la décision n'a pas pu être calculée).",
+   "Penser pouvoir exprimer « chaque jour de 08:00 à 18:00 » avec aws:CurrentTime : cette condition compare à une date et heure absolues."
+  ],
+  "quiz": [
+   {
+    "q": "Quel composant XACML intercepte la demande d'accès et applique la décision ?",
+    "opts": [
+     "PDP",
+     "PEP",
+     "PIP",
+     "PAP"
+    ],
+    "ans": 1,
+    "why": "Le PEP (Policy Enforcement Point) est devant la ressource. Le PDP décide, le PIP fournit les attributs, le PAP administre les politiques."
+   },
+   {
+    "q": "Quel composant fournit au PDP les attributs manquants ?",
+    "opts": [
+     "PEP",
+     "PAP",
+     "PIP",
+     "Le client"
+    ],
+    "ans": 2,
+    "why": "Le PIP (Policy Information Point) est la source d'attributs : annuaire, base RH, métadonnées de ressource."
+   },
+   {
+    "q": "Dans l'exemple du dossier médical, pourquoi la décision est-elle Deny ?",
+    "opts": [
+     "Le rôle n'est pas Médecin",
+     "Le service n'est pas Cardiologie",
+     "La condition horaire échoue : il est 02:00 et la politique autorise 08:00 à 18:00",
+     "Le dossier n'existe pas"
+    ],
+    "ans": 2,
+    "why": "Rôle et service sont bons ; seule la condition d'environnement (heure) échoue, ce qui rend la décision Deny."
+   },
+   {
+    "q": "Quelle décision XACML signifie qu'aucune politique ne s'applique à la requête ?",
+    "opts": [
+     "Permit",
+     "Deny",
+     "NotApplicable",
+     "Indeterminate"
+    ],
+    "ans": 2,
+    "why": "NotApplicable = aucune politique applicable. Indeterminate = erreur ou attribut manquant empêchant le calcul."
+   },
+   {
+    "q": "À quoi correspond le PDP dans AWS IAM ?",
+    "opts": [
+     "Les clés de condition et les tags",
+     "Le service AWS qui applique la décision",
+     "Le moteur d'évaluation des politiques IAM",
+     "AWS Organizations"
+    ],
+    "ans": 2,
+    "why": "PDP = moteur d'évaluation IAM. Les clés de condition et tags jouent le rôle du PIP, le service AWS celui du PEP, Organizations celui d'un PAP."
+   },
+   {
+    "q": "Un statement Allow et un statement Deny s'appliquent tous deux à la même requête AWS. Résultat ?",
+    "opts": [
+     "Allow, car il est écrit en premier",
+     "Deny, car un refus explicite prévaut",
+     "Allow si l'utilisateur a le MFA",
+     "Indeterminate"
+    ],
+    "ans": 1,
+    "why": "Le Deny explicite l'emporte toujours. L'ordre des statements n'a aucune influence."
+   }
+  ],
+  "recap": [
+   "XACML = langage et modèle de décision d'autorisation par attributs (sujet, ressource, action, environnement).",
+   "PEP intercepte et applique ; PDP évalue et décide ; PIP fournit les attributs ; PAP administre les politiques.",
+   "Décisions possibles : Permit, Deny, NotApplicable, Indeterminate.",
+   "Exemple du cours : médecin de cardiologie à 02:00 sur un dossier sensible : Deny car la condition horaire échoue.",
+   "AWS : PEP = service, PDP = moteur IAM, PIP = contexte/tags, PAP = IAM/Organizations ; la correspondance est conceptuelle.",
+   "Dans AWS, refus par défaut, et un Deny explicite l'emporte toujours sur un Allow."
+  ]
+ },
+ {
+  "id": "ch2a-11",
+  "part": "ch2a",
+  "title": "Moindre privilège, séparation des responsabilités, échelle et Zero Trust",
+  "emoji": "🛡️",
+  "level": 1,
+  "minutes": 18,
+  "core": true,
+  "src": "CH2 slides 34-36",
+  "hook": {
+   "fr": "Quatre principes de gouvernance qui limitent les dégâts quand un compte est volé ou qu'une personne se trompe : moindre privilège, séparation des responsabilités, gestion à l'échelle et Zero Trust.",
+   "derja": "El jar li ykhalli 3andek el clé mta3 el dar: ma t3tihech clé mta3 el coffre, w ma t3tihech clé dima, t3tih ken wa9t li yestaha9ha. W fil banka, ma ynajjemch kif el employé ykhalles w yvalidi rouhou: lazem 2 imedha. W ma testana 7atta yed5ol el ghalta: kol marra yod5ol 7ad, nsa2louh men jdid « inti chkoun w 3lech jit? ». Hedha houwa Zero Trust."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Moindre privilège = « 3tih 9ad 9ad li y7taj, w ken l wa9t li y7taj ». El femme de ménage tod5ol lel salon w lel cuisine, mouch lel bureau fih el documents. Séparation des responsabilités = « ma3andekch 7a9 tdir el virement w tvalidih rouhek ». Lazem wa7ed y9arrer w wa7ed y3awed yvalidi, ken ma3ach fraud w ma3ach ghalta bidha tdoum. Gestion à l'échelle = kif nechedou 10 000 compte bla ma nwa5rou? Nrakzou el identité f blasa wa7da, w n3atou ll équipes el 7a9 yoktbou fi 7oudoud. Zero Trust = ma testana 7atta ykoun « dakhel mel bab sa7i7 » bch tseddak: kol demande tet3awed."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : un compte compromis, une erreur, un droit oublié",
+    "md": "Dans le cloud, un compte compromis peut agir à distance sans franchir de réseau interne, et des **droits excessifs** augmentent l'impact d'une erreur ou d'une attaque. Il faut donc des principes qui :\n- **réduisent ce qu'un compte peut faire** (moindre privilège) ;\n- **empêchent qu'une seule personne contrôle toute une opération critique** (séparation des responsabilités) ;\n- **tiennent à l'échelle** quand il y a des milliers de comptes (gestion centralisée avec garde-fous) ;\n- **vérifient en continu** au lieu de faire confiance par défaut (Zero Trust et gouvernance)."
+   },
+   {
+    "type": "text",
+    "title": "1. Moindre privilège",
+    "md": "**Définition** : n'accorder que les droits strictement nécessaires, pour le temps nécessaire. Quatre leviers du cours :\n- **Limiter** les actions, ressources et conditions autorisées (pas de `*` par confort) ;\n- **Préférer les sessions temporaires** aux identifiants permanents ;\n- **Réduire les droits à partir des usages observés** (analyser ce qui est réellement utilisé) ;\n- **Réévaluer** l'accès après chaque changement de fonction.\n\n**Dans AWS** : rôles IAM assumés via STS (identifiants temporaires) plutôt que clés d'accès d'utilisateur IAM ; analyse des dernières utilisations et IAM Access Analyzer pour affiner les permissions d'après l'activité."
+   },
+   {
+    "type": "compare",
+    "title": "Clés permanentes vs sessions temporaires",
+    "cols": [
+     {
+      "name": "Clés d'accès permanentes",
+      "tag": "À éviter",
+      "points": [
+       "Valables jusqu'à suppression ou rotation manuelle",
+       "Préfixe AKIA... (clé d'utilisateur IAM)",
+       "Copiées dans des scripts, dépôts Git, postes : fuite durable",
+       "Difficile de savoir qui les utilise vraiment"
+      ],
+      "use": "Cas exceptionnel, avec rotation et surveillance stricte."
+     },
+     {
+      "name": "Sessions temporaires",
+      "tag": "À privilégier",
+      "points": [
+       "Identifiants qui expirent d'eux-mêmes (STS)",
+       "Préfixe ASIA... : clé de session",
+       "Obtenues via un rôle (AssumeRole) ou la fédération SSO",
+       "Une fuite a une durée de vie limitée"
+      ],
+      "use": "Humains via SSO, applications via rôles : par défaut."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "2. Séparation des responsabilités",
+    "md": "**Définition** : dissocier **demande**, **validation** et **exécution** d'une opération critique, pour qu'une seule personne ou un seul rôle ne puisse pas tout faire.\n- **Éviter** qu'un rôle puisse créer puis approuver son propre changement ;\n- **Double validation** pour les privilèges sensibles ;\n- **Journaliser** les élévations de privilèges et les accès d'urgence.\n\nL'**accès d'urgence (break-glass)** est un compte ou rôle d'exception, hors usage normal, utilisable seulement dans un incident, avec approbation, durée courte et journalisation renforcée."
+   },
+   {
+    "type": "arch",
+    "title": "Séparation : demander, approuver, exécuter, auditer",
+    "groups": [
+     {
+      "id": "gd",
+      "label": "Demande",
+      "kind": "generic",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "dev",
+        "label": "Développeur",
+        "sub": "crée la demande de changement",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "gv",
+      "label": "Validation",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "appr",
+        "label": "Approbateur",
+        "sub": "tech lead / sécurité (2e personne)",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "ge",
+      "label": "Exécution (compte cible)",
+      "kind": "account",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pipe",
+        "label": "Rôle de déploiement",
+        "sub": "assumé par le pipeline CI/CD",
+        "icon": "role"
+       },
+       {
+        "id": "res",
+        "label": "Ressources",
+        "sub": "infrastructure déployée",
+        "icon": "compute"
+       }
+      ]
+     },
+     {
+      "id": "ga",
+      "label": "Audit (compte logs)",
+      "kind": "account",
+      "col": 2,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "logs",
+        "label": "Journaux protégés",
+        "sub": "CloudTrail, accès en lecture seule",
+        "icon": "log"
+       },
+       {
+        "id": "aud",
+        "label": "Auditeur",
+        "sub": "lecture seule, indépendant",
+        "icon": "user"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "dev",
+      "to": "appr",
+      "label": "1. Demande de changement",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "appr",
+      "to": "pipe",
+      "label": "2. Approuve, déclenche",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "pipe",
+      "to": "res",
+      "label": "3. Déploie",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "dev",
+      "to": "res",
+      "label": "Déploiement direct impossible",
+      "style": "deny"
+     },
+     {
+      "id": "e5",
+      "from": "res",
+      "to": "logs",
+      "label": "4. Journalise",
+      "style": "dashed"
+     },
+     {
+      "id": "e6",
+      "from": "aud",
+      "to": "logs",
+      "label": "5. Contrôle après coup",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "dev",
+       "appr"
+      ],
+      "caption": "Le développeur demande un changement : il propose, il ne décide pas seul."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "dev",
+       "res"
+      ],
+      "caption": "Le développeur n'a pas de droit de déploiement en production : il ne peut pas contourner la validation."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "appr",
+       "pipe",
+       "res"
+      ],
+      "caption": "Une deuxième personne approuve ; c'est le pipeline, via un rôle de déploiement limité, qui exécute. Celui qui approuve n'est pas celui qui a demandé."
+     },
+     {
+      "edges": [
+       "e5",
+       "e6"
+      ],
+      "nodes": [
+       "res",
+       "logs",
+       "aud"
+      ],
+      "caption": "Tout est journalisé dans un espace séparé, que l'auditeur lit mais ne peut pas modifier : preuve indépendante."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Accès d'urgence (break-glass) : élévation encadrée",
+    "intro": "Un incident de production exige temporairement des droits que l'ingénieur de garde n'a pas au quotidien.",
+    "actors": [
+     {
+      "id": "eng",
+      "label": "Ingénieur d'astreinte",
+      "sub": "droits normaux limités",
+      "kind": "user"
+     },
+     {
+      "id": "wf",
+      "label": "Workflow d'approbation",
+      "sub": "ticket + 2e validateur",
+      "kind": "app"
+     },
+     {
+      "id": "sts",
+      "label": "AWS STS",
+      "sub": "session temporaire",
+      "kind": "aws"
+     },
+     {
+      "id": "log",
+      "label": "Journaux + alerte",
+      "sub": "CloudTrail, équipe sécurité",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "eng",
+      "to": "wf",
+      "label": "1. Demande d'élévation liée à un incident",
+      "detail": "L'ingénieur déclare l'incident et demande le rôle d'urgence, avec un motif et une durée.",
+      "payload": {
+       "title": "Demande break-glass",
+       "fields": [
+        {
+         "k": "Ticket",
+         "v": "INC-2041",
+         "note": "incident qui justifie l'accès"
+        },
+        {
+         "k": "Rôle demandé",
+         "v": "EmergencyProdAccess",
+         "note": "rôle d'exception, pas utilisé au quotidien"
+        },
+        {
+         "k": "Durée",
+         "v": "1 heure",
+         "note": "le plus court possible"
+        }
+       ]
+      }
+     },
+     {
+      "from": "wf",
+      "to": "wf",
+      "label": "2. Double validation",
+      "detail": "Un second validateur, différent du demandeur, approuve. Personne ne s'auto-approuve.",
+      "derja": "Ma tvalidich rouhek: lazem wa7ed e5er yamdhi m3ak."
+     },
+     {
+      "from": "wf",
+      "to": "sts",
+      "label": "3. Assume le rôle d'urgence",
+      "tone": "good",
+      "detail": "Une fois approuvé, l'ingénieur obtient des identifiants temporaires via le rôle : pas de clé permanente.",
+      "payload": {
+       "title": "Session STS",
+       "fields": [
+        {
+         "k": "RoleSessionName",
+         "v": "dr.ali-INC-2041",
+         "note": "relie la session à la personne et au ticket"
+        },
+        {
+         "k": "DurationSeconds",
+         "v": "3600",
+         "note": "expire seule au bout d'1 h"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sts",
+      "to": "log",
+      "label": "4. Chaque action est journalisée et alerte la sécurité",
+      "dashed": true,
+      "detail": "L'assumption du rôle et les actions sont enregistrées ; une alerte prévient l'équipe sécurité qu'un accès d'urgence est utilisé.",
+      "payload": {
+       "title": "Événement journalisé",
+       "fields": [
+        {
+         "k": "eventName",
+         "v": "AssumeRole",
+         "note": "qui a pris le rôle, quand, depuis où"
+        },
+        {
+         "k": "Alerte",
+         "v": "accès d'urgence en cours",
+         "note": "visible par la sécurité"
+        }
+       ]
+      }
+     },
+     {
+      "from": "log",
+      "to": "eng",
+      "label": "5. Expiration puis revue post-incident",
+      "dashed": true,
+      "tone": "good",
+      "detail": "La session expire. Une revue vérifie que chaque action était justifiée par l'incident, puis le ticket est clos."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "3. Gestion des accès à l'échelle",
+    "md": "Avec des milliers de comptes, deux idées se complètent : **centraliser ce qui doit l'être** et **distribuer avec des garde-fous**."
+   },
+   {
+    "type": "table",
+    "title": "Centraliser / distribuer avec garde-fous",
+    "head": [
+     "Principe",
+     "Mise en oeuvre",
+     "Côté AWS (exemples)"
+    ],
+    "rows": [
+     [
+      "**Centraliser** : identité et groupes",
+      "Source d'identité et groupes dans un référentiel de confiance",
+      "Annuaire / IdP d'entreprise"
+     ],
+     [
+      "**Centraliser** : SSO",
+      "SSO commun pour applications et comptes cloud",
+      "IAM Identity Center"
+     ],
+     [
+      "**Centraliser** : catalogue de rôles",
+      "Modèles de droits réutilisables",
+      "Permission sets, rôles standards"
+     ],
+     [
+      "**Centraliser** : provisionnement",
+      "Création/désactivation automatiques",
+      "SCIM depuis l'IdP"
+     ],
+     [
+      "**Distribuer** : administration déléguée",
+      "Équipes responsables de leur périmètre",
+      "Comptes par équipe, rôles d'admin délégués"
+     ],
+     [
+      "**Garde-fous** : politiques maximales",
+      "Plafond imposé au niveau organisation",
+      "SCP d'AWS Organizations, permission boundaries"
+     ],
+     [
+      "**Garde-fous** : ABAC",
+      "Éviter une politique par ressource",
+      "Tags de principal et de ressource"
+     ],
+     [
+      "**Garde-fous** : revues et droits inutilisés",
+      "Recertifier, retirer ce qui ne sert plus",
+      "Revues d'accès, IAM Access Analyzer"
+     ]
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "4. Zero Trust et gouvernance IAM",
+    "cols": [
+     {
+      "name": "Chaque accès est vérifié",
+      "tag": "Zero Trust",
+      "points": [
+       "Authentifier explicitement le principal",
+       "Évaluer l'appareil, la localisation et le risque de session",
+       "Autoriser uniquement la ressource demandée",
+       "Limiter la durée de confiance et réévaluer si nécessaire"
+      ],
+      "use": "Idée clé : aucune confiance implicite du seul fait d'être « dans le réseau »."
+     },
+     {
+      "name": "Chaque décision est gouvernée",
+      "tag": "Gouvernance",
+      "points": [
+       "Propriétaire métier identifié pour les droits sensibles",
+       "Journaux centralisés et protégés contre l'altération",
+       "Certification périodique des comptes et privilèges",
+       "Indicateurs : comptes orphelins, MFA, droits inutilisés"
+      ],
+      "use": "Idée clé : on sait qui a décidé, qui a le droit, et on le prouve."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les indicateurs à suivre",
+    "head": [
+     "Indicateur",
+     "Ce qu'il révèle",
+     "Action"
+    ],
+    "rows": [
+     [
+      "**Comptes orphelins**",
+      "Comptes actifs dont le propriétaire est parti ou n'existe plus (échec du Leaver)",
+      "Désactiver, enquêter sur le processus de départ"
+     ],
+     [
+      "**Couverture MFA**",
+      "Part des comptes (surtout privilégiés) protégés par MFA",
+      "Imposer le MFA, traiter les exceptions"
+     ],
+     [
+      "**Droits inutilisés**",
+      "Permissions accordées mais jamais exercées sur une période donnée",
+      "Retirer ou réduire, vérifier avec le propriétaire"
+     ],
+     [
+      "**Accès d'urgence utilisés**",
+      "Fréquence et justification des break-glass",
+      "Revue après chaque usage"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Phrase modèle",
+    "text": "Moindre privilège : sessions temporaires, droits réduits selon les usages. Séparation des responsabilités : demande, validation et exécution dissociées, avec double validation et journalisation des élévations. À l'échelle : centraliser (identité, SSO, rôles, SCIM) et distribuer avec garde-fous (SCP, ABAC, revues). Zero Trust : chaque accès est vérifié et chaque décision gouvernée."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : un développeur demande AdministratorAccess",
+    "situation": "Un développeur dit : « Pour déployer plus vite, donne-moi AdministratorAccess sur le compte de production. Je m'en sers seulement quand j'en ai besoin. »",
+    "q": "Quelle réponse est la plus conforme au moindre privilège ?",
+    "opts": [
+     {
+      "t": "Accepter : il est de confiance et la production avance plus vite",
+      "ok": false,
+      "why": "La confiance n'est pas un contrôle. Un compte compromis aurait un accès complet à la production."
+     },
+     {
+      "t": "Lui donner un rôle limité aux actions de déploiement nécessaires, accessible par session temporaire, et revoir ses droits d'après l'usage réel",
+      "ok": true,
+      "why": "On limite les actions, on utilise des sessions temporaires et on ajuste selon les usages observés."
+     },
+     {
+      "t": "Lui créer une clé d'accès permanente avec AdministratorAccess pour son automatisation",
+      "ok": false,
+      "why": "Cumule deux mauvaises pratiques : droits excessifs et identifiants permanents."
+     },
+     {
+      "t": "Lui donner un compte partagé « prod-admin » utilisé par toute l'équipe",
+      "ok": false,
+      "why": "Un compte partagé détruit la traçabilité."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : créer puis approuver son propre changement",
+    "situation": "Dans le pipeline actuel, la même personne ouvre une demande de modification des droits d'un rôle sensible, l'approuve (elle a le rôle Approbateur), puis l'applique. Un audit le détecte.",
+    "q": "Quelle mesure corrige le défaut ?",
+    "opts": [
+     {
+      "t": "Supprimer les journaux pour simplifier l'audit",
+      "ok": false,
+      "why": "Les journaux sont la preuve ; les supprimer aggrave le risque."
+     },
+     {
+      "t": "Imposer une double validation : l'approbateur doit être différent du demandeur, et l'exécution passe par un rôle de pipeline distinct",
+      "ok": true,
+      "why": "C'est la séparation des responsabilités : demande, validation et exécution dissociées, avec journalisation des élévations."
+     },
+     {
+      "t": "Demander à la personne de promettre de ne pas abuser",
+      "ok": false,
+      "why": "Un engagement n'est pas un contrôle technique."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Moindre privilège",
+    "d": "N'accorder que les droits nécessaires, pour la durée nécessaire.",
+    "derja": "9ad 9ad li y7taj, w ken wa9t li y7taj."
+   },
+   {
+    "t": "Séparation des responsabilités",
+    "d": "Dissocier demande, validation et exécution d'une opération critique pour éviter qu'une personne contrôle tout.",
+    "derja": "Wa7ed y9arrer, wa7ed yvalidi."
+   },
+   {
+    "t": "Break-glass",
+    "d": "Accès d'urgence exceptionnel, approuvé, limité dans le temps et fortement journalisé."
+   },
+   {
+    "t": "Session temporaire",
+    "d": "Identifiants à durée limitée (ex. STS) opposés aux clés permanentes."
+   },
+   {
+    "t": "Zero Trust",
+    "d": "Principe selon lequel aucun accès n'est approuvé implicitement : chaque accès est vérifié et réévalué."
+   },
+   {
+    "t": "Compte orphelin",
+    "d": "Compte actif dont le titulaire a quitté l'organisation ou n'existe plus."
+   },
+   {
+    "t": "SCP",
+    "d": "Politique d'AWS Organizations qui fixe le plafond de permissions d'un compte ou d'une unité."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Expliquez le principe du moindre privilège et comment l'appliquer.",
+    "a": "Le moindre privilège consiste à n'accorder que les droits strictement nécessaires, pour le temps nécessaire. On limite les actions, les ressources et les conditions autorisées, on préfère les sessions temporaires aux identifiants permanents, on réduit les droits à partir des usages observés et on réévalue l'accès après chaque changement de fonction. Dans AWS, cela donne des rôles assumés via STS plutôt que des clés d'accès permanentes.",
+    "keys": [
+     "droits nécessaires",
+     "sessions temporaires",
+     "usages observés",
+     "réévaluer"
+    ]
+   },
+   {
+    "q": "Qu'est-ce que la séparation des responsabilités ? Donnez un exemple.",
+    "a": "C'est la dissociation de la demande, de la validation et de l'exécution d'une opération critique. Cela évite qu'un seul rôle puisse créer puis approuver son propre changement. Exemple : le développeur demande un déploiement en production, un approbateur différent le valide, et un pipeline avec un rôle de déploiement limité l'exécute, avec journalisation indépendante. On applique une double validation aux privilèges sensibles et on journalise les élévations et les accès d'urgence.",
+    "keys": [
+     "demande / validation / exécution",
+     "double validation",
+     "journalisation des élévations"
+    ]
+   },
+   {
+    "q": "Comment gérer les accès à grande échelle ?",
+    "a": "On centralise ce qui doit l'être : source d'identité et groupes dans un référentiel de confiance, SSO commun, catalogue de rôles réutilisables et provisionnement automatisé avec SCIM. On distribue avec des garde-fous : administration déléguée aux équipes responsables, politiques maximales imposées au niveau de l'organisation (par exemple les SCP), ABAC pour éviter une politique par ressource, et revues d'accès avec analyse des permissions inutilisées.",
+    "keys": [
+     "centraliser",
+     "distribuer avec garde-fous",
+     "SCIM",
+     "SCP",
+     "ABAC",
+     "revues d'accès"
+    ]
+   },
+   {
+    "q": "Que signifie Zero Trust et quels indicateurs suivre en gouvernance IAM ?",
+    "a": "Zero Trust signifie que chaque accès est vérifié : on authentifie explicitement le principal, on évalue l'appareil, la localisation et le risque de session, on n'autorise que la ressource demandée, et on limite la durée de la confiance en réévaluant. La gouvernance ajoute un propriétaire métier pour les droits sensibles, des journaux centralisés protégés contre l'altération, une certification périodique des comptes et des indicateurs : comptes orphelins, couverture MFA et droits inutilisés.",
+    "keys": [
+     "chaque accès vérifié",
+     "chaque décision gouvernée",
+     "comptes orphelins",
+     "MFA",
+     "droits inutilisés"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Confondre moindre privilège (limiter les droits) et séparation des responsabilités (empêcher qu'une personne fasse tout seule).",
+   "Penser que la séparation est respectée parce que le même utilisateur a deux rôles : le but est que le demandeur et le validateur soient des personnes différentes.",
+   "Garder des clés d'accès permanentes « parce que ça marche » : préférer des sessions temporaires.",
+   "Oublier l'accès d'urgence : il doit être approuvé, court, journalisé et revu, pas un compte admin toujours ouvert.",
+   "Faire confiance parce que la requête vient du réseau interne : Zero Trust vérifie chaque accès quel que soit le réseau.",
+   "Ne mesurer aucun indicateur : sans suivi des comptes orphelins, du MFA et des droits inutilisés, la gouvernance reste théorique."
+  ],
+  "quiz": [
+   {
+    "q": "Quel levier du moindre privilège le cours cite-t-il pour les identifiants ?",
+    "opts": [
+     "Préférer les clés permanentes pour la simplicité",
+     "Préférer des sessions temporaires aux identifiants permanents",
+     "Partager un compte par équipe",
+     "Désactiver la journalisation"
+    ],
+    "ans": 1,
+    "why": "Les sessions temporaires expirent d'elles-mêmes, ce qui limite l'impact d'une fuite."
+   },
+   {
+    "q": "Quelle situation viole la séparation des responsabilités ?",
+    "opts": [
+     "Un pipeline déploie avec un rôle limité",
+     "Un rôle peut créer puis approuver son propre changement",
+     "L'auditeur lit les journaux en lecture seule",
+     "Une double validation protège les privilèges sensibles"
+    ],
+    "ans": 1,
+    "why": "La séparation vise à empêcher qu'un seul rôle crée et approuve son changement."
+   },
+   {
+    "q": "Parmi ces éléments, lequel relève de « distribuer avec des garde-fous » ?",
+    "opts": [
+     "Un SSO commun",
+     "Un catalogue de rôles",
+     "Des politiques maximales imposées au niveau organisationnel",
+     "Le provisionnement SCIM"
+    ],
+    "ans": 2,
+    "why": "Les politiques maximales (par exemple SCP) sont un garde-fou. SSO, catalogue de rôles et SCIM relèvent de « centraliser »."
+   },
+   {
+    "q": "Un compte actif appartient à un employé parti il y a 6 mois. Quel indicateur le détecte ?",
+    "opts": [
+     "Droits inutilisés",
+     "Comptes orphelins",
+     "Couverture MFA",
+     "Durée de session moyenne"
+    ],
+    "ans": 1,
+    "why": "Un compte orphelin est un compte actif sans titulaire valide, signe d'un Leaver mal exécuté."
+   },
+   {
+    "q": "Quelle caractéristique convient à un accès break-glass bien conçu ?",
+    "opts": [
+     "Compte admin permanent partagé par l'astreinte",
+     "Rôle d'exception avec approbation, durée courte et journalisation renforcée",
+     "Mot de passe affiché dans la documentation",
+     "Aucune revue après usage"
+    ],
+    "ans": 1,
+    "why": "Le cours demande de journaliser les élévations et accès d'urgence ; une approbation et une durée courte limitent l'abus."
+   },
+   {
+    "q": "Que signifie « chaque accès est vérifié » en Zero Trust ?",
+    "opts": [
+     "Une fois dans le réseau interne, tout est autorisé",
+     "On authentifie le principal, on évalue le risque et on n'autorise que la ressource demandée",
+     "On vérifie seulement à la création du compte",
+     "On vérifie uniquement les comptes externes"
+    ],
+    "ans": 1,
+    "why": "Zero Trust supprime la confiance implicite : authentification explicite, contexte évalué, ressource limitée, durée de confiance réévaluée."
+   }
+  ],
+  "recap": [
+   "Moindre privilège : limiter actions/ressources/conditions, sessions temporaires, droits réduits selon les usages, réévaluation à chaque mobilité.",
+   "Séparation des responsabilités : demande, validation et exécution dissociées ; double validation ; élévations et break-glass journalisés.",
+   "À l'échelle : centraliser (identité, SSO, rôles, SCIM) et distribuer avec garde-fous (SCP, ABAC, revues, droits inutilisés).",
+   "Zero Trust : authentifier explicitement, évaluer appareil/localisation/risque, autoriser la ressource demandée, limiter la durée de confiance.",
+   "Gouvernance : propriétaire métier, journaux protégés, certification périodique, indicateurs (orphelins, MFA, droits inutilisés)."
+  ]
+ },
+ {
+  "id": "ch2a-12",
+  "part": "ch2a",
+  "title": "Choisir le bon mécanisme IAM + activité de synthèse GreenTech",
+  "emoji": "🎯",
+  "level": 2,
+  "minutes": 24,
+  "core": true,
+  "src": "CH2 slides 37-38 (+ synthèse slides 2-36)",
+  "hook": {
+   "fr": "Face à un besoin concret, tu dois savoir quel mécanisme IAM choisir (SAML/OIDC, SCIM, OAuth, RBAC, ABAC) et le justifier à l'oral.",
+   "derja": "Fi l'examen oral, el prof ma yos2elekch « chnoua SAML? » ken. Yos2elek 7ala: « prestataire jé lel société 3 ichhor, kifech tdir? ». Lazem t3ammer el boite à outils: SAML/OIDC ll connexion, SCIM ll création w ll départ, OAuth ll API, RBAC w ABAC ll 7o9ou9, MFA ll preuve, w journaux ll preuve ba3d. Kima el mécanicien: ma yjibch kol el outils, yekhtar el outil el mnaseb ll 3otb."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawwar boite à outils: 3andek marteau (SAML), clé anglaise (SCIM), tournevis (OAuth)... El tilmidh li yfehem ken esm el outil yeghleb f l'examen. El tilmidh li yfehem « chnoua el 3otb » yrab7ha. Donc fi kol question, 9bal ma tejweb, 9oul f rouhek: « chnoua el besoin? » (connecter ? créer/supprimer ? appeler une API ? donner des droits ? prouver ?), w ba3d akhtar el outil. W dima zid « 3lech » (justification): hedha li yaatik el note."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : trop d'outils, comment choisir ?",
+    "md": "SAML, OIDC, OAuth, SCIM, RBAC, ABAC, MFA, XACML : chacun répond à une **question différente**. Les confondre est l'erreur n°1 à l'examen. La démarche : partir du **besoin**, puis choisir le **mécanisme**, puis justifier en une phrase."
+   },
+   {
+    "type": "table",
+    "title": "Besoin → mécanisme (le tableau de synthèse)",
+    "head": [
+     "Besoin",
+     "Mécanisme",
+     "Exemple",
+     "Mot-clé à dire"
+    ],
+    "rows": [
+     [
+      "Connecter un employé à une application SaaS",
+      "**SAML 2.0 ou OIDC**",
+      "IdP d'entreprise vers le service cloud",
+      "fédération, SSO, assertion ou ID token"
+     ],
+     [
+      "Créer et désactiver automatiquement les comptes",
+      "**SCIM 2.0**",
+      "Synchronisation de l'annuaire vers le SaaS",
+      "provisionnement, /Users, active=false"
+     ],
+     [
+      "Autoriser une application à appeler une API",
+      "**OAuth 2.0**",
+      "Access token limité par des scopes",
+      "délégation, access token, scope"
+     ],
+     [
+      "Attribuer des droits selon une fonction",
+      "**RBAC**",
+      "Rôle Développeur ou Auditeur",
+      "rôle, socle des responsabilités"
+     ],
+     [
+      "Adapter les droits à l'équipe et au projet",
+      "**ABAC**",
+      "Comparaison des tags du principal et de la ressource",
+      "attributs, tags, contexte"
+     ],
+     [
+      "Renforcer la preuve d'identité des comptes sensibles",
+      "**MFA**",
+      "Clé de sécurité + mot de passe",
+      "facteurs indépendants, obligatoire pour privilégiés"
+     ],
+     [
+      "Limiter l'impact d'une erreur ou d'un vol",
+      "**Moindre privilège + séparation**",
+      "Sessions temporaires, double validation",
+      "droits minimaux, demande / validation / exécution"
+     ]
+    ],
+    "note": "Les 5 premières lignes sont celles du cours ; MFA et moindre privilège complètent la boîte à outils."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 standards en un coup d'oeil",
+    "head": [
+     "Standard",
+     "Fonction principale",
+     "Artefact échangé",
+     "Cas d'usage"
+    ],
+    "rows": [
+     [
+      "**SAML 2.0**",
+      "Fédération et SSO",
+      "Assertion XML signée",
+      "Employé vers une application SaaS"
+     ],
+     [
+      "**OAuth 2.0**",
+      "Délégation d'autorisation",
+      "Access token",
+      "Application vers une API"
+     ],
+     [
+      "**OpenID Connect**",
+      "Authentification moderne",
+      "ID token",
+      "Connexion web ou mobile"
+     ],
+     [
+      "**SCIM 2.0**",
+      "Provisionnement des identités",
+      "Ressources JSON via REST",
+      "Synchronisation des comptes et groupes"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Les 3 questions réflexes",
+    "text": "1) Qui se connecte et comment c'est prouvé ? (SAML/OIDC + MFA). 2) Comment le compte naît, change et disparaît ? (SCIM). 3) Que peut-il faire, sur quoi, dans quel contexte ? (RBAC + ABAC, moindre privilège). Puis : comment prouver ce qui s'est passé ? (journaux)."
+   },
+   {
+    "type": "text",
+    "title": "Activité de synthèse : l'énoncé",
+    "md": "**GreenTech accueille un développeur externe pendant trois mois dans un environnement de test.** Il faut :\n- choisir la **source d'identité**, le **protocole de fédération** et le **mécanisme de provisionnement** ;\n- définir l'**authentification**, le **MFA** et la **durée de session** ;\n- proposer un **modèle RBAC ou ABAC** et **justifier** le choix ;\n- **séparer** le déploiement, l'approbation et l'audit ;\n- décrire les **étapes de révocation** à la fin du contrat ;\n- identifier les **journaux** nécessaires pour prouver les actions réalisées."
+   },
+   {
+    "type": "steps",
+    "title": "Méthode en 6 étapes pour répondre à l'oral",
+    "items": [
+     {
+      "t": "1. Reformuler le contexte et les contraintes",
+      "d": "Dis en une phrase : qui (externe, donc risque plus élevé), combien de temps (3 mois : accès temporaire, date de fin connue), où (environnement de test, pas la production). Cela montre que tu as compris."
+     },
+     {
+      "t": "2. Lister les besoins IAM à couvrir",
+      "d": "Identité et connexion, provisionnement, authentification forte, modèle de droits, séparation des tâches, fin de vie, preuves. Cela donne le plan de ta réponse."
+     },
+     {
+      "t": "3. Associer un mécanisme à chaque besoin",
+      "d": "Utilise le tableau besoin → mécanisme : SAML/OIDC pour la connexion, SCIM pour le provisionnement, RBAC puis ABAC pour les droits, MFA pour la preuve."
+     },
+     {
+      "t": "4. Justifier chaque choix en une phrase avec « parce que »",
+      "d": "Exemple : « RBAC comme socle parce que la fonction est stable, ABAC en plus parce qu'il y a plusieurs projets. » La justification vaut plus que le nom."
+     },
+     {
+      "t": "5. Ajouter les garde-fous transversaux",
+      "d": "Moindre privilège (rôle limité au test, sessions temporaires), séparation des responsabilités (déploiement / approbation / audit), date de fin automatique."
+     },
+     {
+      "t": "6. Conclure par la révocation et les preuves",
+      "d": "Termine par la sortie (désactivation SCIM, sessions révoquées, revue) et les journaux qui prouvent qui a fait quoi. Puis résume en une phrase."
+     }
+    ]
+   },
+   {
+    "type": "steps",
+    "title": "Réponse modèle complète, point par point",
+    "items": [
+     {
+      "t": "1. Source d'identité",
+      "d": "L'annuaire / IdP de GreenTech est la source de vérité unique. Le prestataire y reçoit une identité **externe** (type = contractor) avec ses attributs : sponsor interne GreenTech, projet, environnement = test, date de fin de contrat. Pourquoi : GreenTech garde la main sur le cycle de vie, le MFA et la révocation, sans dépendre de l'organisation du prestataire. Variante possible : fédérer l'IdP du prestataire, mais la désactivation ne serait plus maîtrisée par GreenTech."
+     },
+     {
+      "t": "2. Fédération : SAML 2.0 (ou OIDC)",
+      "d": "Le prestataire se connecte par SSO : l'IdP GreenTech authentifie l'utilisateur et envoie une assertion SAML 2.0 à IAM Identity Center pour l'accès AWS ; OIDC est préféré pour les applications web ou mobiles modernes. Pourquoi : GreenTech contrôle l'authentification, et AWS ne voit jamais le mot de passe. L'assertion est validée (signature, émetteur, audience, validité, anti-rejeu)."
+     },
+     {
+      "t": "3. Provisionnement : SCIM 2.0",
+      "d": "L'IdP joue le rôle de client SCIM : POST /Users crée le compte dans IAM Identity Center et dans les applications SaaS, PATCH /Groups l'ajoute au groupe `contractors-test`, PATCH /Users met à jour les attributs. À la fin : PATCH active=false, puis DELETE selon la politique de conservation. Pourquoi : création et désactivation automatiques et traçables, donc pas de compte oublié (compte orphelin)."
+     },
+     {
+      "t": "4. Authentification, MFA et durée de session",
+      "d": "MFA obligatoire dès la première connexion, de préférence avec une clé de sécurité (facteur de possession) en plus du mot de passe ; nouvelle vérification avant une action sensible. Sessions courtes, par exemple 4 heures avec ré-authentification, et identifiants AWS temporaires (STS) : aucune clé d'accès permanente. Pourquoi : un externe présente un risque plus élevé, donc une confiance plus courte. La valeur 4 h est un exemple à justifier, non une règle."
+     },
+     {
+      "t": "5. Modèle d'autorisation : RBAC + ABAC",
+      "d": "RBAC en socle : un seul rôle (permission set) « ContractorDeveloper-Test », limité aux services nécessaires et attribué via le groupe, uniquement dans le compte Test (un SCP interdit la production et les actions IAM sensibles). ABAC en complément : conditions sur les tags `project` et `env` pour que le prestataire ne touche que les ressources de son projet en test. Pourquoi : la fonction est stable (RBAC) mais plusieurs projets coexistent (ABAC évite un rôle par projet). Seuls l'administrateur et le pipeline peuvent poser les tags."
+     },
+     {
+      "t": "6. Séparation déploiement / approbation / audit",
+      "d": "Le prestataire propose les changements (pull request) ; un référent technique GreenTech, jamais le prestataire, approuve ; le déploiement est exécuté par un pipeline avec un rôle de déploiement distinct ; l'équipe sécurité/audit lit les journaux avec un rôle en lecture seule dans un compte de logs séparé. Pourquoi : personne ne peut demander, approuver et exécuter seul."
+     },
+     {
+      "t": "7. Révocation à la fin du contrat",
+      "d": "1) La date de fin déclenche la sortie (sponsor ou RH). 2) L'IdP désactive le compte et SCIM propage active=false : connexion bloquée, groupes retirés. 3) Les sessions actives et les jetons (dont les refresh tokens) sont révoqués. 4) On vérifie qu'aucun identifiant permanent n'existe et on change les secrets auxquels il a eu accès. 5) On revoit les ressources qu'il a créées (propriétaire, transfert ou suppression). 6) Revue d'accès de clôture. 7) Suppression définitive selon la politique de conservation, en gardant les journaux. Filet de sécurité : une condition de date de fin dans la policy."
+     },
+     {
+      "t": "8. Journaux nécessaires pour prouver les actions",
+      "d": "Journaux de connexion et MFA de l'IdP ; CloudTrail pour les appels API (qui a pris quel rôle, quelle action, quand, d'où, avec un nom de session lié à la personne) ; journaux de provisionnement SCIM ; journaux du pipeline avec l'historique des approbations ; changements de configuration. Centralisés dans un compte séparé, protégés contre l'altération (accès en écriture limité, validation d'intégrité, conservation). Ils prouvent qui, quoi, quand, d'où."
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "L'architecture de la solution GreenTech",
+    "groups": [
+     {
+      "id": "gx",
+      "label": "Prestataire (externe)",
+      "kind": "internet",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "dev",
+        "label": "Développeur externe",
+        "sub": "3 mois, MFA obligatoire",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "gi",
+      "label": "GreenTech : identité",
+      "kind": "onprem",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "sirh",
+        "label": "SIRH / sponsor",
+        "sub": "début, fin, projet",
+        "icon": "org"
+       },
+       {
+        "id": "idp",
+        "label": "IdP GreenTech",
+        "sub": "source de vérité, MFA, SAML/OIDC",
+        "icon": "idp"
+       }
+      ]
+     },
+     {
+      "id": "gaws",
+      "label": "AWS : accès",
+      "kind": "org",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ic",
+        "label": "IAM Identity Center",
+        "sub": "SSO + SCIM, session 4 h",
+        "icon": "key"
+       }
+      ]
+     },
+     {
+      "id": "gci",
+      "label": "Pipeline CI/CD",
+      "kind": "generic",
+      "col": 1,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "pipe",
+        "label": "Approbation + déploiement",
+        "sub": "rôle de déploiement distinct",
+        "icon": "role"
+       }
+      ]
+     },
+     {
+      "id": "gt",
+      "label": "Compte Test",
+      "kind": "account",
+      "col": 2,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "role",
+        "label": "Rôle ContractorDeveloper-Test",
+        "sub": "RBAC + ABAC (tags project, env)",
+        "icon": "role"
+       },
+       {
+        "id": "res",
+        "label": "Ressources taguées",
+        "sub": "project = X, env = test",
+        "icon": "compute"
+       }
+      ]
+     },
+     {
+      "id": "gl",
+      "label": "Compte Logs (audit)",
+      "kind": "account",
+      "col": 3,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "ct",
+        "label": "CloudTrail + journaux IdP",
+        "sub": "protégés contre l'altération",
+        "icon": "log"
+       },
+       {
+        "id": "aud",
+        "label": "Équipe Audit",
+        "sub": "lecture seule",
+        "icon": "user"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "sirh",
+      "to": "idp",
+      "label": "1. Identité externe + date de fin",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "idp",
+      "to": "ic",
+      "label": "2. SCIM : compte + groupe",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "dev",
+      "to": "idp",
+      "label": "3. Connexion + MFA",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "dev",
+      "to": "ic",
+      "label": "4. SSO (assertion SAML)",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "ic",
+      "to": "role",
+      "label": "5. Session temporaire",
+      "style": "solid"
+     },
+     {
+      "id": "e6",
+      "from": "role",
+      "to": "res",
+      "label": "6. Accès si tags égaux",
+      "style": "solid"
+     },
+     {
+      "id": "e7",
+      "from": "dev",
+      "to": "pipe",
+      "label": "7. Pull request",
+      "style": "solid"
+     },
+     {
+      "id": "e8",
+      "from": "pipe",
+      "to": "res",
+      "label": "8. Déploiement approuvé",
+      "style": "solid"
+     },
+     {
+      "id": "e9",
+      "from": "res",
+      "to": "ct",
+      "label": "9. Journaux",
+      "style": "dashed"
+     },
+     {
+      "id": "e10",
+      "from": "aud",
+      "to": "ct",
+      "label": "10. Audit en lecture seule",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1",
+       "e2"
+      ],
+      "nodes": [
+       "sirh",
+       "idp",
+       "ic"
+      ],
+      "caption": "Provisionnement : le sponsor déclare l'externe (projet, date de fin) dans l'IdP GreenTech, qui crée le compte et le groupe dans IAM Identity Center via SCIM."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4"
+      ],
+      "nodes": [
+       "dev",
+       "idp",
+       "ic"
+      ],
+      "caption": "Connexion : le prestataire s'authentifie chez l'IdP avec MFA ; l'assertion SAML ouvre le SSO vers IAM Identity Center. AWS ne voit pas le mot de passe."
+     },
+     {
+      "edges": [
+       "e5",
+       "e6"
+      ],
+      "nodes": [
+       "ic",
+       "role",
+       "res"
+      ],
+      "caption": "Autorisation : une session temporaire donne le rôle de test (RBAC) ; l'accès n'est possible que sur les ressources dont les tags project et env correspondent (ABAC)."
+     },
+     {
+      "edges": [
+       "e7",
+       "e8"
+      ],
+      "nodes": [
+       "dev",
+       "pipe",
+       "res"
+      ],
+      "caption": "Séparation : le prestataire propose via pull request ; l'approbation vient de GreenTech ; le déploiement est fait par un rôle de pipeline, pas par le prestataire."
+     },
+     {
+      "edges": [
+       "e9",
+       "e10"
+      ],
+      "nodes": [
+       "res",
+       "ct",
+       "aud"
+      ],
+      "caption": "Audit : les journaux vont dans un compte séparé, lisible en lecture seule par l'équipe d'audit, ce qui prouve les actions réalisées."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Extrait de policy : ABAC + filet de sécurité de fin de contrat",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"DevOnOwnProjectTestResources\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"ec2:StartInstances\",",
+     "        \"ec2:StopInstances\",",
+     "        \"ec2:RebootInstances\"",
+     "      ],",
+     "      \"Resource\": \"arn:aws:ec2:*:*:instance/*\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:ResourceTag/project\": \"${aws:PrincipalTag/project}\",",
+     "          \"aws:ResourceTag/env\": \"test\"",
+     "        }",
+     "      }",
+     "    },",
+     "    {",
+     "      \"Sid\": \"DenyAfterContractEnd\",",
+     "      \"Effect\": \"Deny\",",
+     "      \"Action\": \"*\",",
+     "      \"Resource\": \"*\",",
+     "      \"Condition\": {",
+     "        \"DateGreaterThan\": {",
+     "          \"aws:CurrentTime\": \"2027-02-28T23:59:59Z\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5,
+       10
+      ],
+      "text": "RBAC : le rôle ne couvre que quelques actions de développement, pas d'administration.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       15,
+       16
+      ],
+      "text": "ABAC : ressource du même projet que le principal ET environnement de test (valeur fixe).",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       21,
+       27
+      ],
+      "text": "Filet de sécurité : après la date de fin, tout est refusé, même si la désactivation SCIM a échoué. Un Deny explicite l'emporte.",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Le prestataire (tag project = alpha) démarre une instance taguée project = alpha, env = test, avant la date de fin. Autorisé ?",
+      "ans": true,
+      "why": "Les deux conditions de tags sont vraies et le Deny de date ne s'applique pas encore."
+     },
+     {
+      "q": "Le même prestataire démarre une instance taguée project = alpha, env = prod. Autorisé ?",
+      "ans": false,
+      "why": "La condition env = test est fausse : aucun Allow ne correspond, refus implicite."
+     },
+     {
+      "q": "Le 1er mars 2027, il démarre une instance project = alpha, env = test. Autorisé ?",
+      "ans": false,
+      "why": "Après le 28 février 2027, le Deny explicite sur aws:CurrentTime s'applique et l'emporte sur l'Allow."
+     },
+     {
+      "q": "Peut-il terminer (ec2:TerminateInstances) une instance de son projet en test ?",
+      "ans": false,
+      "why": "L'action n'est pas dans la liste autorisée."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Fin de contrat : la révocation étape par étape",
+    "intro": "Le contrat se termine. L'objectif : couper l'accès rapidement et ne rien laisser derrière.",
+    "actors": [
+     {
+      "id": "sp",
+      "label": "Sponsor / RH",
+      "sub": "GreenTech",
+      "kind": "user"
+     },
+     {
+      "id": "idp",
+      "label": "IdP GreenTech",
+      "sub": "client SCIM",
+      "kind": "idp"
+     },
+     {
+      "id": "ic",
+      "label": "IAM Identity Center",
+      "sub": "serveur SCIM + AWS",
+      "kind": "aws"
+     },
+     {
+      "id": "log",
+      "label": "Journaux",
+      "sub": "compte logs",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "sp",
+      "to": "idp",
+      "label": "1. Fin de contrat : déclencher la sortie",
+      "detail": "À la date de fin (ou plus tôt en cas de rupture), le sponsor marque l'identité comme sortante. Ce déclenchement vient du processus, pas de la mémoire de quelqu'un.",
+      "derja": "El jour J, ma testanech 7ad yfakker: el système yetba3 el date."
+     },
+     {
+      "from": "idp",
+      "to": "idp",
+      "label": "2. Désactive le compte et retire les groupes",
+      "tone": "good",
+      "detail": "L'IdP bloque les nouvelles connexions du prestataire et le retire du groupe contractors-test."
+     },
+     {
+      "from": "idp",
+      "to": "ic",
+      "label": "3. SCIM : PATCH active=false",
+      "detail": "L'IdP propage la désactivation aux applications et à IAM Identity Center. Le compte n'est pas supprimé tout de suite : l'historique est préservé.",
+      "payload": {
+       "title": "PATCH /Users/2819c223 (SCIM 2.0)",
+       "fields": [
+        {
+         "k": "schemas",
+         "v": "urn:ietf:params:scim:api:messages:2.0:PatchOp",
+         "note": "message de modification SCIM"
+        },
+        {
+         "k": "op",
+         "v": "replace",
+         "note": "remplace la valeur"
+        },
+        {
+         "k": "path",
+         "v": "active",
+         "note": "attribut ciblé"
+        },
+        {
+         "k": "value",
+         "v": "false",
+         "note": "compte désactivé, connexion bloquée"
+        }
+       ]
+      }
+     },
+     {
+      "from": "ic",
+      "to": "ic",
+      "label": "4. Révoque les sessions actives et les jetons",
+      "tone": "good",
+      "detail": "Les sessions déjà ouvertes et les jetons (OAuth, refresh tokens) sont révoqués ; on vérifie qu'il n'existe aucune clé d'accès permanente liée à ce prestataire et on renouvelle les secrets qu'il a pu voir."
+     },
+     {
+      "from": "sp",
+      "to": "ic",
+      "label": "5. Revue des ressources et des accès",
+      "detail": "Le sponsor passe en revue ce que le prestataire a créé (propriétaire, transfert ou suppression) et certifie qu'aucun droit ne reste (revue d'accès de clôture)."
+     },
+     {
+      "from": "ic",
+      "to": "log",
+      "label": "6. Conserver les preuves",
+      "dashed": true,
+      "detail": "Le compte sera supprimé définitivement selon la politique de conservation (DELETE /Users) ; les journaux, eux, sont conservés pour prouver les actions réalisées pendant le contrat.",
+      "payload": {
+       "title": "À conserver",
+       "fields": [
+        {
+         "k": "Connexions et MFA",
+         "v": "journaux de l'IdP",
+         "note": "qui s'est connecté et comment"
+        },
+        {
+         "k": "Actions AWS",
+         "v": "CloudTrail",
+         "note": "qui a fait quoi, quand, d'où"
+        },
+        {
+         "k": "Approbations",
+         "v": "pipeline / tickets",
+         "note": "qui a validé quoi"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "La version orale en 60 secondes",
+    "md": "« GreenTech garde l'**IdP comme source de vérité** : le prestataire y a une identité externe avec une date de fin. Il se connecte par **SSO SAML 2.0** (ou OIDC) avec **MFA obligatoire** ; la session est **courte** et les identifiants **temporaires**. Le compte est créé et désactivé automatiquement par **SCIM**. Côté droits, **RBAC** donne un rôle de développeur limité au compte de test, et **ABAC** restreint aux ressources de son projet grâce aux tags. On **sépare** : il propose, GreenTech approuve, un pipeline déploie, l'audit lit les journaux. À la fin du contrat : **active=false**, sessions et jetons révoqués, revue des ressources, puis suppression. Les **journaux** de l'IdP, de CloudTrail et du pipeline, protégés dans un compte séparé, prouvent qui a fait quoi. »"
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le prestataire demande AdministratorAccess",
+    "situation": "Au bout d'une semaine, le prestataire écrit : « C'est lent d'attendre les permissions. Donnez-moi AdministratorAccess sur le compte de test, ce sera plus simple pour tout le monde. »",
+    "q": "Quelle réponse est correcte ?",
+    "opts": [
+     {
+      "t": "Accepter : c'est seulement un environnement de test",
+      "ok": false,
+      "why": "Un compte admin peut créer des utilisateurs, des clés et des accès durables : le moindre privilège est violé et la révocation devient incertaine."
+     },
+     {
+      "t": "Refuser l'admin et affiner le rôle à partir des usages observés (actions réellement bloquées), en gardant sessions courtes et conditions de tags",
+      "ok": true,
+      "why": "On réduit ou étend les droits d'après les usages observés, sans accorder de privilèges d'administration."
+     },
+     {
+      "t": "Lui donner une clé d'accès permanente pour éviter les connexions SSO",
+      "ok": false,
+      "why": "Identifiant permanent et externe : exactement ce qu'il faut éviter."
+     },
+     {
+      "t": "Lui créer un compte partagé avec un employé GreenTech",
+      "ok": false,
+      "why": "Un compte partagé rend impossible la preuve de qui a fait quoi."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le contrat s'arrête, mais le compte reste actif",
+    "situation": "Trois semaines après la fin du contrat, un contrôle montre que le compte du prestataire est encore actif dans IAM Identity Center et qu'une session a été ouverte la veille.",
+    "q": "Quelle est la première action ET la cause à corriger ?",
+    "opts": [
+     {
+      "t": "Attendre la prochaine revue annuelle des accès",
+      "ok": false,
+      "why": "Un accès non autorisé est actif maintenant : il faut agir tout de suite."
+     },
+     {
+      "t": "Désactiver le compte (active=false), révoquer les sessions et jetons, analyser les journaux de l'activité ; corriger ensuite le processus de sortie (automatisation par date de fin, indicateur de comptes orphelins)",
+      "ok": true,
+      "why": "On coupe l'accès, on vérifie ce qui s'est passé grâce aux journaux, puis on traite la cause : une sortie non automatisée. Un filet de date dans la policy aurait limité l'impact."
+     },
+     {
+      "t": "Supprimer d'abord les journaux pour éviter la confusion",
+      "ok": false,
+      "why": "Les journaux sont la preuve de l'incident ; les supprimer est une faute."
+     },
+     {
+      "t": "Changer seulement le mot de passe du compte",
+      "ok": false,
+      "why": "Le compte reste actif et fédéré ; il faut le désactiver et révoquer les sessions."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Récapitulatif du chapitre 2, partie 1 : « je dois savoir dire... »",
+    "md": "**Contexte et vocabulaire**\n- Je sais dire **pourquoi l'IAM est central** dans le cloud : le périmètre change, les identités techniques comptent autant que les humaines, les droits excessifs amplifient l'impact et la traçabilité doit relier chaque action à un principal et à une session.\n- Je sais **distinguer** identité, principal, identifiant, authentification, autorisation et audit, et citer les **5 processus** (gouvernance, administration, authentification, autorisation, audit).\n- Je sais décrire le **cycle de vie** d'une identité (entrée, évolution, revue, suspension, sortie) et le risque associé à chaque étape (droits accordés sans validation, accumulation des droits, compte orphelin).\n- Je sais citer les **3 facteurs du MFA** (connaissance, possession, caractéristique) et dire qu'il est obligatoire pour les comptes privilégiés.\n\n**Fédération et standards**\n- Je sais distinguer **SSO** (moins de connexions) et **fédération** (confiance entre domaines).\n- **SAML 2.0** : acteurs (sujet, IdP, SP, navigateur), flux SP-initiated et IdP-initiated, validation de l'assertion (signature, émetteur, audience, NotBefore/NotOnOrAfter, anti-rejeu).\n- **SCIM 2.0** : client et serveur, endpoints /Users et /Groups, POST/PATCH/DELETE, active=false, cycle arrivée / changement / départ.\n- **OAuth 2.0** : 4 acteurs, scope, consentement, Authorization Code + PKCE, contrôles (redirect_uri exact, state, jeton court).\n- **OpenID Connect** : ID token, scope openid, contrôles iss/aud/exp/nonce ; règle d'or « OAuth = que peut faire le client ? / OIDC = qui vient de se connecter ? ».\n\n**Autorisation et gouvernance**\n- **RBAC vs ABAC** : rôle vs attributs ; explosion des rôles vs qualité des attributs ; on combine.\n- **XACML** : PEP, PDP, PIP, PAP ; Permit, Deny, NotApplicable, Indeterminate ; correspondance avec AWS ; Deny explicite l'emporte.\n- **Moindre privilège**, **séparation des responsabilités**, gestion à l'échelle, **Zero Trust** et gouvernance (comptes orphelins, MFA, droits inutilisés).\n- Je sais **choisir le bon mécanisme** selon le besoin et **justifier** à l'oral.\n\nLa suite (partie 2) applique tout cela à AWS : IAM, STS et IAM Identity Center."
+   }
+  ],
+  "terms": [
+   {
+    "t": "Source d'identité",
+    "d": "Référentiel de confiance (annuaire / IdP) qui détient les identités, leurs attributs et leur cycle de vie.",
+    "derja": "El blasa li fiha el 7a9i9a 3la el nes."
+   },
+   {
+    "t": "Fédération",
+    "d": "Confiance établie entre domaines distincts pour que l'identité d'un IdP serve dans un autre service (SAML, OIDC)."
+   },
+   {
+    "t": "SCIM",
+    "d": "Standard REST/JSON de provisionnement des comptes et groupes (/Users, /Groups)."
+   },
+   {
+    "t": "Permission set",
+    "d": "Modèle de droits d'IAM Identity Center attribué à un groupe ou un utilisateur pour un compte AWS."
+   },
+   {
+    "t": "Break-glass",
+    "d": "Accès d'urgence exceptionnel, approuvé, court et journalisé."
+   },
+   {
+    "t": "Révocation",
+    "d": "Ensemble d'actions qui coupent un accès : désactivation du compte, fin des sessions et jetons, retrait des groupes."
+   },
+   {
+    "t": "Journal d'audit",
+    "d": "Trace protégée qui relie une action à un principal, une session, un moment et une décision d'accès."
+   }
+  ],
+  "oral": [
+   {
+    "q": "GreenTech accueille un développeur externe trois mois dans un environnement de test. Que mettez-vous en place ?",
+    "a": "Je pars de l'IdP de GreenTech comme source d'identité, avec une identité externe qui porte un sponsor, un projet et une date de fin. Le prestataire se connecte par SSO SAML 2.0 (ou OIDC) avec MFA obligatoire et une session courte à identifiants temporaires. Le compte est créé et désactivé automatiquement par SCIM. Côté droits, RBAC avec un rôle de développeur limité au compte de test, complété par de l'ABAC sur les tags projet et environnement pour éviter un rôle par projet. Je sépare le déploiement, l'approbation et l'audit : il propose, GreenTech approuve, un pipeline déploie, l'audit lit les journaux. À la fin, je désactive via SCIM, je révoque sessions et jetons, je revois les ressources puis je supprime, et les journaux de l'IdP, de CloudTrail et du pipeline prouvent ses actions.",
+    "keys": [
+     "IdP source de vérité",
+     "SAML/OIDC + MFA",
+     "SCIM",
+     "RBAC + ABAC",
+     "séparation",
+     "révocation",
+     "journaux"
+    ]
+   },
+   {
+    "q": "Comment choisir le bon mécanisme IAM selon le besoin ?",
+    "a": "Je pars du besoin. Connecter un employé à une application SaaS : SAML 2.0 ou OIDC. Créer et désactiver automatiquement les comptes : SCIM 2.0. Autoriser une application à appeler une API : OAuth 2.0 avec un access token limité par des scopes. Attribuer des droits selon une fonction : RBAC. Adapter les droits à l'équipe et au projet : ABAC en comparant les tags du principal et de la ressource. Ensuite je justifie en une phrase.",
+    "keys": [
+     "SAML/OIDC",
+     "SCIM",
+     "OAuth",
+     "RBAC",
+     "ABAC",
+     "partir du besoin"
+    ]
+   },
+   {
+    "q": "Pourquoi utiliser SCIM en plus de SAML ou d'OIDC ?",
+    "a": "SAML et OIDC gèrent la connexion : ils prouvent l'identité au moment de l'accès. Ils ne créent ni ne suppriment les comptes. SCIM automatise le provisionnement : création des comptes et groupes, mise à jour des attributs et désactivation à la fin, à partir de l'IdP. Sans SCIM, les comptes sont créés à la main, avec le risque de droits sans validation et de comptes orphelins après le départ.",
+    "keys": [
+     "connexion vs provisionnement",
+     "comptes orphelins",
+     "active=false"
+    ]
+   },
+   {
+    "q": "RBAC ou ABAC pour le prestataire ? Justifiez.",
+    "a": "Les deux. Le RBAC donne le socle, car la fonction de développeur est stable et lisible : un rôle limité au compte de test. L'ABAC ajoute la précision, car plusieurs projets coexistent : une condition compare les tags projet et environnement du principal et de la ressource, donc une seule policy sert tous les projets. La limite de l'ABAC est la qualité des tags : il faut contrôler qui peut les modifier.",
+    "keys": [
+     "RBAC socle",
+     "ABAC tags",
+     "évite l'explosion des rôles",
+     "gouvernance des tags"
+    ]
+   },
+   {
+    "q": "Comment prouvez-vous les actions réalisées par le prestataire ?",
+    "a": "Avec des journaux centralisés et protégés. Les journaux de l'IdP donnent les connexions et le MFA ; CloudTrail donne les appels API avec le rôle pris, l'action, l'heure et l'origine, grâce à un nom de session lié à la personne ; les journaux du pipeline donnent les approbations ; les journaux SCIM donnent le cycle de vie du compte. Ils sont stockés dans un compte séparé, en écriture limitée, avec conservation et contrôle d'intégrité.",
+    "keys": [
+     "journaux IdP",
+     "CloudTrail",
+     "pipeline",
+     "compte séparé",
+     "protégés contre l'altération"
+    ]
+   },
+   {
+    "q": "Que faites-vous à la fin du contrat ?",
+    "a": "La date de fin déclenche la sortie. L'IdP désactive le compte et SCIM propage active=false, ce qui bloque la connexion et retire les groupes. Je révoque les sessions actives et les jetons, je vérifie qu'aucun identifiant permanent n'existe et je renouvelle les secrets concernés. Je revois les ressources créées, je fais une revue d'accès de clôture, puis je supprime le compte selon la politique de conservation en gardant les journaux. Une condition de date dans la policy sert de filet de sécurité.",
+    "keys": [
+     "active=false",
+     "révoquer sessions/jetons",
+     "revue d'accès",
+     "conserver les journaux"
+    ]
+   },
+   {
+    "q": "Quelles différences entre SAML, OAuth, OpenID Connect et SCIM ?",
+    "a": "SAML 2.0 fait de la fédération et du SSO avec une assertion XML signée, par exemple employé vers application SaaS. OAuth 2.0 délègue une autorisation avec un access token, par exemple application vers API. OpenID Connect authentifie avec un ID token, par exemple connexion web ou mobile. SCIM 2.0 provisionne les comptes et groupes avec des ressources JSON via REST.",
+    "keys": [
+     "SAML = assertion XML",
+     "OAuth = access token",
+     "OIDC = ID token",
+     "SCIM = JSON/REST"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Répondre en listant des sigles sans justifier : à l'examen, chaque choix doit être suivi de « parce que ».",
+   "Confondre SCIM (provisionnement des comptes) et SAML/OIDC (connexion).",
+   "Proposer RBAC ou ABAC sans expliquer pourquoi : la bonne réponse combine généralement les deux, en justifiant.",
+   "Oublier la séparation entre déploiement, approbation et audit, ou laisser le prestataire approuver ses propres changements.",
+   "Décrire la révocation comme « on supprime le compte » : il faut désactiver, révoquer sessions et jetons, revoir les ressources et conserver les preuves.",
+   "Oublier les journaux : sans eux, impossible de prouver ce que le prestataire a fait."
+  ],
+  "quiz": [
+   {
+    "q": "Besoin : créer et désactiver automatiquement les comptes d'un SaaS à partir de l'annuaire. Quel mécanisme ?",
+    "opts": [
+     "OAuth 2.0",
+     "SCIM 2.0",
+     "RBAC",
+     "SAML 2.0"
+    ],
+    "ans": 1,
+    "why": "SCIM 2.0 synchronise les comptes et groupes. SAML gère la connexion, OAuth la délégation d'accès à une API, RBAC l'attribution de droits."
+   },
+   {
+    "q": "Besoin : autoriser une application à appeler une API au nom de l'utilisateur avec des droits limités. Quel mécanisme ?",
+    "opts": [
+     "OAuth 2.0",
+     "SCIM 2.0",
+     "ABAC",
+     "XACML"
+    ],
+    "ans": 0,
+    "why": "OAuth 2.0 délègue l'accès via un access token limité par scopes."
+   },
+   {
+    "q": "Pour le prestataire GreenTech, quelle combinaison d'autorisation est la plus justifiable ?",
+    "opts": [
+     "ABAC seul, sans rôle",
+     "RBAC seul avec un rôle par projet",
+     "RBAC en socle et ABAC sur les tags projet et environnement",
+     "AdministratorAccess limité dans le temps"
+    ],
+    "ans": 2,
+    "why": "Le RBAC donne un socle lisible, l'ABAC évite un rôle par projet. Un administrateur, même temporaire, viole le moindre privilège."
+   },
+   {
+    "q": "Parmi ces éléments, lequel illustre la séparation des responsabilités ?",
+    "opts": [
+     "Le prestataire propose, un référent GreenTech approuve, un pipeline déploie, l'audit lit les journaux",
+     "Le prestataire propose, approuve et déploie avec un seul rôle",
+     "Un compte partagé effectue toutes les opérations",
+     "L'audit est assuré par le prestataire"
+    ],
+    "ans": 0,
+    "why": "La séparation dissocie demande, validation, exécution et audit entre des acteurs différents."
+   },
+   {
+    "q": "À la fin du contrat, quelle séquence est la plus complète ?",
+    "opts": [
+     "Supprimer les journaux puis le compte",
+     "Désactiver (active=false), révoquer sessions et jetons, revoir les ressources, conserver les journaux, supprimer ensuite",
+     "Attendre l'expiration de la session de 4 h",
+     "Changer le mot de passe du prestataire"
+    ],
+    "ans": 1,
+    "why": "On coupe l'accès, on révoque ce qui est déjà actif, on nettoie et on conserve les preuves avant la suppression définitive."
+   },
+   {
+    "q": "Quel jeu de journaux permet de prouver QUI a fait QUOI ?",
+    "opts": [
+     "Seulement les journaux du poste du prestataire",
+     "Journaux de l'IdP, CloudTrail, journaux du pipeline, centralisés et protégés",
+     "Aucun, car la session est temporaire",
+     "Les journaux de l'application SaaS seulement"
+    ],
+    "ans": 1,
+    "why": "Il faut relier l'identité (IdP), les actions (CloudTrail) et les approbations (pipeline), dans un espace protégé contre l'altération."
+   },
+   {
+    "q": "Quel est le bon réflexe en début de réponse à une question de synthèse ?",
+    "opts": [
+     "Citer tous les sigles IAM",
+     "Reformuler le contexte et les contraintes, puis associer un mécanisme à chaque besoin",
+     "Décrire uniquement le MFA",
+     "Proposer la solution la plus chère"
+    ],
+    "ans": 1,
+    "why": "La méthode : contexte, besoins, mécanisme par besoin, justification, garde-fous, conclusion (révocation et preuves)."
+   }
+  ],
+  "recap": [
+   "Partir du besoin : SAML/OIDC (connexion), SCIM (provisionnement), OAuth (API), RBAC (fonction), ABAC (équipe/projet/tags).",
+   "Méthode orale en 6 étapes : contexte, besoins, mécanisme par besoin, justification « parce que », garde-fous, révocation et preuves.",
+   "Prestataire GreenTech : IdP source de vérité, SSO SAML/OIDC + MFA, session courte, SCIM, RBAC + ABAC, séparation déploiement/approbation/audit.",
+   "Révocation : date de fin, active=false, sessions et jetons révoqués, revue des ressources, conservation des journaux.",
+   "Preuves : journaux IdP + CloudTrail + pipeline, centralisés et protégés contre l'altération.",
+   "Chapitre 2 partie 1 acquise : standards, autorisation, gouvernance. Partie 2 : AWS IAM, STS et fédération."
+  ]
+ }
+]

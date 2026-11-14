@@ -1,0 +1,5323 @@
+[
+ {
+  "id": "d3-01",
+  "services": [
+   "vpc",
+   "internet",
+   "ec2",
+   "firewall",
+   "ssm"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   7,
+   9,
+   10,
+   2
+  ],
+  "shorten": {
+   "0": "Le VPC = ton 7ay privé, kol subnet = 3emara. El 3emara public 3andha bab 3al triq (IGW). El privée ma 3andhech bab: tokhrej ken men NAT Gateway (el souk), w ma yodkhel 7ata wa7ed men barra. El route table = el panneaux."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "cards",
+     "title": "Les briques d'un VPC",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "vpc",
+       "t": "VPC",
+       "d": "Réseau virtuel isolé dans une Region ; tu choisis son CIDR, ex. 10.0.0.0/16.",
+       "tone": "info"
+      },
+      {
+       "icon": "server",
+       "t": "Subnet",
+       "d": "Tranche du VPC dans une seule AZ ; AWS y réserve 5 adresses IP.",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "Internet Gateway",
+       "d": "Porte VPC-Internet : managée, redondante, une seule par VPC.",
+       "tone": "good"
+      },
+      {
+       "icon": "gear",
+       "t": "Route table",
+       "d": "Règles destination -> cible ; la plus spécifique gagne.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Route local",
+       "d": "Toujours présente : tout le VPC se parle par défaut.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "ec2",
+       "t": "IP publique",
+       "d": "Pour être joignable d'Internet : route IGW ET IP publique ou Elastic IP.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "arch",
+     "title": "VPC minimal : subnet public, subnet privé, IGW",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "inet",
+         "label": "Internet",
+         "sub": "utilisateurs, sites web",
+         "icon": "internet"
+        }
+       ]
+      },
+      {
+       "id": "edge",
+       "label": "VPC 10.0.0.0/16 (bord)",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "igw",
+         "label": "Internet Gateway",
+         "sub": "seule porte vers Internet",
+         "icon": "network"
+        }
+       ]
+      },
+      {
+       "id": "pub",
+       "label": "Subnet public 10.0.1.0/24",
+       "kind": "subnet",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "bastion",
+         "label": "Bastion Host",
+         "sub": "EC2, SSH 22",
+         "icon": "ec2"
+        },
+        {
+         "id": "nat",
+         "label": "NAT Gateway",
+         "sub": "Elastic IP",
+         "icon": "network"
+        },
+        {
+         "id": "rtpub",
+         "label": "Route table publique",
+         "sub": "0.0.0.0/0 -> igw",
+         "icon": "gear"
+        }
+       ]
+      },
+      {
+       "id": "priv",
+       "label": "Subnet privé 10.0.2.0/24",
+       "kind": "subnet",
+       "col": 3,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "app",
+         "label": "EC2 applicative",
+         "sub": "IP privée seulement",
+         "icon": "server"
+        },
+        {
+         "id": "rtpriv",
+         "label": "Route table privée",
+         "sub": "0.0.0.0/0 -> nat",
+         "icon": "gear"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "inet",
+       "to": "igw",
+       "label": "1. admin arrive (SSH)",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "igw",
+       "to": "bastion",
+       "label": "2. route 0.0.0.0/0 -> igw",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "bastion",
+       "to": "app",
+       "label": "3. SSH privé (local)",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "app",
+       "to": "nat",
+       "label": "4. sortie via NAT",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "nat",
+       "to": "igw",
+       "label": "5. NAT -> IGW",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "igw",
+       "to": "inet",
+       "label": "6. vers Internet",
+       "style": "dashed"
+      },
+      {
+       "id": "e7",
+       "from": "inet",
+       "to": "app",
+       "label": "Entrée directe interdite",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "inet",
+        "igw"
+       ],
+       "caption": "Un admin vient d'Internet : il entre dans le VPC par l'Internet Gateway, seule porte vers l'extérieur."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "igw",
+        "bastion",
+        "rtpub"
+       ],
+       "caption": "Le subnet public a une route 0.0.0.0/0 vers l'IGW : c'est ce qui le rend public. Le bastion y est joignable si son Security Group l'autorise."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "bastion",
+        "app"
+       ],
+       "caption": "Depuis le bastion, l'admin rebondit vers l'instance privée par son IP privée : la route `local` suffit."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "app",
+        "rtpriv",
+        "nat",
+        "igw"
+       ],
+       "caption": "Pour télécharger des patchs, la route table privée envoie 0.0.0.0/0 vers le NAT Gateway, qui sort par l'IGW : connexions sortantes seulement."
+      },
+      {
+       "edges": [
+        "e7"
+       ],
+       "nodes": [
+        "inet",
+        "app"
+       ],
+       "caption": "Internet ne peut jamais initier une connexion vers l'instance privée : pas d'IP publique, pas de route entrante."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "Public ou privé ? Les routes décident, pas le nom",
+     "cols": [
+      {
+       "name": "Subnet public",
+       "tag": "route vers l'IGW",
+       "icon": "internet",
+       "points": [
+        "10.0.0.0/16 -> local",
+        "0.0.0.0/0 -> igw-xxxx",
+        "Aller-retour avec Internet (si IP publique)"
+       ],
+       "use": "Bastion, ALB, NAT Gateway"
+      },
+      {
+       "name": "Privé + NAT",
+       "tag": "sortie seulement",
+       "icon": "server",
+       "points": [
+        "10.0.0.0/16 -> local",
+        "0.0.0.0/0 -> nat-xxxx",
+        "Sortant seulement, jamais entrant"
+       ],
+       "use": "Serveurs applicatifs à patcher"
+      },
+      {
+       "name": "Privé isolé",
+       "tag": "aucune sortie",
+       "icon": "padlock",
+       "points": [
+        "10.0.0.0/16 -> local",
+        "Ni IGW, ni NAT"
+       ],
+       "use": "Bases de données"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Bastion Host : règles à retenir",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Bastion Host",
+       "d": "EC2 durcie dans le subnet public : point de rebond SSH vers les subnets privés.",
+       "tone": "info"
+      },
+      {
+       "icon": "firewall",
+       "t": "SG du bastion",
+       "d": "Entrée TCP 22 depuis un CIDR restreint, jamais 0.0.0.0/0.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "SG des privées",
+       "d": "Entrée TCP 22 depuis le Security Group du bastion.",
+       "tone": "good"
+      },
+      {
+       "icon": "longcred",
+       "t": "Aucune clé stockée",
+       "d": "Agent forwarding ou ssh -J ; le bastion est une cible à surveiller.",
+       "tone": "warn"
+      },
+      {
+       "icon": "ssm",
+       "t": "Alternative moderne",
+       "d": "SSM Session Manager : aucun port 22 ouvert.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "facts",
+     "title": "NAT Gateway : les chiffres et règles à retenir",
+     "items": [
+      {
+       "icon": "vpc",
+       "big": "Subnet public",
+       "label": "où créer le NAT Gateway",
+       "sub": "il sert les autres subnets, pas le sien"
+      },
+      {
+       "icon": "internet",
+       "big": "IGW requis",
+       "label": "privé -> NATGW -> IGW"
+      },
+      {
+       "icon": "gear",
+       "big": "5 -> 100 Gbps",
+       "label": "bande passante",
+       "sub": "montée automatique"
+      },
+      {
+       "icon": "firewall",
+       "big": "0 SG",
+       "label": "rien à gérer sur le NATGW",
+       "sub": "filtrer côté instances et NACL"
+      },
+      {
+       "icon": "server",
+       "big": "IPv4 + EIP",
+       "label": "sortant seulement",
+       "sub": "IPv6 : Egress-only IGW"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "matrix",
+     "title": "NAT Gateway vs NAT instance",
+     "rows": [
+      "Managé par AWS",
+      "Bande passante",
+      "Security Groups",
+      "Utilisable en bastion",
+      "Haute dispo"
+     ],
+     "cols": [
+      "NAT Gateway",
+      "NAT instance"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "100 Gbps",
+       "selon EC2"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "1 par AZ",
+       "script maison"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "arch",
+     "title": "NAT Gateway en haute disponibilité : un par AZ",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "inet",
+         "label": "Internet",
+         "sub": "",
+         "icon": "internet"
+        }
+       ]
+      },
+      {
+       "id": "edge",
+       "label": "VPC 10.0.0.0/16",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "igw",
+         "label": "Internet Gateway",
+         "sub": "redondante, gérée par AWS",
+         "icon": "network"
+        }
+       ]
+      },
+      {
+       "id": "pa",
+       "label": "Subnet public (AZ-a)",
+       "kind": "subnet",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "nata",
+         "label": "NAT Gateway A",
+         "sub": "Elastic IP A",
+         "icon": "network"
+        }
+       ]
+      },
+      {
+       "id": "pb",
+       "label": "Subnet public (AZ-b)",
+       "kind": "subnet",
+       "col": 2,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "natb",
+         "label": "NAT Gateway B",
+         "sub": "Elastic IP B",
+         "icon": "network"
+        }
+       ]
+      },
+      {
+       "id": "qa",
+       "label": "Subnet privé (AZ-a)",
+       "kind": "subnet",
+       "col": 3,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "appa",
+         "label": "EC2 privées A",
+         "sub": "route table A -> NAT A",
+         "icon": "server"
+        }
+       ]
+      },
+      {
+       "id": "qb",
+       "label": "Subnet privé (AZ-b)",
+       "kind": "subnet",
+       "col": 3,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "appb",
+         "label": "EC2 privées B",
+         "sub": "route table B -> NAT B",
+         "icon": "server"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "appa",
+       "to": "nata",
+       "label": "route table A",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "appb",
+       "to": "natb",
+       "label": "route table B",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "nata",
+       "to": "igw",
+       "label": "vers l'IGW",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "natb",
+       "to": "igw",
+       "label": "vers l'IGW",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "igw",
+       "to": "inet",
+       "label": "sortie Internet",
+       "style": "dashed"
+      },
+      {
+       "id": "e6",
+       "from": "appa",
+       "to": "natb",
+       "label": "pas de NAT croisé",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e3",
+        "e5"
+       ],
+       "nodes": [
+        "appa",
+        "nata",
+        "igw"
+       ],
+       "caption": "Chaque subnet privé a sa propre route table qui pointe vers le NAT Gateway de SA zone."
+      },
+      {
+       "edges": [
+        "e2",
+        "e4"
+       ],
+       "nodes": [
+        "appb",
+        "natb",
+        "igw"
+       ],
+       "caption": "Même schéma en AZ-b : deux NAT Gateways indépendants, aucun failover inter-AZ à configurer."
+      },
+      {
+       "edges": [
+        "e6"
+       ],
+       "nodes": [
+        "appa",
+        "natb"
+       ],
+       "caption": "Si l'AZ-a tombe, ses instances tombent aussi : plus besoin de NAT. L'AZ-b garde son NAT. Un NAT croisé coûterait des frais de transfert inter-AZ."
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpc",
+       "ctx": "Réseau isolé : subnets et route tables décident qui parle à qui."
+      },
+      {
+       "k": "internet",
+       "ctx": "Internet Gateway : seule porte du VPC ; rend un subnet public via la route 0.0.0.0/0."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Bastion de rebond SSH et serveurs privés qui sortent par le NAT."
+      },
+      {
+       "k": "firewall",
+       "ctx": "Security Groups : SSH 22 restreint au bastion ; pas de SG sur le NAT Gateway."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Alternative au bastion : sessions sans port 22 ouvert."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-02",
+  "services": [
+   "vpn",
+   "clientvpn",
+   "vpc",
+   "directconnect",
+   "saml",
+   "ec2"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   6,
+   7,
+   8,
+   11
+  ],
+  "shorten": {
+   "0": "Le VPN = nafaq mchaffer 3al Internet. Site-to-Site: bureau kemel <-> AWS, el routeurs ykhaddmou el 9ofl (IPsec). Client VPN: enti men laptop, tod5ol bel badge (certificat, AD + MFA wala SSO) w twasel lel VPC."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Trois VPN, trois besoins",
+     "center": {
+      "label": "VPN sur AWS",
+      "sub": "tunnel chiffré par-dessus Internet",
+      "icon": "vpn"
+     },
+     "spokes": [
+      {
+       "label": "Site-to-Site VPN",
+       "sub": "réseau <-> réseau",
+       "icon": "vpn",
+       "tone": "info",
+       "note": "Relie un bureau ou datacenter au VPC par des tunnels IPsec : VGW côté AWS, CGW côté client."
+      },
+      {
+       "label": "VPN CloudHub",
+       "sub": "sites <-> sites",
+       "icon": "vpn",
+       "tone": "info",
+       "note": "Plusieurs Site-to-Site VPN sur un même VGW : les sites se parlent via AWS en hub-and-spoke."
+      },
+      {
+       "label": "Client VPN",
+       "sub": "utilisateur <-> réseau",
+       "icon": "clientvpn",
+       "tone": "good",
+       "note": "Un employé distant joint le VPC en OpenVPN (TLS) et, au-delà, l'on-premises."
+      },
+      {
+       "label": "Direct Connect",
+       "sub": "hors Internet",
+       "icon": "directconnect",
+       "tone": "warn",
+       "note": "Seul à éviter l'Internet public : liaison privée dédiée (leçon suivante). Les VPN, eux, traversent Internet chiffrés."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Site-to-Site VPN : les pièces à connaître",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "vpn",
+       "t": "VGW",
+       "d": "Virtual Private Gateway : concentrateur côté AWS, attaché au VPC, ASN personnalisable.",
+       "tone": "info"
+      },
+      {
+       "icon": "building",
+       "t": "CGW",
+       "d": "Customer Gateway : équipement côté client, décrit par son IP et son ASN.",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "2 tunnels IPsec",
+       "d": "Une connexion VPN = deux tunnels entre VGW et CGW, pour la redondance.",
+       "tone": "good"
+      },
+      {
+       "icon": "gear",
+       "t": "Route Propagation",
+       "d": "À activer dans la route table des subnets, sinon tunnel UP mais rien ne circule.",
+       "tone": "warn"
+      },
+      {
+       "icon": "firewall",
+       "t": "ICMP et SG",
+       "d": "Autoriser ICMP en entrée dans les Security Groups pour tester par ping.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "arch",
+     "title": "Site-to-Site VPN : du serveur du bureau à l'EC2 privée",
+     "groups": [
+      {
+       "id": "onp",
+       "label": "Datacenter / bureau",
+       "kind": "onprem",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "srv",
+         "label": "Serveur du bureau",
+         "sub": "veut joindre l'EC2",
+         "icon": "server"
+        },
+        {
+         "id": "cgw",
+         "label": "Customer Gateway",
+         "sub": "IP publique (ou du NAT-T)",
+         "icon": "vpn"
+        }
+       ]
+      },
+      {
+       "id": "net",
+       "label": "Internet public",
+       "kind": "internet",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "tun",
+         "label": "2 tunnels IPsec",
+         "sub": "chiffrés, redondants",
+         "icon": "internet"
+        }
+       ]
+      },
+      {
+       "id": "vpc",
+       "label": "VPC 10.0.0.0/16",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "vgw",
+         "label": "Virtual Private Gateway",
+         "sub": "côté AWS, attachée au VPC",
+         "icon": "vpn"
+        },
+        {
+         "id": "rt",
+         "label": "Route table",
+         "sub": "Route Propagation activée",
+         "icon": "gear"
+        }
+       ]
+      },
+      {
+       "id": "sub",
+       "label": "Subnet privé",
+       "kind": "subnet",
+       "col": 3,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ec2",
+         "label": "EC2 privée",
+         "sub": "IP privée",
+         "icon": "ec2"
+        },
+        {
+         "id": "sg",
+         "label": "Security Group",
+         "sub": "ICMP / ports autorisés",
+         "icon": "firewall"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "srv",
+       "to": "cgw",
+       "label": "1. trafic vers le VPC",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "cgw",
+       "to": "tun",
+       "label": "2. chiffre en IPsec",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "tun",
+       "to": "vgw",
+       "label": "3. arrive au VGW",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "vgw",
+       "to": "rt",
+       "label": "4. routes propagées",
+       "style": "dashed"
+      },
+      {
+       "id": "e5",
+       "from": "vgw",
+       "to": "ec2",
+       "label": "5. livre à l'EC2",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "sg",
+       "to": "ec2",
+       "label": "6. autorise le trafic",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "srv",
+        "cgw"
+       ],
+       "caption": "Le CGW (équipement du client) chiffre le trafic en IPsec et l'envoie dans deux tunnels via Internet."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "tun",
+        "vgw"
+       ],
+       "caption": "Le Virtual Private Gateway attaché au VPC termine les tunnels côté AWS."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "vgw",
+        "rt"
+       ],
+       "caption": "Route Propagation : sans elle, les routes du site distant n'apparaissent pas dans la route table et rien ne passe."
+      },
+      {
+       "edges": [
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "vgw",
+        "ec2",
+        "sg"
+       ],
+       "caption": "L'EC2 reçoit le trafic si son Security Group l'autorise (ICMP pour un ping de test)."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "arch",
+     "title": "CloudHub : trois sites, un hub",
+     "groups": [
+      {
+       "id": "sa",
+       "label": "Site A (Tunis)",
+       "kind": "onprem",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "cga",
+         "label": "CGW site A",
+         "sub": "BGP, ASN propre",
+         "icon": "vpn"
+        }
+       ]
+      },
+      {
+       "id": "sb",
+       "label": "Site B (Sfax)",
+       "kind": "onprem",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "cgb",
+         "label": "CGW site B",
+         "sub": "BGP, ASN propre",
+         "icon": "vpn"
+        }
+       ]
+      },
+      {
+       "id": "sc",
+       "label": "Site C (Sousse)",
+       "kind": "onprem",
+       "col": 0,
+       "row": 2,
+       "nodes": [
+        {
+         "id": "cgc",
+         "label": "CGW site C",
+         "sub": "BGP, ASN propre",
+         "icon": "vpn"
+        }
+       ]
+      },
+      {
+       "id": "aws",
+       "label": "AWS : VPC 10.0.0.0/16",
+       "kind": "vpc",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "vgw",
+         "label": "Virtual Private Gateway",
+         "sub": "un seul VGW, 3 VPN",
+         "icon": "vpn"
+        },
+        {
+         "id": "ec2",
+         "label": "EC2 privées",
+         "sub": "joignables par tous",
+         "icon": "ec2"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "cga",
+       "to": "vgw",
+       "label": "VPN A (IPsec)",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "cgb",
+       "to": "vgw",
+       "label": "VPN B (IPsec)",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "cgc",
+       "to": "vgw",
+       "label": "VPN C (IPsec)",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "vgw",
+       "to": "ec2",
+       "label": "route tables",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "cga",
+       "to": "cgb",
+       "label": "A joint B via AWS",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "cga",
+        "cgb",
+        "cgc",
+        "vgw"
+       ],
+       "caption": "Trois connexions Site-to-Site VPN sur le même VGW, avec routage dynamique BGP : modèle hub-and-spoke à bas coût."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "cga",
+        "cgb",
+        "vgw"
+       ],
+       "caption": "Le VGW rediffuse les routes : chaque site apprend celles des autres et les joint en passant par AWS, sans VPN site à site."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "vgw",
+        "ec2"
+       ],
+       "caption": "Les sites joignent aussi le VPC. Tout reste sur l'Internet public (chiffré) : connectivité principale modeste ou de secours."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "pipeline",
+     "title": "Client VPN : de l'employé à l'EC2 privée",
+     "stages": [
+      {
+       "label": "Laptop",
+       "sub": "client OpenVPN",
+       "icon": "client",
+       "tone": "info"
+      },
+      {
+       "label": "Internet",
+       "sub": "TLS, chiffré",
+       "icon": "internet",
+       "tone": "neutral"
+      },
+      {
+       "label": "Client VPN endpoint",
+       "sub": "lié à des subnets",
+       "icon": "clientvpn",
+       "tone": "info"
+      },
+      {
+       "label": "Authentification",
+       "sub": "AD, certificat ou SAML",
+       "icon": "mfa",
+       "tone": "warn"
+      },
+      {
+       "label": "Règles d'autorisation",
+       "sub": "qui joint quel CIDR",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "EC2 privée",
+       "sub": "par IP privée",
+       "icon": "ec2",
+       "tone": "good"
+      }
+     ],
+     "caption": "On ajoute des Security Groups sur les ENI de l'endpoint et les logs de connexion. Via un Site-to-Site VPN, l'utilisateur atteint aussi l'on-premises."
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quel VPN choisir ?",
+     "root": {
+      "q": "Une personne seule doit se connecter ?",
+      "yes": {
+       "a": "Client VPN",
+       "icon": "clientvpn",
+       "tone": "good",
+       "why": "OpenVPN ; AD (MFA), certificats ou SAML"
+      },
+      "no": {
+       "q": "Plusieurs sites doivent aussi se parler ?",
+       "yes": {
+        "a": "VPN CloudHub",
+        "icon": "vpn",
+        "tone": "good",
+        "why": "Plusieurs VPN sur un VGW, BGP"
+       },
+       "no": {
+        "q": "Débit élevé et stable, hors Internet ?",
+        "yes": {
+         "a": "Direct Connect",
+         "icon": "directconnect",
+         "tone": "info",
+         "why": "Liaison privée ; VPN IPsec si chiffrement"
+        },
+        "no": {
+         "a": "Site-to-Site VPN",
+         "icon": "vpn",
+         "tone": "good",
+         "why": "VGW + CGW, 2 tunnels IPsec"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpn",
+       "ctx": "Site-to-Site VPN et CloudHub : tunnels IPsec entre VGW et CGW, via l'Internet public."
+      },
+      {
+       "k": "clientvpn",
+       "ctx": "Connecte les utilisateurs nomades au VPC en OpenVPN, avec authentification forte."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Héberge le VGW et les route tables où activer la Route Propagation."
+      },
+      {
+       "k": "saml",
+       "ctx": "Option SSO du Client VPN : un seul IdP SAML 2.0 à la fois."
+      },
+      {
+       "k": "directconnect",
+       "ctx": "Alternative privée hors Internet quand le débit doit être stable."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Cibles privées joignables en IP privée ; ICMP à autoriser pour les tests."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-03",
+  "services": [
+   "vpc",
+   "route53",
+   "tgw",
+   "directconnect",
+   "vpn",
+   "ram"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   5,
+   6,
+   7,
+   8,
+   9,
+   11,
+   12
+  ],
+  "shorten": {
+   "0": "Peering = jesr bin 2 VPC bark, ma yet3addach (A-B-C ma ya3tich A-C). Transit Gateway = rond-point: kol VPC yetsal bih mara. Direct Connect = autoroute privée lel bureau: stable, ama ma fihech 9ofl (lazem VPN fou9ha)."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "VPC Peering : règles à retenir",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "vpc",
+       "t": "Connexion privée",
+       "d": "Deux VPC se parlent sur le réseau AWS, sans Internet.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "CIDR distincts",
+       "d": "Des plages qui se chevauchent rendent le peering impossible.",
+       "tone": "warn"
+      },
+      {
+       "icon": "gear",
+       "t": "Route tables",
+       "d": "Mettre à jour les deux côtés, ex. 10.1.0.0/16 -> pcx-xxxx.",
+       "tone": "warn"
+      },
+      {
+       "icon": "orgs",
+       "t": "Comptes et Regions",
+       "d": "Possible entre comptes et entre Regions différents.",
+       "tone": "info"
+      },
+      {
+       "icon": "firewall",
+       "t": "SG du pair",
+       "d": "Un SG du VPC pair est référençable (même Region seulement).",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "Pas de relais",
+       "d": "Un pair ne peut pas emprunter l'IGW, le NAT ou le VPN de l'autre.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "arch",
+     "title": "Peering non transitif : A ne joint pas C via B",
+     "groups": [
+      {
+       "id": "va",
+       "label": "VPC A 10.0.0.0/16",
+       "kind": "vpc",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ea",
+         "label": "EC2 dans A",
+         "sub": "10.0.1.10",
+         "icon": "ec2"
+        }
+       ]
+      },
+      {
+       "id": "vb",
+       "label": "VPC B 10.1.0.0/16",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "eb",
+         "label": "EC2 dans B",
+         "sub": "10.1.1.10",
+         "icon": "ec2"
+        },
+        {
+         "id": "rtb",
+         "label": "Route tables de B",
+         "sub": "vers A (pcx) et vers C (pcx)",
+         "icon": "gear"
+        }
+       ]
+      },
+      {
+       "id": "vc",
+       "label": "VPC C 10.2.0.0/16",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ec",
+         "label": "EC2 dans C",
+         "sub": "10.2.1.10",
+         "icon": "ec2"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "ea",
+       "to": "eb",
+       "label": "Peering A-B (pcx)",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "eb",
+       "to": "ec",
+       "label": "Peering B-C (pcx)",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "ea",
+       "to": "ec",
+       "label": "A -> C via B : impossible",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "ea",
+        "eb"
+       ],
+       "caption": "Un peering relie deux VPC en privé sur le réseau AWS : CIDR distincts et route tables mises à jour des deux côtés."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "eb",
+        "ec",
+        "rtb"
+       ],
+       "caption": "B-C est une autre relation : chaque paire qui doit communiquer exige sa propre connexion."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "ea",
+        "ec"
+       ],
+       "caption": "Non transitif : A-B et B-C n'impliquent pas A-C, et B ne sert pas de relais. Il faut un peering A-C, ou un Transit Gateway."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "matrix",
+     "title": "Résolution DNS d'un VPC : quel attribut active quoi ?",
+     "rows": [
+      "Resolver Amazon (VPC + 2)",
+      "Nom DNS public d'une instance",
+      "Private Hosted Zone",
+      "Nom privé d'un Interface endpoint"
+     ],
+     "cols": [
+      "DnsSupport seul",
+      "Support + Hostnames"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Fonctionne",
+      "no": "Ne fonctionne pas"
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "DNS dans le VPC : valeurs à connaître",
+     "items": [
+      {
+       "icon": "route53",
+       "big": "169.254.169.253",
+       "label": "IP du Resolver Amazon",
+       "sub": "ou base du réseau + 2, ex. 10.0.0.2"
+      },
+      {
+       "icon": "gear",
+       "big": "DnsSupport = true",
+       "label": "par défaut",
+       "sub": "si false : serveur DNS personnalisé"
+      },
+      {
+       "icon": "vpc",
+       "big": "DnsHostnames",
+       "label": "true : VPC par défaut",
+       "sub": "false : VPC nouvellement créé"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "matrix",
+     "title": "VPC Peering ou Transit Gateway ?",
+     "rows": [
+      "Hub-and-spoke",
+      "Routage transitif",
+      "Des milliers de VPC",
+      "On-premises (VPN / DX)",
+      "Entre Regions"
+     ],
+     "cols": [
+      "VPC Peering",
+      "Transit Gateway"
+     ],
+     "cells": [
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "peering TGW"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "arch",
+     "title": "Transit Gateway : un hub, des routes contrôlées",
+     "groups": [
+      {
+       "id": "va",
+       "label": "VPC A (prod)",
+       "kind": "vpc",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "pa",
+         "label": "Subnets prod",
+         "sub": "attachment A",
+         "icon": "vpc"
+        }
+       ]
+      },
+      {
+       "id": "vb",
+       "label": "VPC B (dev)",
+       "kind": "vpc",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "pb",
+         "label": "Subnets dev",
+         "sub": "attachment B",
+         "icon": "vpc"
+        }
+       ]
+      },
+      {
+       "id": "vc",
+       "label": "VPC C (partagé)",
+       "kind": "vpc",
+       "col": 0,
+       "row": 2,
+       "nodes": [
+        {
+         "id": "pc",
+         "label": "Services communs",
+         "sub": "attachment C",
+         "icon": "vpc"
+        }
+       ]
+      },
+      {
+       "id": "hub",
+       "label": "Transit Gateway (régional)",
+       "kind": "zone",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "tgw",
+         "label": "Transit Gateway",
+         "sub": "routage transitif",
+         "icon": "tgw"
+        },
+        {
+         "id": "rt",
+         "label": "TGW route tables",
+         "sub": "segmentation prod / dev",
+         "icon": "gear"
+        }
+       ]
+      },
+      {
+       "id": "dc",
+       "label": "Datacenter",
+       "kind": "onprem",
+       "col": 2,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "cr",
+         "label": "Routeur client",
+         "sub": "VPN ou DX Gateway",
+         "icon": "vpn"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "pa",
+       "to": "tgw",
+       "label": "attachment",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "pb",
+       "to": "tgw",
+       "label": "attachment",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "pc",
+       "to": "tgw",
+       "label": "attachment",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "tgw",
+       "to": "cr",
+       "label": "VPN / Direct Connect GW",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "pa",
+       "to": "pb",
+       "label": "prod -> dev bloqué",
+       "style": "deny"
+      },
+      {
+       "id": "e6",
+       "from": "pa",
+       "to": "pc",
+       "label": "prod -> partagé",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "pa",
+        "pb",
+        "pc",
+        "tgw"
+       ],
+       "caption": "Chaque VPC s'attache une seule fois au hub : N attachments au lieu de N(N-1)/2 peerings."
+      },
+      {
+       "edges": [
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "rt",
+        "pa",
+        "pb",
+        "pc"
+       ],
+       "caption": "Les route tables du TGW décident qui parle à qui : prod joint le service partagé, mais pas dev."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "tgw",
+        "cr"
+       ],
+       "caption": "Le TGW accepte aussi des Site-to-Site VPN et une Direct Connect Gateway : un seul hub pour le cloud et l'on-premises."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Transit Gateway : ce qu'il apporte en plus",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Route tables du TGW",
+       "d": "Segmentation : isoler prod et dev dans un même hub.",
+       "tone": "good"
+      },
+      {
+       "icon": "ram",
+       "t": "Partage avec RAM",
+       "d": "Un TGW partagé entre comptes via Resource Access Manager.",
+       "tone": "info"
+      },
+      {
+       "icon": "tgw",
+       "t": "Peering de TGW",
+       "d": "Relier deux TGW de Regions différentes.",
+       "tone": "info"
+      },
+      {
+       "icon": "vpn",
+       "t": "VPN, DX Gateway",
+       "d": "S'attachent au TGW comme les VPC.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "facts",
+     "title": "ECMP : additionner les tunnels VPN (ordres de grandeur du cours)",
+     "items": [
+      {
+       "icon": "vpn",
+       "big": "1,25 Gbps",
+       "label": "VPN vers un VGW",
+       "sub": "2 tunnels, un seul actif, pas d'ECMP"
+      },
+      {
+       "icon": "tgw",
+       "big": "2,5 Gbps",
+       "label": "1 VPN vers un TGW",
+       "sub": "ECMP : 2 tunnels utilisés"
+      },
+      {
+       "icon": "tgw",
+       "big": "5 / 7,5 Gbps",
+       "label": "2 / 3 connexions VPN",
+       "sub": "l'ECMP additionne les débits"
+      },
+      {
+       "icon": "gear",
+       "big": "BGP",
+       "label": "routage dynamique requis",
+       "sub": "TGW facturé aussi par Go traité"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Direct Connect : interfaces virtuelles et gateway",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "vpc",
+       "t": "Private VIF",
+       "d": "Vers un VPC, via un VGW ou une Direct Connect Gateway.",
+       "tone": "info"
+      },
+      {
+       "icon": "s3",
+       "t": "Public VIF",
+       "d": "Vers les services publics AWS : S3, Glacier.",
+       "tone": "info"
+      },
+      {
+       "icon": "tgw",
+       "t": "Transit VIF",
+       "d": "Vers un Transit Gateway, partagé entre VPC et comptes via RAM.",
+       "tone": "info"
+      },
+      {
+       "icon": "directconnect",
+       "t": "DX Gateway",
+       "d": "Un même DX vers des VPC de plusieurs Regions.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "stack",
+     "title": "Résilience Direct Connect : du plus fragile au plus robuste",
+     "layers": [
+      {
+       "label": "Connexion unique",
+       "sub": "point de défaillance",
+       "icon": "directconnect",
+       "tone": "bad",
+       "tags": [
+        "à éviter en production"
+       ]
+      },
+      {
+       "label": "VPN de secours",
+       "sub": "bascule IPsec via Internet",
+       "icon": "vpn",
+       "tone": "warn",
+       "tags": [
+        "moins cher",
+        "débit inférieur"
+       ]
+      },
+      {
+       "label": "Second DX",
+       "sub": "backup identique",
+       "icon": "directconnect",
+       "tone": "info",
+       "tags": [
+        "cher"
+       ]
+      },
+      {
+       "label": "High resiliency",
+       "sub": "connexions dans plusieurs Locations",
+       "icon": "directconnect",
+       "tone": "good",
+       "tags": [
+        "multi-Location"
+       ]
+      },
+      {
+       "label": "Maximum resiliency",
+       "sub": "connexions et équipements séparés",
+       "icon": "directconnect",
+       "tone": "good",
+       "tags": [
+        "multi-Location",
+        "équipements séparés"
+       ]
+      }
+     ],
+     "side": "du moins au plus résilient"
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "arch",
+     "title": "Direct Connect : private VIF, public VIF et VPN de secours",
+     "groups": [
+      {
+       "id": "dc",
+       "label": "Datacenter",
+       "kind": "onprem",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "rt",
+         "label": "Routeur client",
+         "sub": "BGP",
+         "icon": "server"
+        }
+       ]
+      },
+      {
+       "id": "dxl",
+       "label": "Direct Connect Location",
+       "kind": "zone",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "dxe",
+         "label": "Direct Connect",
+         "sub": "VLAN / VIF",
+         "icon": "directconnect"
+        }
+       ]
+      },
+      {
+       "id": "inet",
+       "label": "Internet public",
+       "kind": "internet",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "vpn",
+         "label": "Site-to-Site VPN",
+         "sub": "IPsec, secours",
+         "icon": "vpn"
+        }
+       ]
+      },
+      {
+       "id": "aws",
+       "label": "AWS Region",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "vgw",
+         "label": "Virtual Private Gateway",
+         "sub": "private VIF",
+         "icon": "vpn"
+        },
+        {
+         "id": "ec2",
+         "label": "EC2 privées",
+         "sub": "VPC",
+         "icon": "ec2"
+        },
+        {
+         "id": "s3",
+         "label": "Amazon S3",
+         "sub": "public VIF",
+         "icon": "s3"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "rt",
+       "to": "dxe",
+       "label": "1. lien dédié (VLAN)",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "dxe",
+       "to": "vgw",
+       "label": "2. private VIF",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "vgw",
+       "to": "ec2",
+       "label": "3. accès au VPC",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "dxe",
+       "to": "s3",
+       "label": "public VIF (S3)",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "rt",
+       "to": "vpn",
+       "label": "backup",
+       "style": "dashed"
+      },
+      {
+       "id": "e6",
+       "from": "vpn",
+       "to": "vgw",
+       "label": "bascule VPN",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "rt",
+        "dxe",
+        "vgw",
+        "ec2"
+       ],
+       "caption": "Normal : routeur, Direct Connect, private VIF, VGW, EC2. Latence stable, hors Internet."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "dxe",
+        "s3"
+       ],
+       "caption": "Une public VIF sur la même liaison atteint les services publics comme S3, sans passer par le VPC."
+      },
+      {
+       "edges": [
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "rt",
+        "vpn",
+        "vgw"
+       ],
+       "caption": "Si le DX tombe, le routage bascule sur le Site-to-Site VPN (chiffré, via Internet, débit inférieur) : moins cher qu'un second DX."
+      },
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "rt",
+        "dxe"
+       ],
+       "caption": "Le DX est privé mais NON chiffré : pour du chiffrement IPsec, ajouter un Site-to-Site VPN par-dessus (ou MACsec sur certains ports dédiés)."
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpc",
+       "ctx": "Réseau relié par peering, TGW ou Direct Connect ; attributs DNS à activer."
+      },
+      {
+       "k": "route53",
+       "ctx": "Resolver du VPC : résout les noms publics et les Private Hosted Zones."
+      },
+      {
+       "k": "tgw",
+       "ctx": "Hub régional transitif : VPC, VPN et DX Gateway, segmentés par route tables."
+      },
+      {
+       "k": "directconnect",
+       "ctx": "Liaison privée dédiée, stable mais non chiffrée : VPN IPsec par-dessus pour chiffrer."
+      },
+      {
+       "k": "vpn",
+       "ctx": "VPN de secours du DX, et brique de l'ECMP sur Transit Gateway."
+      },
+      {
+       "k": "ram",
+       "ctx": "Partage un Transit Gateway entre comptes de l'Organization."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-04",
+  "services": [
+   "vpc",
+   "privatelink",
+   "s3",
+   "secrets",
+   "ssm",
+   "elb",
+   "route53"
+  ],
+  "drop": [
+   1,
+   3,
+   6,
+   9,
+   13,
+   14,
+   15
+  ],
+  "shorten": {
+   "0": "Bch tkalem el banque (S3, Secrets Manager) men 3emara privée men ghir ma tokhrej lel triq el 3ammouma: el VPC Endpoint = bab khass fi 3emartek. Gateway endpoint = panneau fil route table (S3 w DynamoDB bark). Interface endpoint = ENI b IP privée (el barcha services)."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "cards",
+     "title": "En cas de problème d'endpoint, vérifie 4 choses",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "route53",
+       "t": "DNS du VPC",
+       "d": "enableDnsSupport et enableDnsHostnames activés, sinon le nom ne se résout pas.",
+       "tone": "warn"
+      },
+      {
+       "icon": "gear",
+       "t": "Route tables",
+       "d": "Gateway endpoint : l'entrée vers le vpce doit exister dans les subnets.",
+       "tone": "warn"
+      },
+      {
+       "icon": "firewall",
+       "t": "Security Groups",
+       "d": "Interface endpoint : autoriser TCP 443 depuis les instances.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Endpoint policy",
+       "d": "Une policy trop stricte bloque l'action sans erreur évidente.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "arch",
+     "title": "Deux endpoints, un subnet privé sans Internet",
+     "groups": [
+      {
+       "id": "sub",
+       "label": "Subnet privé (aucune route IGW/NAT)",
+       "kind": "subnet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ec2",
+         "label": "EC2 / Lambda",
+         "sub": "sans IP publique",
+         "icon": "ec2"
+        },
+        {
+         "id": "rt",
+         "label": "Route table",
+         "sub": "prefix list S3 -> vpce",
+         "icon": "gear"
+        }
+       ]
+      },
+      {
+       "id": "vpc",
+       "label": "VPC Endpoints",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "gw",
+         "label": "Gateway endpoint",
+         "sub": "S3 et DynamoDB, sans SG",
+         "icon": "vpc"
+        },
+        {
+         "id": "ifc",
+         "label": "Interface endpoint",
+         "sub": "ENI + SG + Private DNS",
+         "icon": "privatelink"
+        }
+       ]
+      },
+      {
+       "id": "svc",
+       "label": "Services AWS",
+       "kind": "generic",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "s3",
+         "label": "Amazon S3",
+         "sub": "via Gateway endpoint",
+         "icon": "s3"
+        },
+        {
+         "id": "sm",
+         "label": "Secrets Manager",
+         "sub": "via Interface endpoint",
+         "icon": "secrets"
+        }
+       ]
+      },
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "inet",
+         "label": "Internet",
+         "sub": "aucun chemin",
+         "icon": "internet"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "ec2",
+       "to": "rt",
+       "label": "1. S3 : consulte les routes",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "rt",
+       "to": "gw",
+       "label": "2. prefix list -> vpce",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "gw",
+       "to": "s3",
+       "label": "3. accès privé à S3",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "ec2",
+       "to": "ifc",
+       "label": "A. nom du service -> IP privée",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "ifc",
+       "to": "sm",
+       "label": "B. via PrivateLink",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "ec2",
+       "to": "inet",
+       "label": "Ni IGW ni NAT",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "ec2",
+        "rt",
+        "gw",
+        "s3"
+       ],
+       "caption": "Gateway endpoint : une entrée de route table (prefix list du service -> vpce) envoie le trafic S3 ou DynamoDB vers l'endpoint. Pas de Security Group."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5"
+       ],
+       "nodes": [
+        "ec2",
+        "ifc",
+        "sm"
+       ],
+       "caption": "Interface endpoint : une ENI avec IP privée dans le subnet ; le Private DNS résout le nom public du service vers cette IP. Protégée par un Security Group."
+      },
+      {
+       "edges": [
+        "e6"
+       ],
+       "nodes": [
+        "ec2",
+        "inet"
+       ],
+       "caption": "Le subnet n'a aucune route vers l'IGW ou un NAT : tout part par les endpoints, jamais sur Internet."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "decision",
+     "title": "Quel type de VPC endpoint ?",
+     "root": {
+      "q": "Le service est S3 ou DynamoDB ?",
+      "yes": {
+       "q": "Accès depuis l'on-premises, le VPN ou un autre VPC ?",
+       "yes": {
+        "a": "Interface endpoint",
+        "icon": "privatelink",
+        "tone": "good",
+        "why": "Le Gateway ne s'étend pas hors du VPC"
+       },
+       "no": {
+        "a": "Gateway endpoint",
+        "icon": "vpc",
+        "tone": "good",
+        "why": "Gratuit : route table, sans SG"
+       }
+      },
+      "no": {
+       "a": "Interface endpoint",
+       "icon": "privatelink",
+       "tone": "good",
+       "why": "Seule option (SG + Private DNS)"
+      }
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cards",
+     "title": "Endpoint policy : un filtre de plus",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Barrière additionnelle",
+       "d": "Gateway et Interface : contrôle principals, actions et ressources.",
+       "tone": "info"
+      },
+      {
+       "icon": "iam",
+       "t": "N'accorde rien",
+       "d": "Ne remplace ni les identity policies ni les bucket policies.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Accès complet par défaut",
+       "d": "Tant qu'on ne la restreint pas, tout passe.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "orgs",
+       "t": "Principal obligatoire",
+       "d": "Souvent * avec Condition aws:PrincipalOrgID.",
+       "tone": "info"
+      },
+      {
+       "icon": "s3",
+       "t": "Contre l'exfiltration",
+       "d": "Empêche d'envoyer des données vers le bucket d'un attaquant.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "matrix",
+     "title": "Résultat final selon les policies (même compte)",
+     "rows": [
+      "Endpoint + identity Allow",
+      "Endpoint + bucket Allow",
+      "Endpoint ne couvre pas l'action",
+      "Deny explicite bucket",
+      "Personne n'accorde"
+     ],
+     "cols": [
+      "Endpoint policy",
+      "Identity policy",
+      "Bucket policy",
+      "Résultat"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok",
+       "na",
+       "ok"
+      ],
+      [
+       "ok",
+       "na",
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok",
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "Deny",
+       "no"
+      ],
+      [
+       "ok",
+       "na",
+       "na",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Allow / autorisé",
+      "no": "Refusé",
+      "na": "Aucune"
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "cards",
+     "title": "Exposer un service à d'autres VPC : trois options",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "Service public",
+       "d": "Via IGW : le trafic passe par Internet, accès difficile à maîtriser.",
+       "tone": "bad"
+      },
+      {
+       "icon": "vpc",
+       "t": "VPC Peering",
+       "d": "Une relation par VPC client ; ouvre tout le réseau.",
+       "tone": "warn"
+      },
+      {
+       "icon": "privatelink",
+       "t": "PrivateLink",
+       "d": "Un service précis, unidirectionnel, sans peering ni IGW ni NAT.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "arch",
+     "title": "PrivateLink : un service, plusieurs consommateurs",
+     "groups": [
+      {
+       "id": "c1",
+       "label": "VPC client 1",
+       "kind": "vpc",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "a1",
+         "label": "Application cliente",
+         "sub": "",
+         "icon": "ec2"
+        },
+        {
+         "id": "eni1",
+         "label": "Interface endpoint",
+         "sub": "ENI + SG",
+         "icon": "privatelink"
+        }
+       ]
+      },
+      {
+       "id": "c2",
+       "label": "VPC client 2 (autre compte)",
+       "kind": "vpc",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "a2",
+         "label": "Application cliente",
+         "sub": "",
+         "icon": "ec2"
+        },
+        {
+         "id": "eni2",
+         "label": "Interface endpoint",
+         "sub": "ENI + SG",
+         "icon": "privatelink"
+        }
+       ]
+      },
+      {
+       "id": "p",
+       "label": "VPC du fournisseur",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "nlb",
+         "label": "Network Load Balancer",
+         "sub": "ou Gateway LB",
+         "icon": "elb"
+        },
+        {
+         "id": "app",
+         "label": "Application service",
+         "sub": "endpoint service",
+         "icon": "server"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "a1",
+       "to": "eni1",
+       "label": "1. appelle le service",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "eni1",
+       "to": "nlb",
+       "label": "2. PrivateLink",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "a2",
+       "to": "eni2",
+       "label": "1. appelle le service",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "eni2",
+       "to": "nlb",
+       "label": "2. PrivateLink",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "nlb",
+       "to": "app",
+       "label": "3. relaie vers le service",
+       "style": "solid"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "a1",
+        "eni1",
+        "nlb"
+       ],
+       "caption": "Chaque client crée un Interface endpoint dans son VPC qui pointe vers l'endpoint service du fournisseur."
+      },
+      {
+       "edges": [
+        "e3",
+        "e4"
+       ],
+       "nodes": [
+        "a2",
+        "eni2",
+        "nlb"
+       ],
+       "caption": "Des milliers de VPC et de comptes peuvent consommer le même service : ni peering, ni IGW, ni NAT, ni route tables, et les CIDR peuvent se chevaucher."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "nlb",
+        "app"
+       ],
+       "caption": "Le client ne voit que ce service, pas le reste du VPC du fournisseur. NLB et ENI multi-AZ = solution tolérante aux pannes."
+      }
+     ]
+    }
+   },
+   {
+    "after": 17,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpc",
+       "ctx": "Héberge les endpoints et les attributs DNS ; les subnets privés n'ont ni IGW ni NAT."
+      },
+      {
+       "k": "privatelink",
+       "ctx": "Technologie des Interface endpoints ; expose un service à des milliers de VPC."
+      },
+      {
+       "k": "s3",
+       "ctx": "Seul avec DynamoDB à offrir un Gateway endpoint ; bucket policy sur aws:SourceVpce."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Exemple d'Interface endpoint : une Lambda en VPC lit un mot de passe sans NAT."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Session Manager sans port 22 : endpoints ssm, ec2messages, ssmmessages."
+      },
+      {
+       "k": "elb",
+       "ctx": "Network Load Balancer devant le service exposé côté fournisseur."
+      },
+      {
+       "k": "route53",
+       "ctx": "Private DNS : le nom public du service se résout vers l'IP privée de l'ENI."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-05",
+  "services": [
+   "vpc",
+   "firewall",
+   "ec2",
+   "rds"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "NACL = bawab el 7ay: liste mrattba (100, 200...), awwel règle li twafe9 ta7kem, yarfod w yo9a3. Ma yfakkerch (stateless). Security Group = bawab el dar: ken «mrahba bik», w yfakker (stateful): el jaweb yarja3 wa7dou."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "stack",
+     "title": "Deux barrières, dans l'ordre d'une requête entrante",
+     "layers": [
+      {
+       "label": "Internet / client",
+       "sub": "la requête arrive",
+       "icon": "internet",
+       "tone": "neutral",
+       "tags": [
+        "port fixe 443"
+       ]
+      },
+      {
+       "label": "Network ACL",
+       "sub": "pare-feu du SUBNET",
+       "icon": "padlock",
+       "tone": "warn",
+       "tags": [
+        "allow + deny",
+        "stateless",
+        "ordre croissant"
+       ]
+      },
+      {
+       "label": "Security Group",
+       "sub": "pare-feu de l'instance (ENI)",
+       "icon": "firewall",
+       "tone": "info",
+       "tags": [
+        "allow seulement",
+        "stateful",
+        "toutes les règles"
+       ]
+      },
+      {
+       "label": "Instance EC2",
+       "sub": "reçoit la requête",
+       "icon": "ec2",
+       "tone": "good",
+       "tags": []
+      }
+     ],
+     "side": "entrée : NACL puis SG ; sortie : SG puis NACL"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "matrix",
+     "title": "Security Group vs NACL",
+     "rows": [
+      "Niveau subnet",
+      "Niveau instance (ENI)",
+      "Règles Allow",
+      "Règles Deny",
+      "Stateful (retour auto)",
+      "Toutes les règles évaluées",
+      "Première règle gagne",
+      "Application au subnet"
+     ],
+     "cols": [
+      "Security Group",
+      "NACL"
+     ],
+     "cells": [
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "à associer",
+       "automatique"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "facts",
+     "title": "Ports éphémères : plages à connaître",
+     "items": [
+      {
+       "icon": "server",
+       "big": "Port fixe",
+       "label": "443, 3306... côté serveur",
+       "sub": "le client attend la réponse ailleurs"
+      },
+      {
+       "icon": "client",
+       "big": "49152-65535",
+       "label": "IANA et Windows 10",
+       "sub": "port éphémère du client"
+      },
+      {
+       "icon": "server",
+       "big": "32768-60999",
+       "label": "beaucoup de noyaux Linux",
+       "sub": "varie selon l'OS"
+      },
+      {
+       "icon": "padlock",
+       "big": "1024-65535",
+       "label": "règle NACL pratique",
+       "sub": "couvre tous les cas, plus large"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "arch",
+     "title": "Web tier -> DB tier : les règles NACL aller ET retour",
+     "groups": [
+      {
+       "id": "w",
+       "label": "Subnet Web 10.0.1.0/24 (public)",
+       "kind": "subnet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "nw",
+         "label": "Web-NACL",
+         "sub": "sortie 3306, entrée 1024-65535",
+         "icon": "padlock"
+        },
+        {
+         "id": "web",
+         "label": "EC2 Web",
+         "sub": "client MySQL, port éphémère",
+         "icon": "ec2"
+        }
+       ]
+      },
+      {
+       "id": "d",
+       "label": "Subnet DB 10.0.3.0/24 (privé)",
+       "kind": "subnet",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "nd",
+         "label": "DB-NACL",
+         "sub": "entrée 3306, sortie 1024-65535",
+         "icon": "padlock"
+        },
+        {
+         "id": "sgd",
+         "label": "SG-DB",
+         "sub": "3306 depuis SG-Web, stateful",
+         "icon": "firewall"
+        },
+        {
+         "id": "db",
+         "label": "Base de données",
+         "sub": "port 3306",
+         "icon": "rds"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "web",
+       "to": "nd",
+       "label": "1. requête TCP 3306",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "nd",
+       "to": "db",
+       "label": "2. NACL OK puis SG OK",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "db",
+       "to": "nw",
+       "label": "3. réponse vers port éphémère",
+       "style": "dashed"
+      },
+      {
+       "id": "e4",
+       "from": "nw",
+       "to": "web",
+       "label": "4. NACL Web : entrée 1024-65535",
+       "style": "dashed"
+      },
+      {
+       "id": "e5",
+       "from": "db",
+       "to": "web",
+       "label": "Sans règle éphémère : bloqué",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "web",
+        "nd"
+       ],
+       "caption": "La requête sort du subnet Web (la NACL Web autorise la sortie vers 3306 vers le CIDR DB) et arrive sur la NACL DB."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "nd",
+        "sgd",
+        "db"
+       ],
+       "caption": "La NACL DB autorise l'entrée TCP 3306 depuis le CIDR Web, puis le Security Group de la base accepte aussi (il est stateful : le retour est automatique pour lui)."
+      },
+      {
+       "edges": [
+        "e3",
+        "e4"
+       ],
+       "nodes": [
+        "db",
+        "nw",
+        "web"
+       ],
+       "caption": "La réponse part du port 3306 vers le port éphémère du client. La NACL DB doit autoriser la sortie 1024-65535 vers le CIDR Web ; la NACL Web, l'entrée 1024-65535 depuis le CIDR DB."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "db",
+        "web"
+       ],
+       "caption": "Si l'une de ces deux règles éphémères manque : la requête passe mais la réponse est perdue. Symptôme classique : timeout."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "matrix",
+     "title": "NACL du subnet DB : exemple de règles",
+     "rows": [
+      "#100 entrée",
+      "#200 entrée",
+      "* entrée",
+      "#100 sortie",
+      "#200 sortie",
+      "* sortie"
+     ],
+     "cols": [
+      "Sens",
+      "Port",
+      "Source / dest.",
+      "Action"
+     ],
+     "cells": [
+      [
+       "Entrée",
+       "TCP 3306",
+       "10.0.1.0/24",
+       "ok"
+      ],
+      [
+       "Entrée",
+       "TCP 3306",
+       "10.0.2.0/24",
+       "ok"
+      ],
+      [
+       "Entrée",
+       "Tout",
+       "0.0.0.0/0",
+       "no"
+      ],
+      [
+       "Sortie",
+       "TCP 1024-65535",
+       "10.0.1.0/24",
+       "ok"
+      ],
+      [
+       "Sortie",
+       "TCP 1024-65535",
+       "10.0.2.0/24",
+       "ok"
+      ],
+      [
+       "Sortie",
+       "Tout",
+       "0.0.0.0/0",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "ALLOW",
+      "no": "DENY"
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "NACL : les règles à connaître par coeur",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "vpc",
+       "t": "1 subnet = 1 NACL",
+       "d": "Un nouveau subnet reçoit la NACL par défaut.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Numéros 1 à 32766",
+       "d": "Plus petit = prioritaire ; la première règle qui correspond décide.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Règle * finale",
+       "d": "Refuse tout ce qui n'a correspondu à rien.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Pas de 100",
+       "d": "Numéroter 100, 200... pour insérer des règles entre deux.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "shield",
+       "t": "Défaut vs custom",
+       "d": "Par défaut : autorise tout. Custom neuve : refuse tout.",
+       "tone": "warn"
+      },
+      {
+       "icon": "bot",
+       "t": "Bloquer une IP",
+       "d": "Atout majeur : un SG ne sait pas refuser.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Security Groups : sorties, Prefix Lists, connexions suivies",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "firewall",
+       "t": "Sortie restreinte",
+       "d": "0.0.0.0/0 par défaut ; on peut limiter à TCP 443 vers la prefix list S3.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Prefix list customer-managed",
+       "d": "Tes CIDR, partageable ; une modification met à jour tous les SG liés.",
+       "tone": "good"
+      },
+      {
+       "icon": "s3",
+       "t": "Prefix list AWS-managed",
+       "d": "CIDR de S3, CloudFront, DynamoDB ; non modifiable ni partageable.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "padlock",
+       "t": "Connexions suivies",
+       "d": "Changer une règle de SG ne coupe pas une session ; utiliser une NACL DENY.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quel filtre pour quel besoin ?",
+     "root": {
+      "q": "Faut-il REFUSER explicitement (IP, session en cours) ?",
+      "yes": {
+       "a": "NACL avec DENY",
+       "icon": "padlock",
+       "tone": "warn",
+       "why": "Numéro inférieur à l'ALLOW"
+      },
+      "no": {
+       "q": "Filtrer une instance, retour automatique ?",
+       "yes": {
+        "a": "Security Group",
+        "icon": "firewall",
+        "tone": "good",
+        "why": "Stateful, allow seulement"
+       },
+       "no": {
+        "a": "NACL allow + éphémères",
+        "icon": "padlock",
+        "tone": "info",
+        "why": "Autoriser aller ET retour"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpc",
+       "ctx": "Contient les subnets où s'appliquent les NACL ; chaque subnet a une seule NACL."
+      },
+      {
+       "k": "firewall",
+       "ctx": "Security Group : filtre stateful allow-only sur l'ENI de l'instance."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Instance protégée par le SG ; le client y répond sur un port éphémère."
+      },
+      {
+       "k": "rds",
+       "ctx": "Base du DB tier : NACL 3306 en entrée, 1024-65535 en sortie vers le Web."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-06",
+  "services": [
+   "cloudfront",
+   "s3",
+   "kms",
+   "waf",
+   "shield",
+   "elb",
+   "cognito",
+   "lambda"
+  ],
+  "drop": [
+   0,
+   1,
+   2,
+   5,
+   7
+  ],
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "CloudFront : ce que le CDN apporte à la sécurité",
+     "center": {
+      "label": "CloudFront",
+      "sub": "CDN, centaines de PoP",
+      "icon": "cloudfront"
+     },
+     "spokes": [
+      {
+       "label": "Cache à l'edge",
+       "sub": "contenu près de l'utilisateur",
+       "icon": "cloudfront",
+       "tone": "info",
+       "note": "Les Points of Presence mettent le contenu en cache : moins de latence et moins de charge sur l'origine."
+      },
+      {
+       "label": "Anti-DDoS",
+       "sub": "distribution mondiale",
+       "icon": "shield",
+       "tone": "good",
+       "note": "La charge est absorbée sur de nombreux PoP ; intégration avec Shield."
+      },
+      {
+       "label": "AWS WAF",
+       "sub": "filtrage HTTP",
+       "icon": "waf",
+       "tone": "good",
+       "note": "Une Web ACL (portée Global) se branche sur la distribution CloudFront."
+      },
+      {
+       "label": "HTTPS",
+       "sub": "chiffrement en transit",
+       "icon": "padlock",
+       "tone": "info",
+       "note": "Terminaison TLS à l'edge, avec certificats ACM."
+      },
+      {
+       "label": "Origine cachée",
+       "sub": "pas d'accès direct",
+       "icon": "s3",
+       "tone": "warn",
+       "note": "Bucket S3, ALB ou EC2 privés derrière CloudFront : seul le CDN peut les joindre."
+      }
+     ]
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "cards",
+     "title": "Trois types d'origine",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "Bucket S3",
+       "d": "Distribuer ou téléverser des fichiers ; sécurisé par OAC.",
+       "tone": "good"
+      },
+      {
+       "icon": "elb",
+       "t": "VPC Origin",
+       "d": "ALB, NLB ou EC2 en subnet privé, jamais exposés sur Internet.",
+       "tone": "good"
+      },
+      {
+       "icon": "server",
+       "t": "Custom origin (HTTP)",
+       "d": "Site S3 (website endpoint) ou tout backend HTTP public, ex. ALB public.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "compare",
+     "title": "CloudFront ou réplication S3 inter-Region ?",
+     "cols": [
+      {
+       "name": "CloudFront",
+       "tag": "CDN, edge mondial",
+       "icon": "cloudfront",
+       "points": [
+        "Cache avec TTL",
+        "Contenu statique partout dans le monde"
+       ],
+       "use": "Latence et protection de l'origine"
+      },
+      {
+       "name": "S3 CRR",
+       "tag": "réplication",
+       "icon": "s3",
+       "points": [
+        "À configurer Region par Region",
+        "Quasi temps réel, lecture seule"
+       ],
+       "use": "Contenu dynamique dans quelques Regions"
+      }
+     ]
+    }
+   },
+   {
+    "after": -1,
+    "block": {
+     "type": "arch",
+     "title": "CloudFront devant des origines privées",
+     "groups": [
+      {
+       "id": "u",
+       "label": "Utilisateurs",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "usr",
+         "label": "Navigateur",
+         "sub": "clients du monde entier",
+         "icon": "client"
+        }
+       ]
+      },
+      {
+       "id": "bad",
+       "label": "Accès direct",
+       "kind": "internet",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "atk",
+         "label": "Attaquant",
+         "sub": "vise l'origine",
+         "icon": "bot"
+        }
+       ]
+      },
+      {
+       "id": "cf",
+       "label": "CloudFront (edge)",
+       "kind": "zone",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "edge",
+         "label": "Edge Location",
+         "sub": "cache, HTTPS",
+         "icon": "cloudfront"
+        },
+        {
+         "id": "waf",
+         "label": "AWS WAF",
+         "sub": "Web ACL Global",
+         "icon": "waf"
+        },
+        {
+         "id": "sh",
+         "label": "Shield",
+         "sub": "anti-DDoS intégré",
+         "icon": "shield"
+        }
+       ]
+      },
+      {
+       "id": "o1",
+       "label": "Origine S3",
+       "kind": "account",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "s3",
+         "label": "Bucket S3 privé",
+         "sub": "accès par OAC uniquement",
+         "icon": "s3"
+        }
+       ]
+      },
+      {
+       "id": "o2",
+       "label": "VPC (subnet privé)",
+       "kind": "vpc",
+       "col": 2,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "alb",
+         "label": "ALB privé",
+         "sub": "VPC Origin",
+         "icon": "elb"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "usr",
+       "to": "edge",
+       "label": "1. requête HTTPS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "edge",
+       "to": "waf",
+       "label": "filtre L7",
+       "style": "dashed"
+      },
+      {
+       "id": "e3",
+       "from": "edge",
+       "to": "s3",
+       "label": "2. SigV4 (OAC)",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "edge",
+       "to": "alb",
+       "label": "2'. VPC Origin",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "atk",
+       "to": "s3",
+       "label": "accès direct refusé",
+       "style": "deny"
+      },
+      {
+       "id": "e6",
+       "from": "atk",
+       "to": "alb",
+       "label": "accès direct refusé",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "usr",
+        "edge",
+        "waf",
+        "sh"
+       ],
+       "caption": "Le client joint l'edge le plus proche : HTTPS, cache, filtrage WAF et protection DDoS avant même d'atteindre l'origine."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "edge",
+        "s3"
+       ],
+       "caption": "Vers S3, CloudFront signe sa requête en SigV4 (OAC) ; la bucket policy n'autorise que cette distribution."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "edge",
+        "alb"
+       ],
+       "caption": "Un VPC Origin atteint un ALB, NLB ou EC2 en subnet privé, sans l'exposer sur Internet."
+      },
+      {
+       "edges": [
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "atk",
+        "s3",
+        "alb"
+       ],
+       "caption": "L'origine n'est joignable que par CloudFront : l'attaquant qui la vise directement est bloqué."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "compare",
+     "title": "OAC ou OAI pour sécuriser S3 ?",
+     "cols": [
+      {
+       "name": "OAC",
+       "tag": "Origin Access Control, préféré",
+       "icon": "cloudfront",
+       "points": [
+        "Requêtes signées en SigV4",
+        "Bucket policy : service cloudfront.amazonaws.com + AWS:SourceArn",
+        "SSE-KMS natif : statement dans la key policy"
+       ],
+       "use": "Bucket entièrement privé"
+      },
+      {
+       "name": "OAI",
+       "tag": "ancienne méthode",
+       "icon": "padlock",
+       "points": [
+        "Pas de SSE-KMS natif (SSE-S3 seulement)",
+        "Contournement : Lambda@Edge Origin Request qui signe en SigV4"
+       ],
+       "use": "À éviter pour un nouveau bucket"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Restreindre l'accès aux contenus",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "building",
+       "t": "Geo Restriction",
+       "d": "Allowlist ou blocklist de pays ; pays issu d'une base Geo-IP tierce (droits d'auteur).",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Signed URL",
+       "d": "Accès à UN fichier ; Signed Cookie : plusieurs fichiers.",
+       "tone": "good"
+      },
+      {
+       "icon": "longcred",
+       "t": "Trusted key group",
+       "d": "Recommandé ; la clé privée signe, la publique vérifie. Éviter la key pair du root.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Field Level Encryption",
+       "d": "Jusqu'à 10 champs d'un POST chiffrés à l'edge (asymétrique) ; seule l'application lit.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "compare",
+     "title": "Signed URL CloudFront ou pre-signed URL S3 ?",
+     "cols": [
+      {
+       "name": "Signed URL CloudFront",
+       "tag": "passe par le CDN",
+       "icon": "cloudfront",
+       "points": [
+        "Donne accès à un chemin, quelle que soit l'origine",
+        "Filtre par IP, chemin, date",
+        "Profite du cache"
+       ],
+       "use": "Contenu payant, films, musique"
+      },
+      {
+       "name": "Pre-signed URL S3",
+       "tag": "signée par une identité IAM",
+       "icon": "s3",
+       "points": [
+        "Agit au nom de la personne qui l'a signée",
+        "Durée limitée, sur S3 seulement"
+       ],
+       "use": "Partage ponctuel d'un objet S3"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "decision",
+     "title": "Protéger l'origine : quelle option ?",
+     "root": {
+      "q": "L'origine est dans un subnet privé (ALB, NLB, EC2) ?",
+      "yes": {
+       "a": "VPC Origin",
+       "icon": "elb",
+       "tone": "good",
+       "why": "Aucune exposition Internet"
+      },
+      "no": {
+       "q": "L'origine est un bucket S3 ?",
+       "yes": {
+        "a": "OAC + bucket policy",
+        "icon": "s3",
+        "tone": "good",
+        "why": "Signé SigV4, SourceArn"
+       },
+       "no": {
+        "a": "ALB public protégé",
+        "icon": "elb",
+        "tone": "warn",
+        "why": "SG = IP CloudFront + header secret"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "pipeline",
+     "title": "Intégration Cognito : le JWT contrôle l'accès",
+     "stages": [
+      {
+       "label": "Utilisateur",
+       "sub": "veut le contenu privé",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "Hosted UI Cognito",
+       "sub": "s'authentifie",
+       "icon": "cognito",
+       "tone": "info"
+      },
+      {
+       "label": "JWT",
+       "sub": "jeton reçu",
+       "icon": "document",
+       "tone": "neutral"
+      },
+      {
+       "label": "CloudFront",
+       "sub": "viewer request",
+       "icon": "cloudfront",
+       "tone": "info"
+      },
+      {
+       "label": "Lambda@Edge",
+       "sub": "vérifie le JWT",
+       "icon": "lambda",
+       "tone": "warn"
+      },
+      {
+       "label": "Bucket privé",
+       "sub": "contenu servi",
+       "icon": "s3",
+       "tone": "good"
+      }
+     ],
+     "caption": "Authorization header : à transmettre à l'origine via une cache policy ; non supporté pour les origines S3."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cloudfront",
+       "ctx": "CDN : cache, HTTPS, signed URLs, Field Level Encryption et origines privées."
+      },
+      {
+       "k": "s3",
+       "ctx": "Origine privée : seule la distribution CloudFront peut lire (OAC)."
+      },
+      {
+       "k": "kms",
+       "ctx": "SSE-KMS : la key policy autorise CloudFront à déchiffrer pour OAC."
+      },
+      {
+       "k": "waf",
+       "ctx": "Web ACL Global branchée sur la distribution pour filtrer le HTTP."
+      },
+      {
+       "k": "shield",
+       "ctx": "Protection DDoS intégrée à la distribution mondiale."
+      },
+      {
+       "k": "elb",
+       "ctx": "ALB privé (VPC Origin) ou public protégé par header secret et SG."
+      },
+      {
+       "k": "cognito",
+       "ctx": "Hosted UI et JWT pour authentifier avant de servir du contenu privé."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Lambda@Edge : vérifie le JWT en viewer request."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-07",
+  "services": [
+   "waf",
+   "shield",
+   "shieldadv",
+   "firewallmgr",
+   "cloudfront",
+   "route53",
+   "elb",
+   "autoscaling"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   5,
+   6
+  ],
+  "shorten": {
+   "0": "WAF = vigile li yfattech el talab HTTP (SQL injection? berra). Shield = ya3mel hajez ken el zahma (DDoS). Firewall Manager = modir 3am: el règles lazem ykounou fi kol el comptes, 7atta el jdod."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "AWS WAF : protéger la couche 7",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "waf",
+       "t": "Couche 7 HTTP/HTTPS",
+       "d": "SQLi, XSS, bots ; les SG et NACL ne comprennent pas HTTP.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudfront",
+       "t": "Où le déployer",
+       "d": "CloudFront, API Gateway REST, ALB, AppSync, Cognito, App Runner, Verified Access.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Web ACL",
+       "d": "Liste de règles, Global (CloudFront) ou Regional (ALB, API Gateway...).",
+       "tone": "warn"
+      },
+      {
+       "icon": "gear",
+       "t": "Rate-based rules",
+       "d": "Comptent les événements : ex. bloquer au-delà de 100 requêtes en 5 min par IP.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "5 actions",
+       "d": "Allow, Block, Count, CAPTCHA, Challenge.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "shield",
+       "t": "Pas pour le DDoS L3/L4",
+       "d": "C'est le rôle de Shield, pas de WAF.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "Tarification WAF (ordre de grandeur du cours)",
+     "items": [
+      {
+       "icon": "waf",
+       "big": "5 USD / mois",
+       "label": "par Web ACL"
+      },
+      {
+       "icon": "wafrule",
+       "big": "1 USD / mois",
+       "label": "par règle"
+      },
+      {
+       "icon": "document",
+       "big": "0,60 USD",
+       "label": "par million de requêtes"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Managed rule groups et logging",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "managedrule",
+       "t": "Baseline",
+       "d": "CommonRuleSet, AdminProtectionRuleSet.",
+       "tone": "info"
+      },
+      {
+       "icon": "managedrule",
+       "t": "Usage spécifique",
+       "d": "SQLi, Windows, PHP, WordPress.",
+       "tone": "info"
+      },
+      {
+       "icon": "bot",
+       "t": "Réputation d'IP",
+       "d": "AmazonIpReputationList, AnonymousIpList.",
+       "tone": "warn"
+      },
+      {
+       "icon": "bot",
+       "t": "Bots",
+       "d": "BotControlRuleSet.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Logging de la Web ACL",
+       "d": "Vers CloudWatch Logs, S3 ou Data Firehose ; analyse avec Athena.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "matrix",
+     "title": "Shield, WAF, Firewall Manager : qui fait quoi ?",
+     "rows": [
+      "Shield Standard",
+      "Shield Advanced",
+      "AWS WAF",
+      "Firewall Manager"
+     ],
+     "cols": [
+      "DDoS L3/L4",
+      "Filtrage HTTP L7",
+      "Multi-comptes",
+      "Support 24/7",
+      "Gratuit"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no",
+       "no",
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "warn",
+       "no",
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok",
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "ok",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non",
+      "warn": "L7 auto (règles WAF)"
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "facts",
+     "title": "Shield Advanced et Firewall Manager : à retenir",
+     "items": [
+      {
+       "icon": "shieldadv",
+       "big": "3 000 USD / mois",
+       "label": "Shield Advanced",
+       "sub": "par Organization (cours) ; protège la facture"
+      },
+      {
+       "icon": "shield",
+       "big": "Gratuit",
+       "label": "Shield Standard",
+       "sub": "activé pour tous : SYN/UDP floods, réflexion"
+      },
+      {
+       "icon": "firewallmgr",
+       "big": "Policies centrales",
+       "label": "Firewall Manager",
+       "sub": "WAF, Shield Adv., SG, Network Firewall, DNS Firewall ; par Region"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "stack",
+     "title": "Résilience DDoS : sept bonnes pratiques, du bord vers l'intérieur",
+     "layers": [
+      {
+       "label": "CloudFront / Global Accelerator",
+       "sub": "livrer au bord (BP1)",
+       "icon": "cloudfront",
+       "tone": "info",
+       "tags": [
+        "Shield intégré"
+       ]
+      },
+      {
+       "label": "Route 53",
+       "sub": "DNS au bord (BP3)",
+       "icon": "route53",
+       "tone": "info",
+       "tags": [
+        "protégé"
+       ]
+      },
+      {
+       "label": "AWS WAF",
+       "sub": "signatures, rate-based (BP2)",
+       "icon": "waf",
+       "tone": "warn",
+       "tags": [
+        "managed rules"
+       ]
+      },
+      {
+       "label": "API Gateway",
+       "sub": "masque les backends (BP4)",
+       "icon": "apigw",
+       "tone": "info",
+       "tags": [
+        "throttling",
+        "clés API"
+       ]
+      },
+      {
+       "label": "SG et NACL",
+       "sub": "filtrage par IP (BP5)",
+       "icon": "firewall",
+       "tone": "warn",
+       "tags": [
+        "subnet / ENI"
+       ]
+      },
+      {
+       "label": "ELB + Auto Scaling",
+       "sub": "répartir et encaisser (BP6, BP7)",
+       "icon": "autoscaling",
+       "tone": "good",
+       "tags": [
+        "flash crowd"
+       ]
+      }
+     ],
+     "side": "du plus externe au plus interne"
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "facts",
+     "title": "Métriques CloudWatch de Shield Advanced",
+     "items": [
+      {
+       "icon": "cloudwatch",
+       "big": "DDoSDetected",
+       "label": "attaque en cours ?"
+      },
+      {
+       "icon": "cloudwatch",
+       "big": "...BitsPerSecond",
+       "label": "volume de l'attaque",
+       "sub": "DDoSAttackBitsPerSecond"
+      },
+      {
+       "icon": "cloudwatch",
+       "big": "...PacketsPerSecond",
+       "label": "paquets",
+       "sub": "DDoSAttackPacketsPerSecond"
+      },
+      {
+       "icon": "cloudwatch",
+       "big": "...RequestsPerSecond",
+       "label": "requêtes",
+       "sub": "DDoSAttackRequestsPerSecond"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "arch",
+     "title": "Défense en profondeur contre le DDoS",
+     "groups": [
+      {
+       "id": "u",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "cli",
+         "label": "Clients",
+         "sub": "trafic légitime",
+         "icon": "users"
+        },
+        {
+         "id": "atk",
+         "label": "Attaquants",
+         "sub": "DDoS, SQLi, bots",
+         "icon": "bot"
+        }
+       ]
+      },
+      {
+       "id": "edge",
+       "label": "Bord du réseau AWS",
+       "kind": "zone",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "r53",
+         "label": "Route 53",
+         "sub": "DNS résolu au bord",
+         "icon": "route53"
+        },
+        {
+         "id": "cf",
+         "label": "CloudFront",
+         "sub": "cache, Shield intégré",
+         "icon": "cloudfront"
+        },
+        {
+         "id": "waf",
+         "label": "AWS WAF",
+         "sub": "rate-based, managed rules",
+         "icon": "waf"
+        }
+       ]
+      },
+      {
+       "id": "vpc",
+       "label": "VPC",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "alb",
+         "label": "ALB",
+         "sub": "répartit la charge",
+         "icon": "elb"
+        },
+        {
+         "id": "asg",
+         "label": "EC2 Auto Scaling",
+         "sub": "absorbe le pic",
+         "icon": "autoscaling"
+        },
+        {
+         "id": "sg",
+         "label": "SG et NACL",
+         "sub": "filtre par IP",
+         "icon": "firewall"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "cli",
+       "to": "r53",
+       "label": "1. résolution DNS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "cli",
+       "to": "cf",
+       "label": "2. requête HTTPS",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "cf",
+       "to": "waf",
+       "label": "3. filtre couche 7",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "waf",
+       "to": "alb",
+       "label": "4. trafic propre",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "alb",
+       "to": "asg",
+       "label": "5. répartit",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "atk",
+       "to": "cf",
+       "label": "attaque absorbée au bord",
+       "style": "deny"
+      },
+      {
+       "id": "e7",
+       "from": "atk",
+       "to": "alb",
+       "label": "accès direct bloqué (SG)",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "cli",
+        "r53",
+        "cf"
+       ],
+       "caption": "DNS et CDN au bord : résolution protégée, contenu livré depuis les PoP, Shield intégré (Global Accelerator si le backend n'est pas compatible CloudFront)."
+      },
+      {
+       "edges": [
+        "e3",
+        "e6"
+       ],
+       "nodes": [
+        "waf",
+        "atk"
+       ],
+       "caption": "WAF filtre le HTTP : signatures, rate-based rules, managed rules (réputation IP, IP anonymes). L'attaque est absorbée avant le VPC."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5",
+        "e7"
+       ],
+       "nodes": [
+        "alb",
+        "asg",
+        "sg"
+       ],
+       "caption": "Dans le VPC : SG/NACL filtrent par IP, l'ELB répartit, Auto Scaling encaisse un afflux soudain. Les ressources restent masquées derrière CloudFront, API Gateway ou un ELB."
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "waf",
+       "ctx": "Filtre le HTTP : Web ACL, managed rules, rate-based, logging."
+      },
+      {
+       "k": "shield",
+       "ctx": "Standard : anti-DDoS L3/L4 gratuit pour tous les clients."
+      },
+      {
+       "k": "shieldadv",
+       "ctx": "Advanced : équipe de réponse 24/7, protection de facture, mitigation L7 automatique."
+      },
+      {
+       "k": "firewallmgr",
+       "ctx": "Déploie WAF, Shield et SG de façon cohérente sur tous les comptes."
+      },
+      {
+       "k": "cloudfront",
+       "ctx": "Absorbe l'attaque au bord et porte WAF et Shield."
+      },
+      {
+       "k": "route53",
+       "ctx": "DNS résolu au bord du réseau, protégé."
+      },
+      {
+       "k": "elb",
+       "ctx": "Répartit le trafic propre vers plusieurs instances."
+      },
+      {
+       "k": "autoscaling",
+       "ctx": "Encaisse un afflux soudain, légitime ou DDoS."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-08",
+  "services": [
+   "apigw",
+   "lambda",
+   "dynamodb",
+   "cognito",
+   "iam",
+   "acm",
+   "privatelink",
+   "waf"
+  ],
+  "drop": [
+   1,
+   4,
+   6
+  ],
+  "shorten": {
+   "0": "Bla API Gateway, kol client ydokk 3al backend direct. Ma3ha, el réception tet7akkem: tchouf el badge (IAM, Cognito, authorizer), t7seb el talabet (throttling), w tkhabbi el jaweb (cache). El backend yab9a fi dakhel."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "API serverless : aucune infrastructure à gérer",
+     "stages": [
+      {
+       "label": "Client",
+       "sub": "web, mobile, service",
+       "icon": "client",
+       "tone": "neutral"
+      },
+      {
+       "label": "API Gateway",
+       "sub": "proxy REST, auth, throttling",
+       "icon": "apigw",
+       "tone": "info"
+      },
+      {
+       "label": "Lambda",
+       "sub": "logique métier",
+       "icon": "lambda",
+       "tone": "info"
+      },
+      {
+       "label": "DynamoDB",
+       "sub": "opérations CRUD",
+       "icon": "dynamodb",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "API Gateway : ce qu'il gère à ta place",
+     "center": {
+      "label": "API Gateway",
+      "sub": "REST, WebSocket",
+      "icon": "apigw"
+     },
+     "spokes": [
+      {
+       "label": "Versions et stages",
+       "sub": "v1, v2, dev, test, prod",
+       "icon": "gear",
+       "tone": "info",
+       "note": "Plusieurs versions et environnements derrière un même service."
+      },
+      {
+       "label": "Authentification",
+       "sub": "IAM, Cognito, authorizer",
+       "icon": "iam",
+       "tone": "good",
+       "note": "Contrôle qui appelle l'API avant d'atteindre le backend."
+      },
+      {
+       "label": "Throttling et clés API",
+       "sub": "limites par client",
+       "icon": "gear",
+       "tone": "warn",
+       "note": "Limites de débit ; les clés identifient et limitent, elles n'authentifient pas."
+      },
+      {
+       "label": "Cache",
+       "sub": "réponses mises en cache",
+       "icon": "database",
+       "tone": "info",
+       "note": "Réduit la charge du backend."
+      },
+      {
+       "label": "Validation",
+       "sub": "requêtes et réponses",
+       "icon": "document",
+       "tone": "info",
+       "note": "Validation et transformation, import OpenAPI/Swagger, génération de SDK."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Trois types d'intégration",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "lambda",
+       "t": "Lambda",
+       "d": "Exposer simplement une API REST adossée à une fonction.",
+       "tone": "good"
+      },
+      {
+       "icon": "server",
+       "t": "HTTP",
+       "d": "Backend HTTP (on-premises, ALB) avec débit, cache, auth, clés d'API.",
+       "tone": "info"
+      },
+      {
+       "icon": "apigw",
+       "t": "Service AWS",
+       "d": "Step Functions, SQS, Kinesis Data Streams exposés avec auth et throttling.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "facts",
+     "title": "Domaine, certificat et throttling : chiffres à retenir",
+     "items": [
+      {
+       "icon": "apigw",
+       "big": "10 000 RPS",
+       "label": "limite de compte, toutes APIs",
+       "sub": "souple, augmentable sur demande"
+      },
+      {
+       "icon": "gear",
+       "big": "429",
+       "label": "Too Many Requests",
+       "sub": "erreur réessayable"
+      },
+      {
+       "icon": "acm",
+       "big": "us-east-1",
+       "label": "certificat ACM d'un endpoint edge-optimized",
+       "sub": "Regional : Region de l'API"
+      },
+      {
+       "icon": "route53",
+       "big": "CNAME / A-alias",
+       "label": "enregistrement Route 53",
+       "sub": "pour le domaine personnalisé"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Resource policy, Usage Plans, throttling",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Resource policy",
+       "d": "Qui peut appeler : IP, aws:SourceVpc, aws:SourceVpce, comptes.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Usage Plans",
+       "d": "Limites par client via clés d'API ; une clé n'est pas une authentification.",
+       "tone": "warn"
+      },
+      {
+       "icon": "apigw",
+       "t": "Stage et méthode",
+       "d": "Limites au niveau stage et méthode ; sinon 429 au-delà du quota.",
+       "tone": "info"
+      },
+      {
+       "icon": "bot",
+       "t": "API non limitée",
+       "d": "Surchargée, elle peut faire throttler toutes les autres APIs du compte.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "arch",
+     "title": "API privée consommée depuis un VPC (et un autre compte)",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "inet",
+         "label": "Internet",
+         "sub": "aucun accès à l'API",
+         "icon": "internet"
+        }
+       ]
+      },
+      {
+       "id": "a",
+       "label": "Compte A : VPC",
+       "kind": "vpc",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ec2",
+         "label": "EC2 cliente",
+         "sub": "appelle l'API",
+         "icon": "ec2"
+        },
+        {
+         "id": "vpce",
+         "label": "Interface endpoint",
+         "sub": "execute-api, ENI + SG",
+         "icon": "privatelink"
+        }
+       ]
+      },
+      {
+       "id": "b",
+       "label": "Compte B : API",
+       "kind": "account",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "gw",
+         "label": "API Gateway (Private)",
+         "sub": "resource policy",
+         "icon": "apigw"
+        },
+        {
+         "id": "lam",
+         "label": "Lambda",
+         "sub": "backend",
+         "icon": "lambda"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "ec2",
+       "to": "vpce",
+       "label": "1. appelle l'API",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "vpce",
+       "to": "gw",
+       "label": "2. via PrivateLink",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "gw",
+       "to": "lam",
+       "label": "3. invoque le backend",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "inet",
+       "to": "gw",
+       "label": "pas d'accès Internet",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "ec2",
+        "vpce",
+        "gw"
+       ],
+       "caption": "Une API privée n'est accessible que par un Interface endpoint execute-api de ton VPC."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "vpce",
+        "gw"
+       ],
+       "caption": "La resource policy filtre l'appelant (aws:SourceVpc ou aws:SourceVpce). Un endpoint d'un autre compte, même Region, peut l'appeler si elle l'autorise : pas de VPC peering."
+      },
+      {
+       "edges": [
+        "e3",
+        "e4"
+       ],
+       "nodes": [
+        "gw",
+        "lam",
+        "inet"
+       ],
+       "caption": "L'API reste invisible depuis Internet ; WAF, throttling et clés d'API s'ajoutent en défense."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "apigw",
+       "ctx": "Expose l'API : auth, throttling, cache, resource policy, types d'endpoint."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Backend serverless appelé par l'intégration Lambda."
+      },
+      {
+       "k": "dynamodb",
+       "ctx": "Stockage CRUD derrière la Lambda dans l'exemple serverless."
+      },
+      {
+       "k": "cognito",
+       "ctx": "Authorizer : valide le JWT des utilisateurs externes."
+      },
+      {
+       "k": "iam",
+       "ctx": "Authentification SigV4 pour les appelants internes (execute-api:Invoke)."
+      },
+      {
+       "k": "acm",
+       "ctx": "Certificat du domaine personnalisé : us-east-1 si edge-optimized."
+      },
+      {
+       "k": "privatelink",
+       "ctx": "Interface endpoint execute-api pour une API privée."
+      },
+      {
+       "k": "waf",
+       "ctx": "Filtre HTTP devant l'API en complément du throttling."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-09",
+  "services": [
+   "networkfw",
+   "firewallmgr",
+   "route53",
+   "kms",
+   "guardduty",
+   "eventbridge",
+   "stepfunctions",
+   "acm"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   5,
+   7,
+   8
+  ],
+  "shorten": {
+   "0": "SG/NACL = bawab: «mrahba bik» 3la 7asb IP w port. Network Firewall = douane kamel: ychouf el contenu, ye3raf el domaine, IPS yewa99ef el hajoum. DNSSEC = kol jaweb mokhtem, w el khatm yet7a99a9 b silsilet el thi9a."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "stack",
+     "title": "Qui protège quoi ? Network Firewall comble le vide",
+     "layers": [
+      {
+       "label": "Shield",
+       "sub": "DDoS L3/L4",
+       "icon": "shield",
+       "tone": "info",
+       "tags": [
+        "volumétrique"
+       ]
+      },
+      {
+       "label": "AWS WAF",
+       "sub": "requêtes HTTP d'une ressource web",
+       "icon": "waf",
+       "tone": "info",
+       "tags": [
+        "L7"
+       ]
+      },
+      {
+       "label": "Network Firewall",
+       "sub": "tout le VPC, L3 à L7, toutes directions",
+       "icon": "networkfw",
+       "tone": "good",
+       "tags": [
+        "domaines",
+        "IPS",
+        "TLS"
+       ]
+      },
+      {
+       "label": "SG et NACL",
+       "sub": "IP et port seulement",
+       "icon": "firewall",
+       "tone": "warn",
+       "tags": [
+        "L3/L4"
+       ]
+      }
+     ],
+     "side": "du plus spécialisé au plus général"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Network Firewall : contrôles fins",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "firewall",
+       "t": "IP et port",
+       "d": "Des milliers de règles ; ex. des dizaines de milliers d'IP.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Protocole",
+       "d": "Ex. bloquer SMB en sortie.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Liste de domaines",
+       "d": "Stateful : autoriser seulement *.mycorp.com ou un dépôt tiers.",
+       "tone": "good"
+      },
+      {
+       "icon": "networkfw",
+       "t": "IPS et regex",
+       "d": "Inspection de flux actif, prévention d'intrusion 100 % managée.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "Actions",
+       "d": "Allow, drop ou alert.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Logs",
+       "d": "Règles déclenchées vers S3, CloudWatch Logs, Firehose.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "tree",
+     "title": "Structure d'un Network Firewall",
+     "root": {
+      "label": "Firewall",
+      "icon": "networkfw",
+      "children": [
+       {
+        "label": "Firewall endpoints",
+        "icon": "vpc",
+        "children": [
+         {
+          "label": "Subnets dédiés",
+          "icon": "vpc"
+         }
+        ]
+       },
+       {
+        "label": "Firewall policy",
+        "icon": "document",
+        "children": [
+         {
+          "label": "Rule groups",
+          "icon": "gear"
+         }
+        ]
+       },
+       {
+        "label": "Gateway Load Balancer",
+        "icon": "elb"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "pipeline",
+     "title": "Trafic sortant : instance privée vers Internet",
+     "stages": [
+      {
+       "label": "EC2 privée",
+       "sub": "route 0.0.0.0/0 -> NAT",
+       "icon": "ec2",
+       "tone": "info"
+      },
+      {
+       "label": "NAT Gateway",
+       "sub": "subnet protégé",
+       "icon": "network",
+       "tone": "info"
+      },
+      {
+       "label": "Firewall endpoint",
+       "sub": "0.0.0.0/0 -> vpce : inspection",
+       "icon": "networkfw",
+       "tone": "warn"
+      },
+      {
+       "label": "IGW",
+       "sub": "0.0.0.0/0 -> igw",
+       "icon": "internet",
+       "tone": "info"
+      },
+      {
+       "label": "Internet",
+       "sub": "trafic autorisé",
+       "icon": "internet",
+       "tone": "good"
+      }
+     ],
+     "caption": "Chaque route table force le saut suivant ; sans ces routes, le trafic ne passe pas par le firewall. Ex. de règle : liste de domaines autorisés."
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Réponse automatisée : bloquer l'IP malveillante",
+     "stages": [
+      {
+       "label": "GuardDuty",
+       "sub": "finding",
+       "icon": "guardduty",
+       "tone": "warn"
+      },
+      {
+       "label": "Security Hub",
+       "sub": "centralise",
+       "icon": "securityhub",
+       "tone": "info"
+      },
+      {
+       "label": "EventBridge",
+       "sub": "règle déclenchée",
+       "icon": "eventbridge",
+       "tone": "info"
+      },
+      {
+       "label": "Step Functions",
+       "sub": "CheckIPInDB puis BlockTraffic",
+       "icon": "stepfunctions",
+       "tone": "warn"
+      },
+      {
+       "label": "Network Firewall",
+       "sub": "IP ajoutée au rule group",
+       "icon": "networkfw",
+       "tone": "good"
+      },
+      {
+       "label": "SNS",
+       "sub": "notifie succès ou échec",
+       "icon": "sns",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Trafic HTTPS : inspection profonde (DPI)",
+     "stages": [
+      {
+       "label": "Client",
+       "sub": "HTTPS",
+       "icon": "client",
+       "tone": "neutral"
+      },
+      {
+       "label": "Network Firewall",
+       "sub": "déchiffre le TLS",
+       "icon": "networkfw",
+       "tone": "warn"
+      },
+      {
+       "label": "Certificat ACM",
+       "sub": "clé d'inspection",
+       "icon": "acm",
+       "tone": "info"
+      },
+      {
+       "label": "Inspection",
+       "sub": "bloque le malveillant",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "Rechiffrement",
+       "sub": "vers la destination",
+       "icon": "server",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "compare",
+     "title": "DNS classique ou DNSSEC ?",
+     "cols": [
+      {
+       "name": "DNS classique",
+       "tag": "UDP, sans signature",
+       "icon": "route53",
+       "points": [
+        "Aucune vérification cryptographique native",
+        "Fausse réponse injectable dans le cache local"
+       ],
+       "use": "Le navigateur reçoit l'IP d'un faux site"
+      },
+      {
+       "name": "DNSSEC",
+       "tag": "signatures",
+       "icon": "kms",
+       "points": [
+        "Vérifie intégrité et origine, pas la confidentialité",
+        "Route 53 : Public Hosted Zones seulement"
+       ],
+       "use": "Réponses signées, chaîne de confiance"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Route 53 DNSSEC : clés et contraintes",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "kms",
+       "t": "KSK",
+       "d": "Key-Signing Key, gérée par toi, basée sur une clé KMS asymétrique.",
+       "tone": "info"
+      },
+      {
+       "icon": "route53",
+       "t": "ZSK",
+       "d": "Zone-Signing Key, gérée par AWS ; signe chaque enregistrement.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "TTL max : 1 semaine",
+       "d": "Imposé une fois DNSSEC activé.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Zones publiques",
+       "d": "Pas de DNSSEC sur une Private Hosted Zone.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "pipeline",
+     "title": "Activer DNSSEC sur une hosted zone",
+     "stages": [
+      {
+       "label": "Préparer",
+       "sub": "TTL 1 h, SOA min 5 min",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Activer la signature",
+       "sub": "crée la KSK (clé KMS)",
+       "icon": "kms",
+       "tone": "info"
+      },
+      {
+       "label": "Enregistrement DS",
+       "sub": "dans la zone parente",
+       "icon": "document",
+       "tone": "warn"
+      },
+      {
+       "label": "Surveiller",
+       "sub": "alarmes CloudWatch",
+       "icon": "cloudwatch",
+       "tone": "good"
+      }
+     ],
+     "caption": "Alarmes recommandées : DNSSECInternalFailure et DNSSECKeySigningKeysNeedingAction. Le registrar peut être Route 53 ou un tiers."
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "networkfw",
+       "ctx": "Inspecte tout le VPC L3-L7 : domaines, IPS, TLS, via firewall endpoints."
+      },
+      {
+       "k": "firewallmgr",
+       "ctx": "Gère les règles Network Firewall de façon centrale et multi-comptes."
+      },
+      {
+       "k": "route53",
+       "ctx": "Hosted zone publique signée par DNSSEC (ZSK gérée par AWS)."
+      },
+      {
+       "k": "kms",
+       "ctx": "Clé asymétrique portant la KSK de la zone."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détecte l'IP malveillante : point de départ du blocage automatique."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Déclenche le workflow sur le finding."
+      },
+      {
+       "k": "stepfunctions",
+       "ctx": "Orchestre CheckIPInDB puis BlockTraffic."
+      },
+      {
+       "k": "acm",
+       "ctx": "Certificat pour déchiffrer et inspecter le trafic TLS."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d3-10",
+  "services": [
+   "ses",
+   "artifact",
+   "waf",
+   "shield",
+   "networkfw",
+   "firewallmgr",
+   "vpc",
+   "cloudfront"
+  ],
+  "drop": [
+   1,
+   4,
+   5
+  ],
+  "shorten": {
+   "0": "SES = el poste: enti t7ott el mail w houwa ywasselha. Ama lazem t7abbet el domaine mta3ek b SPF w DKIM (el khatm w el imda2) bch el mail ma yet7esebch spam. Artifact = el archive mta3 el chhedet."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Amazon SES : les points clés",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ses",
+       "t": "Envoi et réception",
+       "d": "E-mails transactionnels, marketing, masse ; console, API ou SMTP.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "DKIM et SPF",
+       "d": "Signature du message et serveurs autorisés pour le domaine.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Réputation",
+       "d": "Dashboard, rebonds, plaintes, ouvertures ; IP partagées, dédiées ou BYOIP.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Configuration sets",
+       "d": "Event destinations : Firehose (métriques) et SNS (rebonds, plaintes) ; IP pools.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "Rôle IAM minimal",
+       "d": "Ex. limiter l'adresse From ; vérifier le domaine expéditeur.",
+       "tone": "warn"
+      },
+      {
+       "icon": "secrets",
+       "t": "SMTP = secret",
+       "d": "Ne jamais laisser les identifiants SMTP dans le code.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "compare",
+     "title": "AWS Artifact : Reports ou Agreements ?",
+     "cols": [
+      {
+       "name": "Artifact Reports",
+       "tag": "rapports d'auditeurs tiers",
+       "icon": "artifact",
+       "points": [
+        "Certifications ISO, PCI",
+        "Rapports SOC",
+        "Téléchargement à la demande"
+       ],
+       "use": "Prouver la conformité de la part AWS à un auditeur"
+      },
+      {
+       "name": "Artifact Agreements",
+       "tag": "accords AWS",
+       "icon": "document",
+       "points": [
+        "Consulter, accepter, suivre",
+        "Ex. BAA pour HIPAA",
+        "Pour un compte ou toute l'Organization"
+       ],
+       "use": "Cadre contractuel de conformité"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "stack",
+     "title": "Défense en profondeur réseau, du bord au workload",
+     "layers": [
+      {
+       "label": "Bord : CloudFront, Shield, WAF",
+       "sub": "DDoS et HTTP, origine cachée",
+       "icon": "cloudfront",
+       "tone": "info",
+       "tags": [
+        "L7",
+        "DDoS"
+       ]
+      },
+      {
+       "label": "Périmètre VPC : Network Firewall",
+       "sub": "domaines, IPS, TLS, L3-L7",
+       "icon": "networkfw",
+       "tone": "warn",
+       "tags": [
+        "Firewall Manager"
+       ]
+      },
+      {
+       "label": "Subnet : NACL",
+       "sub": "deny explicite, stateless",
+       "icon": "padlock",
+       "tone": "warn",
+       "tags": [
+        "bloquer une IP"
+       ]
+      },
+      {
+       "label": "Instance : Security Group",
+       "sub": "allow seulement, stateful",
+       "icon": "firewall",
+       "tone": "good",
+       "tags": [
+        "retour auto"
+       ]
+      },
+      {
+       "label": "Accès privé : endpoints, PrivateLink",
+       "sub": "services sans Internet",
+       "icon": "privatelink",
+       "tone": "good",
+       "tags": [
+        "Gateway",
+        "Interface"
+       ]
+      }
+     ],
+     "side": "du plus externe au plus interne"
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Quel contrôle voit quoi ?",
+     "rows": [
+      "Security Group",
+      "NACL",
+      "AWS WAF",
+      "Shield",
+      "Network Firewall"
+     ],
+     "cols": [
+      "IP / port",
+      "HTTP L7",
+      "DDoS L3/L4",
+      "Deny explicite",
+      "Domaines, IPS"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no",
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "no",
+       "no",
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "no",
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "warn",
+       "ok",
+       "na",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "no",
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non",
+      "warn": "Partiel (Advanced)",
+      "na": "Sans objet"
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "decision",
+     "title": "Quelle connectivité choisir ?",
+     "root": {
+      "q": "Relier un réseau on-premises ?",
+      "yes": {
+       "q": "Débit stable, hors Internet ?",
+       "yes": {
+        "a": "Direct Connect",
+        "icon": "directconnect",
+        "tone": "good",
+        "why": "Privé, non chiffré : VPN par-dessus"
+       },
+       "no": {
+        "a": "VPN",
+        "icon": "vpn",
+        "tone": "good",
+        "why": "Site-to-Site ou Client VPN, IPsec"
+       }
+      },
+      "no": {
+       "q": "Relier des VPC entre eux ?",
+       "yes": {
+        "q": "Beaucoup de VPC ?",
+        "yes": {
+         "a": "Transit Gateway",
+         "icon": "tgw",
+         "tone": "good",
+         "why": "Hub transitif, route tables"
+        },
+        "no": {
+         "a": "VPC Peering",
+         "icon": "vpc",
+         "tone": "info",
+         "why": "Privé, non transitif"
+        }
+       },
+       "no": {
+        "a": "Endpoints / PrivateLink",
+        "icon": "privatelink",
+        "tone": "good",
+        "why": "S3/DynamoDB : Gateway ; autres : Interface"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "hub",
+     "title": "Un besoin, un contrôle",
+     "center": {
+      "label": "Besoin",
+      "sub": "quel service ?",
+      "icon": "question"
+     },
+     "spokes": [
+      {
+       "label": "SSH vers privées",
+       "sub": "Bastion ou SSM",
+       "icon": "ssm",
+       "tone": "info",
+       "note": "Bastion Host ou SSM Session Manager avec endpoints : point d'entrée contrôlé."
+      },
+      {
+       "label": "Sortie sans entrée",
+       "sub": "NAT Gateway",
+       "icon": "vpc",
+       "tone": "info",
+       "note": "Sortant seulement, managé ; un par AZ."
+      },
+      {
+       "label": "Même règle partout",
+       "sub": "Firewall Manager",
+       "icon": "firewallmgr",
+       "tone": "good",
+       "note": "Policies centrales appliquées aux nouvelles ressources et comptes."
+      },
+      {
+       "label": "Origine cachée",
+       "sub": "CloudFront",
+       "icon": "cloudfront",
+       "tone": "good",
+       "note": "OAC, Signed URL, VPC Origin, géo-restriction."
+      },
+      {
+       "label": "API protégée",
+       "sub": "API Gateway",
+       "icon": "apigw",
+       "tone": "info",
+       "note": "Authorizers, 429, privée via endpoint ; ajouter WAF et resource policy."
+      },
+      {
+       "label": "DNS falsifié",
+       "sub": "Route 53 DNSSEC",
+       "icon": "route53",
+       "tone": "warn",
+       "note": "Signature des réponses et chaîne de confiance."
+      },
+      {
+       "label": "Service à des milliers de VPC",
+       "sub": "PrivateLink",
+       "icon": "privatelink",
+       "tone": "info",
+       "note": "NLB côté fournisseur, ENI côté client, sans peering."
+      },
+      {
+       "label": "Preuve d'audit",
+       "sub": "AWS Artifact",
+       "icon": "artifact",
+       "tone": "good",
+       "note": "Rapports ISO, PCI, SOC et accords BAA."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "ses",
+       "ctx": "Envoie et reçoit les e-mails ; DKIM, SPF, réputation, configuration sets."
+      },
+      {
+       "k": "artifact",
+       "ctx": "Portail de preuves de conformité : Reports et Agreements."
+      },
+      {
+       "k": "waf",
+       "ctx": "Couche 7 HTTP : SQLi, XSS, bots, rate-based."
+      },
+      {
+       "k": "shield",
+       "ctx": "Anti-DDoS L3/L4 ; Advanced avec support 24/7."
+      },
+      {
+       "k": "networkfw",
+       "ctx": "Inspection de tout le VPC L3-L7 : domaines, IPS, TLS."
+      },
+      {
+       "k": "firewallmgr",
+       "ctx": "Même protection sur tous les comptes."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Socle réseau : SG, NACL, endpoints, connectivité."
+      },
+      {
+       "k": "cloudfront",
+       "ctx": "Cache l'origine, signe l'accès, géo-restreint."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

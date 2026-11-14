@@ -1,0 +1,3345 @@
+[
+ {
+  "id": "d1-01",
+  "services": [
+   "guardduty",
+   "cloudtrail",
+   "eventbridge",
+   "sns",
+   "lambda",
+   "securityhub",
+   "orgs"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   6,
+   10,
+   12
+  ],
+  "shorten": {
+   "0": "Imagine 50 caméras que personne ne regarde. GuardDuty yo9ra el logs 3lik (CloudTrail, Flow Logs, DNS) w ye9ollek \"fama 7aja mouchtbeha\". Ma tinstalli chay: click w yebda y5dem."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "pipeline",
+     "title": "GuardDuty en 4 temps",
+     "stages": [
+      {
+       "label": "Logs AWS",
+       "sub": "CloudTrail, Flow Logs, DNS",
+       "icon": "cloudtrail"
+      },
+      {
+       "label": "Analyse",
+       "sub": "ML + threat intelligence",
+       "icon": "guardduty",
+       "tone": "info"
+      },
+      {
+       "label": "Finding",
+       "sub": "type, sévérité, ressource",
+       "icon": "finding",
+       "tone": "warn"
+      },
+      {
+       "label": "Réaction",
+       "sub": "EventBridge, SNS, Lambda",
+       "icon": "eventbridge",
+       "tone": "good"
+      }
+     ],
+     "caption": "Service managé : un clic pour activer, 30 jours d'essai, aucun agent pour les sources de base. GuardDuty lit ses propres flux, sans dépendre de ton trail."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "text",
+     "title": "Définition en bref",
+     "md": "Ton compte produit des millions d'événements : un attaquant avec une clé volée ou un crypto-miner s'y cache. **Amazon GuardDuty** est un service **managé de détection de menaces** : il analyse des sources AWS par machine learning, détection d'anomalies et listes de menaces, puis produit des **findings**."
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "Sources de base : à retenir",
+     "items": [
+      {
+       "icon": "cloudtrail",
+       "big": "CloudTrail",
+       "label": "management events",
+       "sub": "appels API inhabituels"
+      },
+      {
+       "icon": "vpc",
+       "big": "Flow Logs",
+       "label": "trafic IP",
+       "sub": "scans de ports, IP suspectes"
+      },
+      {
+       "icon": "route53",
+       "big": "DNS logs",
+       "label": "résolveur VPC par défaut",
+       "sub": "exfiltration via DNS"
+      },
+      {
+       "icon": "guardduty",
+       "big": "30 j",
+       "label": "essai gratuit",
+       "sub": "0 agent à installer"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Protection plans optionnels",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "S3 Protection",
+       "d": "Risques sur les buckets, par exemple exfiltration.",
+       "tone": "warn"
+      },
+      {
+       "icon": "ec2",
+       "t": "Malware Protection",
+       "d": "Scan des volumes EBS (EC2), des nouveaux objets S3 et des ressources AWS Backup.",
+       "tone": "warn"
+      },
+      {
+       "icon": "eks",
+       "t": "EKS Protection",
+       "d": "Analyse les Kubernetes audit logs du cluster.",
+       "tone": "info"
+      },
+      {
+       "icon": "fargate",
+       "t": "Runtime Monitoring",
+       "d": "Événements niveau OS sur EC2, ECS et EKS.",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Lambda Protection",
+       "d": "Activité réseau des fonctions : crypto-mining, serveur malveillant.",
+       "tone": "info"
+      },
+      {
+       "icon": "rds",
+       "t": "RDS Protection",
+       "d": "Activité de login RDS / Aurora : accès suspects.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "hub",
+     "title": "3 familles de cas d'usage",
+     "center": {
+      "label": "GuardDuty",
+      "sub": "détecte, ne bloque pas",
+      "icon": "guardduty"
+     },
+     "spokes": [
+      {
+       "label": "Instances compromises",
+       "sub": "EC2, ECS, EKS",
+       "icon": "ec2",
+       "note": "Malware, crypto-mining, domaines malveillants ou réseau TOR, reverse shell.",
+       "tone": "bad"
+      },
+      {
+       "label": "Trafic anormal",
+       "sub": "réseau",
+       "icon": "vpc",
+       "note": "Communication avec des IP malveillantes, exfiltration, port scan, brute force.",
+       "tone": "warn"
+      },
+      {
+       "label": "Compte compromis",
+       "sub": "IAM, CloudTrail",
+       "icon": "iam",
+       "note": "Appels API depuis une IP inhabituelle, credentials volés, énumération de rôles, CloudTrail désactivé.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cards",
+     "title": "Exemples de types de findings",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "EC2",
+       "d": "UnauthorizedAccess:EC2/SSHBruteForce",
+       "tone": "bad"
+      },
+      {
+       "icon": "iam",
+       "t": "IAM",
+       "d": "Stealth:IAMUser/CloudTrailLoggingDisabled et Policy:IAMUser/RootCredentialUsage",
+       "tone": "bad"
+      },
+      {
+       "icon": "s3",
+       "t": "S3",
+       "d": "Policy:S3/AccountBlockPublicAccessDisabled et PenTest:S3/KaliLinux",
+       "tone": "warn"
+      },
+      {
+       "icon": "eks",
+       "t": "Kubernetes",
+       "d": "CredentialAccess:Kubernetes/MaliciousIPCaller",
+       "tone": "warn"
+      },
+      {
+       "icon": "rds",
+       "t": "RDS",
+       "d": "CredentialAccess:RDS/AnomalousBehavior.SuccessfulLogin",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Malware",
+       "d": "Execution:EC2/SuspiciousFile",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "facts",
+     "title": "Lire la sévérité d'un finding",
+     "items": [
+      {
+       "icon": "finding",
+       "big": "7.0 - 8.9",
+       "label": "High",
+       "sub": "exemple du cours"
+      },
+      {
+       "icon": "finding",
+       "big": "9.0 - 10.0",
+       "label": "Critical",
+       "sub": "exemple du cours"
+      },
+      {
+       "icon": "guardduty",
+       "big": "Sample",
+       "label": "findings de test",
+       "sub": "tester ses automatisations sans attaque"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "pipeline",
+     "title": "Variante : Step Functions + Network Firewall",
+     "stages": [
+      {
+       "label": "Finding",
+       "sub": "Backdoor:EC2/C&CActivity.B",
+       "icon": "guardduty",
+       "tone": "bad"
+      },
+      {
+       "label": "EventBridge",
+       "sub": "déclenche la state machine",
+       "icon": "eventbridge"
+      },
+      {
+       "label": "CheckIPInDB",
+       "sub": "Step Functions, étape 1",
+       "icon": "stepfunctions",
+       "tone": "info"
+      },
+      {
+       "label": "BlockTraffic",
+       "sub": "règle dans une rule group",
+       "icon": "networkfw",
+       "tone": "good"
+      },
+      {
+       "label": "SNS",
+       "sub": "2 topics : succès / échec",
+       "icon": "sns"
+      }
+     ],
+     "caption": "GuardDuty détecte, il ne bloque pas : le blocage vient d'un autre service orchestré via EventBridge."
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quel mécanisme pour réduire les faux positifs ?",
+     "root": {
+      "q": "L'IP publique est-elle de confiance ?",
+      "yes": {
+       "a": "Trusted IP list",
+       "icon": "padlock",
+       "tone": "good",
+       "why": "Liste blanche : aucun finding pour ces IP publiques"
+      },
+      "no": {
+       "q": "L'IP est-elle connue comme malveillante ?",
+       "yes": {
+        "a": "Threat IP list",
+        "icon": "firewall",
+        "tone": "bad",
+        "why": "Liste noire : findings si elle touche tes ressources"
+       },
+       "no": {
+        "q": "Finding répétitif, sans valeur, sur une cible précise ?",
+        "yes": {
+         "a": "Suppression rule",
+         "icon": "gear",
+         "tone": "warn",
+         "why": "Archive automatiquement les findings qui correspondent"
+        },
+        "no": {
+         "a": "Traiter le finding",
+         "icon": "guardduty",
+         "tone": "info",
+         "why": "EventBridge, SNS, remédiation"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "matrix",
+     "title": "Que devient un finding supprimé ?",
+     "rows": [
+      "Console GuardDuty",
+      "Security Hub",
+      "Detective",
+      "EventBridge",
+      "Export S3"
+     ],
+     "cols": [
+      "Finding normal",
+      "Finding supprimé"
+     ],
+     "cells": [
+      [
+       "ok",
+       "archivé"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Reçoit",
+      "no": "Ne reçoit pas",
+      "archivé": "Seulement dans les findings archivés"
+     }
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "cards",
+     "title": "Exemples de suppression rules",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Recon:EC2/Portscan",
+       "d": "Combiné à un Instance image ID : le scanner de vulnérabilités n'alerte plus.",
+       "tone": "info"
+      },
+      {
+       "icon": "ec2",
+       "t": "SSHBruteForce",
+       "d": "Combiné au tag Instance = devops : les bastions ne font plus de bruit.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "guardduty",
+       "ctx": "Détecte comptes, instances et trafic compromis ; produit les findings."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Source de base : appels API analysés par GuardDuty."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Route chaque finding vers une règle d'automatisation."
+      },
+      {
+       "k": "sns",
+       "ctx": "Prévient l'équipe sécurité par email ou chat."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Remédie : par exemple ajoute un Deny dans une NACL."
+      },
+      {
+       "k": "securityhub",
+       "ctx": "Centralise les findings de tous les comptes."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Désigne un administrateur délégué pour tous les comptes membres."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-02",
+  "services": [
+   "securityhub",
+   "config",
+   "guardduty",
+   "inspector",
+   "macie",
+   "eventbridge",
+   "orgs",
+   "detective"
+  ],
+  "drop": [
+   1,
+   3,
+   6,
+   7
+  ],
+  "shorten": {
+   "0": "Tsawwer 5 services sécurité, kol wa7ed yektbelek rapport b format mo5talef. Security Hub y5allihom kol yektbou b nafs el format (ASFF) w yjam3ahom f dashboard wa7ed, w y9arenhom ma3a des standards (CIS, PCI DSS) bch ta3ref chnoua mouch conforme."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Security Hub : les 5 fonctions clés",
+     "center": {
+      "label": "Security Hub",
+      "sub": "vue centrale de la sécurité",
+      "icon": "securityhub"
+     },
+     "spokes": [
+      {
+       "label": "Agréger",
+       "sub": "format ASFF",
+       "icon": "finding",
+       "note": "Collecte les findings des services AWS et des produits partenaires dans un format commun.",
+       "tone": "info"
+      },
+      {
+       "label": "Contrôler",
+       "sub": "standards",
+       "icon": "config",
+       "note": "Contrôles continus : CIS AWS Foundations, PCI DSS, AWS Foundational Security Best Practices.",
+       "tone": "good"
+      },
+      {
+       "label": "Réagir",
+       "sub": "EventBridge",
+       "icon": "eventbridge",
+       "note": "Événements et custom actions pour notifier ou remédier automatiquement.",
+       "tone": "warn"
+      },
+      {
+       "label": "Multi-compte",
+       "sub": "Organizations",
+       "icon": "orgs",
+       "note": "Gère tous les comptes de l'Organization et détecte les nouveaux comptes automatiquement.",
+       "tone": "info"
+      },
+      {
+       "label": "Multi-Région",
+       "sub": "aggregation",
+       "icon": "internet",
+       "note": "Agrège findings, insights et scores de plusieurs Régions vers une Région d'agrégation.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "Sans Security Hub vs avec Security Hub",
+     "cols": [
+      {
+       "name": "Sans Security Hub",
+       "tag": "vue éclatée",
+       "icon": "question",
+       "points": [
+        "Une console et un format par service",
+        "Plusieurs comptes et Régions à ouvrir un par un",
+        "Impossible de prioriser globalement"
+       ],
+       "use": "Findings dispersés, conformité invisible."
+      },
+      {
+       "name": "Avec Security Hub",
+       "tag": "vue centrale",
+       "icon": "securityhub",
+       "points": [
+        "Findings normalisés en ASFF",
+        "Dashboards et scores de conformité",
+        "Réaction par EventBridge ou custom action"
+       ],
+       "use": "Une seule vue multi-comptes et multi-Régions."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "callout",
+     "tone": "exam",
+     "title": "Prérequis capital",
+     "text": "AWS Config doit être activé dans tous les comptes : Security Hub s'appuie dessus pour ses checks mais ne le gère pas."
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Ce que Security Hub fait de plus",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "config",
+       "t": "Security standards",
+       "d": "CIS, PCI DSS, FSBP : on active ou désactive chaque standard.",
+       "tone": "good"
+      },
+      {
+       "icon": "internet",
+       "t": "Cross-Region aggregation",
+       "d": "Une Région d'agrégation reçoit findings, insights et scores des autres Régions.",
+       "tone": "info"
+      },
+      {
+       "icon": "orgs",
+       "t": "Organizations",
+       "d": "Par défaut l'admin est le compte de management ; un membre peut être désigné.",
+       "tone": "info"
+      },
+      {
+       "icon": "securityhub",
+       "t": "Intégrations AWS",
+       "d": "Config, GuardDuty, Inspector, Macie, Access Analyzer, SSM, Firewall Manager, Health.",
+       "tone": "info"
+      },
+      {
+       "icon": "building",
+       "t": "Partenaires",
+       "d": "Envoient, reçoivent et mettent à jour des findings avec des produits tiers.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "facts",
+     "title": "Findings : repères à connaître",
+     "items": [
+      {
+       "icon": "finding",
+       "big": "ASFF",
+       "label": "format commun",
+       "sub": "AWS Security Finding Format"
+      },
+      {
+       "icon": "finding",
+       "big": "5",
+       "label": "niveaux de sévérité",
+       "sub": "INFORMATIONAL à CRITICAL"
+      },
+      {
+       "icon": "gear",
+       "big": "4",
+       "label": "statuts de workflow",
+       "sub": "NEW, NOTIFIED, SUPPRESSED, RESOLVED"
+      },
+      {
+       "icon": "securityhub",
+       "big": "90 j",
+       "label": "suppression auto",
+       "sub": "selon le cours"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "text",
+     "title": "Qu'est-ce qu'un insight ?",
+     "md": "Un **insight** est une collection de findings liés qui désigne une zone de sécurité à traiter, avec des findings de **fournisseurs différents**. Chaque insight = un **Group By** + des filtres optionnels."
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "compare",
+     "title": "Managed insight vs Custom insight",
+     "cols": [
+      {
+       "name": "Managed insight",
+       "tag": "intégré",
+       "icon": "securityhub",
+       "points": [
+        "Résultats seulement si l'intégration ou le standard est activé",
+        "Non modifiable, non supprimable"
+       ],
+       "use": "Zones à risque courantes, prêtes à l'emploi."
+      },
+      {
+       "name": "Custom insight",
+       "tag": "sur mesure",
+       "icon": "gear",
+       "points": [
+        "Group By et filtres choisis par toi",
+        "Suit un problème propre à ton environnement"
+       ],
+       "use": "Exemple : findings critiques sur les comptes membres."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "matrix",
+     "title": "Intégrations de services : qui envoie, qui reçoit ?",
+     "rows": [
+      "Config",
+      "Firewall Manager",
+      "GuardDuty",
+      "Inspector",
+      "Macie",
+      "IAM Access Analyzer",
+      "Health, IoT, SSM Patch",
+      "Detective, Audit Mgr, Chatbot",
+      "Trusted Advisor, SSM Explorer"
+     ],
+     "cols": [
+      "Envoie à SH",
+      "Reçoit de SH"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "securityhub",
+       "ctx": "Agrège les findings ASFF, vérifie les standards, déclenche les actions."
+      },
+      {
+       "k": "config",
+       "ctx": "Prérequis : alimente les contrôles de conformité de Security Hub."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Envoie ses findings de menaces à Security Hub."
+      },
+      {
+       "k": "inspector",
+       "ctx": "Envoie les findings de vulnérabilités."
+      },
+      {
+       "k": "macie",
+       "ctx": "Envoie les findings sur les données sensibles S3."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Reçoit les événements Security Hub pour automatiser la réaction."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Permet de gérer tous les comptes depuis un administrateur."
+      },
+      {
+       "k": "detective",
+       "ctx": "Reçoit des findings pour investiguer la cause racine."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-03",
+  "services": [
+   "inspector",
+   "detective",
+   "guardduty",
+   "securityhub",
+   "ssm",
+   "ecr",
+   "eventbridge",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   3,
+   6
+  ],
+  "shorten": {
+   "0": "Fama 2 marhala. 9bal el attaque: Inspector yfa7es w y9olek \"3andek faille\". Waqt el attaque: GuardDuty yodhrab el alarme. Ba3d: Detective yrajja3 el film kamel (chkoun, kifech, chnoua touchit)."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "pipeline",
+     "title": "Avant, pendant, après l'attaque",
+     "stages": [
+      {
+       "label": "Inspector",
+       "sub": "avant : suis-je vulnérable ?",
+       "icon": "inspector",
+       "tone": "info"
+      },
+      {
+       "label": "GuardDuty",
+       "sub": "pendant : attaque en cours ?",
+       "icon": "guardduty",
+       "tone": "warn"
+      },
+      {
+       "label": "Detective",
+       "sub": "après : pourquoi, comment ?",
+       "icon": "detective",
+       "tone": "good"
+      }
+     ],
+     "caption": "Security Hub se place au-dessus : il centralise les findings et la conformité."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "text",
+     "title": "Detective : le problème",
+     "md": "Un finding dit **qu'**il y a un problème, pas **comment** c'est arrivé. **Amazon Detective** analyse et identifie la **cause racine** avec du machine learning, de l'analyse statistique et la théorie des graphes."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Amazon Detective en 4 points",
+     "center": {
+      "label": "Detective",
+      "sub": "graphe d'investigation",
+      "icon": "detective"
+     },
+     "spokes": [
+      {
+       "label": "Sources",
+       "sub": "collecte auto",
+       "icon": "cloudtrail",
+       "note": "VPC Flow Logs, CloudTrail et findings GuardDuty. Optionnels : EKS audit logs et Security Hub.",
+       "tone": "info"
+      },
+      {
+       "label": "Rétention",
+       "sub": "jusqu'à 1 an",
+       "icon": "database",
+       "note": "Données agrégées conservées jusqu'à 1 an pour remonter dans le temps.",
+       "tone": "neutral"
+      },
+      {
+       "label": "Ce que tu vois",
+       "sub": "vue unifiée",
+       "icon": "finding",
+       "note": "Ressources touchées, connexions d'une IP à une EC2, appels API, tentatives de login.",
+       "tone": "good"
+      },
+      {
+       "label": "Investigation",
+       "sub": "users et rôles IAM",
+       "icon": "iam",
+       "note": "Detective Investigation : un principal IAM est-il impliqué dans un événement ? Ex : rôle compromis.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "text",
+     "title": "Inspector : définition",
+     "md": "**Amazon Inspector** est un service d'**évaluation de sécurité automatisée** : il scanne en continu pour trouver vulnérabilités et expositions réseau **avant** qu'un attaquant les exploite."
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Ce qu'Inspector scanne (uniquement)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Instances EC2",
+       "d": "Via l'agent SSM : vulnérabilités de l'OS et accessibilité réseau non voulue.",
+       "tone": "info"
+      },
+      {
+       "icon": "ecr",
+       "t": "Images ECR",
+       "d": "Images de conteneurs évaluées au moment du push.",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Fonctions Lambda",
+       "d": "Code et dépendances évalués au déploiement.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "Ce qu'Inspector évalue",
+     "items": [
+      {
+       "icon": "inspector",
+       "big": "CVE",
+       "label": "vulnérabilités de packages",
+       "sub": "EC2, ECR et Lambda"
+      },
+      {
+       "icon": "vpc",
+       "big": "Reachability",
+       "label": "accessibilité réseau",
+       "sub": "EC2 uniquement"
+      },
+      {
+       "icon": "finding",
+       "big": "Risk score",
+       "label": "priorisation",
+       "sub": "associé aux vulnérabilités"
+      },
+      {
+       "icon": "eventbridge",
+       "big": "Continu",
+       "label": "rescan automatique",
+       "sub": "nouvelle instance, image ou CVE"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cards",
+     "title": "Qui fait quoi : à connaître par coeur",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "guardduty",
+       "t": "GuardDuty",
+       "d": "Une menace est-elle en cours ? Produit des findings de menaces.",
+       "tone": "warn"
+      },
+      {
+       "icon": "macie",
+       "t": "Macie",
+       "d": "Où sont mes données sensibles dans S3 ? Findings policy et sensitive data.",
+       "tone": "info"
+      },
+      {
+       "icon": "inspector",
+       "t": "Inspector",
+       "d": "Mes workloads sont-ils vulnérables ? Findings CVE et exposition réseau.",
+       "tone": "info"
+      },
+      {
+       "icon": "securityhub",
+       "t": "Security Hub",
+       "d": "Quelle posture et quelle conformité ? Findings ASFF, scores, insights.",
+       "tone": "good"
+      },
+      {
+       "icon": "detective",
+       "t": "Detective",
+       "d": "Comment c'est arrivé, qui est touché ? Graphe et cause racine.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "decision",
+     "title": "Quel service selon la question ?",
+     "root": {
+      "q": "Chercher une faille connue (CVE) avant l'attaque ?",
+      "yes": {
+       "a": "Inspector",
+       "icon": "inspector",
+       "tone": "info",
+       "why": "EC2, ECR, Lambda : CVE et network reachability"
+      },
+      "no": {
+       "q": "Une compromission est-elle en cours ?",
+       "yes": {
+        "a": "GuardDuty",
+        "icon": "guardduty",
+        "tone": "warn",
+        "why": "Crypto-mining, IP malveillante, credentials volés"
+       },
+       "no": {
+        "q": "Trouver la cause racine d'un finding ?",
+        "yes": {
+         "a": "Detective",
+         "icon": "detective",
+         "tone": "good",
+         "why": "Graphe d'investigation, jusqu'à 1 an"
+        },
+        "no": {
+         "a": "Security Hub",
+         "icon": "securityhub",
+         "tone": "good",
+         "why": "Agréger les findings, conformité CIS"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "inspector",
+       "ctx": "Cherche CVE et expositions réseau sur EC2, ECR et Lambda."
+      },
+      {
+       "k": "detective",
+       "ctx": "Reconstruit l'historique d'un finding pour trouver la cause racine."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détecte la menace en cours ; source principale de Detective."
+      },
+      {
+       "k": "securityhub",
+       "ctx": "Centralise les findings et reçoit ceux d'Inspector."
+      },
+      {
+       "k": "ssm",
+       "ctx": "L'agent SSM permet à Inspector d'inventorier les EC2."
+      },
+      {
+       "k": "ecr",
+       "ctx": "Registre d'images : Inspector les scanne au push."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Reçoit les événements Inspector pour automatiser."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Source de données de Detective."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-04",
+  "services": [
+   "cloudwatch",
+   "ssm",
+   "iam",
+   "ec2",
+   "kinesis",
+   "firehose",
+   "s3",
+   "athena"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "EC2 ye3ti CloudWatch el CPU w el network mel dehors, ama el RAM, el disque w el logs mel west el serveur le. Lazem tinstalli el agent (el facteur) w ya3tih IAM role, sinon yrajja3 mel bab."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Les logs AWS à connaître",
+     "center": {
+      "label": "Logs centralisés",
+      "sub": "détecter et auditer",
+      "icon": "cloudwatch"
+     },
+     "spokes": [
+      {
+       "label": "CloudTrail trails",
+       "sub": "appels API",
+       "icon": "cloudtrail",
+       "note": "Tous les appels API du compte.",
+       "tone": "info"
+      },
+      {
+       "label": "AWS Config rules",
+       "sub": "conformité",
+       "icon": "config",
+       "note": "Configuration et conformité dans le temps.",
+       "tone": "info"
+      },
+      {
+       "label": "VPC Flow Logs",
+       "sub": "trafic IP",
+       "icon": "vpc",
+       "note": "Trafic IP entrant et sortant dans le VPC.",
+       "tone": "info"
+      },
+      {
+       "label": "ELB access logs",
+       "sub": "load balancers",
+       "icon": "elb",
+       "note": "Métadonnées des requêtes faites aux load balancers.",
+       "tone": "info"
+      },
+      {
+       "label": "CloudFront logs",
+       "sub": "distributions web",
+       "icon": "cloudfront",
+       "note": "Accès aux distributions web.",
+       "tone": "info"
+      },
+      {
+       "label": "WAF logs",
+       "sub": "requêtes analysées",
+       "icon": "waf",
+       "note": "Journal complet des requêtes analysées par WAF.",
+       "tone": "info"
+      },
+      {
+       "label": "CloudWatch Logs",
+       "sub": "app et système",
+       "icon": "cloudwatch",
+       "note": "Conservation complète des logs applicatifs et système.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Bonnes pratiques pour les logs dans S3",
+     "stages": [
+      {
+       "label": "Stocker",
+       "sub": "logs dans S3",
+       "icon": "s3"
+      },
+      {
+       "label": "Chiffrer",
+       "sub": "SSE-KMS",
+       "icon": "kms",
+       "tone": "good"
+      },
+      {
+       "label": "Contrôler l'accès",
+       "sub": "IAM, bucket policy, MFA",
+       "icon": "iam",
+       "tone": "warn"
+      },
+      {
+       "label": "Analyser",
+       "sub": "SQL serverless",
+       "icon": "athena",
+       "tone": "info"
+      },
+      {
+       "label": "Archiver",
+       "sub": "réduire les coûts",
+       "icon": "glacier",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "text",
+     "title": "Unified CloudWatch Agent",
+     "md": "Les métriques EC2 standard n'incluent ni la **RAM**, ni l'espace disque, et aucun log interne (`/var/log`, Event Log Windows) n'arrive sans agent. L'agent unifié tourne sur **EC2 ou on-premises**, collecte métriques et logs, et sa config peut être centralisée dans **SSM Parameter Store**."
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "facts",
+     "title": "Agent : repères d'examen",
+     "items": [
+      {
+       "icon": "cloudwatch",
+       "big": "CWAgent",
+       "label": "namespace par défaut",
+       "sub": "modifiable"
+      },
+      {
+       "icon": "gear",
+       "big": "procstat_",
+       "label": "préfixe des métriques",
+       "sub": "plugin procstat : processus"
+      },
+      {
+       "icon": "document",
+       "big": "3",
+       "label": "sélecteurs de processus",
+       "sub": "pid_file, exe, pattern"
+      },
+      {
+       "icon": "iam",
+       "big": "IAM",
+       "label": "permissions requises",
+       "sub": "sinon rien n'arrive"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "decision",
+     "title": "L'agent ne remonte rien : que vérifier ?",
+     "root": {
+      "q": "L'agent démarre-t-il ?",
+      "no": {
+       "a": "Config invalide",
+       "icon": "document",
+       "tone": "bad",
+       "why": "Lire configuration-validation.log dans /opt/aws/amazon-cloudwatch-agent/logs"
+      },
+      "yes": {
+       "q": "Métriques introuvables ?",
+       "yes": {
+        "a": "Namespace",
+        "icon": "cloudwatch",
+        "tone": "warn",
+        "why": "Défaut CWAgent ; vérifier amazon-cloudwatch-agent.json"
+       },
+       "no": {
+        "q": "Aucun log event poussé ?",
+        "yes": {
+         "a": "Accès et permissions",
+         "icon": "iam",
+         "tone": "warn",
+         "why": "Agent à jour, connectivité vers logs.<region>.amazonaws.com, log groups, IAM, heure système"
+        },
+        "no": {
+         "a": "Besoin de détails",
+         "icon": "document",
+         "tone": "info",
+         "why": "Log de l'agent : amazon-cloudwatch-agent.log"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "tree",
+     "title": "Organisation de CloudWatch Logs",
+     "root": {
+      "label": "CloudWatch Logs",
+      "icon": "cloudwatch",
+      "children": [
+       {
+        "label": "Log group : application",
+        "icon": "document",
+        "children": [
+         {
+          "label": "Stream : instance EC2",
+          "icon": "ec2"
+         },
+         {
+          "label": "Stream : fichier de log",
+          "icon": "document"
+         },
+         {
+          "label": "Stream : conteneur",
+          "icon": "ecs"
+         }
+        ]
+       },
+       {
+        "label": "Rétention",
+        "icon": "gear",
+        "children": [
+         {
+          "label": "1 jour à 10 ans, ou jamais",
+          "icon": "padlock"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "hub",
+     "title": "CloudWatch Logs : entrées et sorties",
+     "center": {
+      "label": "CloudWatch Logs",
+      "sub": "stocke, cherche, distribue",
+      "icon": "cloudwatch"
+     },
+     "spokes": [
+      {
+       "label": "SDK et agents",
+       "sub": "source",
+       "icon": "cloudwatch",
+       "note": "Applications, agent unifié, Elastic Beanstalk.",
+       "tone": "info"
+      },
+      {
+       "label": "Lambda, ECS",
+       "sub": "source",
+       "icon": "lambda",
+       "note": "Logs de fonctions et de conteneurs.",
+       "tone": "info"
+      },
+      {
+       "label": "Flow Logs, API GW",
+       "sub": "source",
+       "icon": "vpc",
+       "note": "VPC Flow Logs et API Gateway.",
+       "tone": "info"
+      },
+      {
+       "label": "CloudTrail, Route 53",
+       "sub": "source",
+       "icon": "cloudtrail",
+       "note": "CloudTrail (selon un filtre) et logs DNS Route 53.",
+       "tone": "info"
+      },
+      {
+       "label": "S3",
+       "sub": "destination",
+       "icon": "s3",
+       "note": "Exports vers S3 pour archivage et Athena.",
+       "tone": "good"
+      },
+      {
+       "label": "Kinesis",
+       "sub": "destination",
+       "icon": "kinesis",
+       "note": "Kinesis Data Streams et Data Firehose.",
+       "tone": "good"
+      },
+      {
+       "label": "Lambda",
+       "sub": "destination",
+       "icon": "lambda",
+       "note": "Traitement en réaction aux log events.",
+       "tone": "good"
+      },
+      {
+       "label": "OpenSearch",
+       "sub": "destination",
+       "icon": "opensearch",
+       "note": "Recherche et dashboards sur les logs.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "facts",
+     "title": "CloudWatch Logs : à retenir",
+     "items": [
+      {
+       "icon": "padlock",
+       "big": "Chiffré",
+       "label": "par défaut",
+       "sub": "clé KMS perso possible"
+      },
+      {
+       "icon": "gear",
+       "big": "1 j - 10 ans",
+       "label": "rétention configurable",
+       "sub": "ou jamais d'expiration"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decode",
+     "title": "Logs Insights : compter les erreurs",
+     "raw": "fields @timestamp, @message | filter @message like /ERROR/ | stats count() by bin(5m)",
+     "parts": [
+      {
+       "s": "fields @timestamp, @message",
+       "label": "Champs",
+       "note": "colonnes à afficher"
+      },
+      {
+       "s": "filter @message like /ERROR/",
+       "label": "Filtre",
+       "note": "garde les lignes contenant ERROR"
+      },
+      {
+       "s": "stats count() by bin(5m)",
+       "label": "Agrégat",
+       "note": "nombre d'erreurs par tranche de 5 minutes"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decode",
+     "title": "Logs Insights : top 10 des flux (Flow Logs)",
+     "raw": "stats sum(bytes) as total by srcAddr, dstAddr | sort total desc | limit 10",
+     "parts": [
+      {
+       "s": "stats sum(bytes) as total by srcAddr, dstAddr",
+       "label": "Agrégat",
+       "note": "total d'octets par couple source / destination"
+      },
+      {
+       "s": "sort total desc",
+       "label": "Tri",
+       "note": "du plus gros au plus petit"
+      },
+      {
+       "s": "limit 10",
+       "label": "Limite",
+       "note": "les 10 premiers"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "facts",
+     "title": "Logs Insights : à retenir",
+     "items": [
+      {
+       "icon": "cloudwatch",
+       "big": "Requêtes",
+       "label": "langage dédié",
+       "sub": "champs découverts automatiquement"
+      },
+      {
+       "icon": "users",
+       "big": "Multi-comptes",
+       "label": "plusieurs log groups",
+       "sub": "même de comptes différents"
+      },
+      {
+       "icon": "question",
+       "big": "Pas temps réel",
+       "label": "moteur de requête",
+       "sub": "sauvegarde et dashboards possibles"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cloudwatch",
+       "ctx": "Reçoit métriques et logs, les stocke, les cherche (Insights) et les redistribue."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Parameter Store centralise la configuration de l'agent."
+      },
+      {
+       "k": "iam",
+       "ctx": "Rôle d'instance : sans permissions, l'agent ne peut rien envoyer."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Serveurs sur lesquels tourne l'agent (comme les serveurs on-premises)."
+      },
+      {
+       "k": "kinesis",
+       "ctx": "Stream de logs en temps réel, y compris cross-account."
+      },
+      {
+       "k": "firehose",
+       "ctx": "Livre les logs vers S3 ou OpenSearch."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stockage long terme des exports de logs."
+      },
+      {
+       "k": "athena",
+       "ctx": "Analyse en SQL des logs stockés dans S3."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-05",
+  "services": [
+   "cloudwatch",
+   "sns",
+   "ec2",
+   "autoscaling",
+   "eventbridge",
+   "cloudtrail",
+   "lambda",
+   "vpc"
+  ],
+  "drop": [
+   1,
+   4,
+   6,
+   7,
+   8,
+   9,
+   12
+  ],
+  "shorten": {
+   "0": "Alarme ya3ni: \"ken el CPU fou9 80% l 5 dak2i2, 3ayetli\". Composite alarm: \"3ayetli ken CPU 3ali W el disque 3ali\" (ma tsa3ebnich b 100 alarme). EventBridge: \"ki yssir event (root d5al, EC2 tbaddel 7ala), ou5rej el action\"."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Trois déclencheurs de détection",
+     "center": {
+      "label": "Automatisation",
+      "sub": "voir, trier, réagir",
+      "icon": "cloudwatch"
+     },
+     "spokes": [
+      {
+       "label": "Alarms",
+       "sub": "une métrique, un seuil",
+       "icon": "cloudwatch",
+       "note": "Surveille UNE métrique et déclenche des actions : SNS, Auto Scaling, actions EC2.",
+       "tone": "warn"
+      },
+      {
+       "label": "Contributor Insights",
+       "sub": "top talkers",
+       "icon": "finding",
+       "note": "Analyse des logs pour trouver qui contribue le plus : mauvais hôtes, URL en erreur.",
+       "tone": "info"
+      },
+      {
+       "label": "EventBridge",
+       "sub": "événements et horaires",
+       "icon": "eventbridge",
+       "note": "Bus d'événements serverless : réagit à une action d'un service ou à un cron.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Alarme : les 3 notions à retenir",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "cloudwatch",
+       "t": "3 états",
+       "d": "OK, INSUFFICIENT_DATA, ALARM.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "Period",
+       "d": "Durée d'évaluation en secondes ; haute résolution custom : 10 s, 30 s ou multiples de 60 s.",
+       "tone": "info"
+      },
+      {
+       "icon": "sns",
+       "t": "Cibles",
+       "d": "Stop, terminate, reboot, recover d'une EC2 ; action Auto Scaling ; SNS vers presque tout.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "compare",
+     "title": "Alarme simple vs composite alarm",
+     "cols": [
+      {
+       "name": "Alarme simple",
+       "tag": "une métrique",
+       "icon": "cloudwatch",
+       "points": [
+        "Surveille une seule métrique",
+        "Actions sur seuil, échantillonnage, pourcentage, max, min"
+       ],
+       "use": "Un seuil unique : CPU, erreurs, statut."
+      },
+      {
+       "name": "Composite alarm",
+       "tag": "plusieurs alarmes",
+       "icon": "cloudwatch",
+       "points": [
+        "Surveille l'état d'autres alarmes",
+        "Conditions AND / OR",
+        "Réduit l'alarm noise"
+       ],
+       "use": "Alerter seulement si CPU élevé ET IOPS élevés."
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "decode",
+     "title": "Créer une composite alarm en CLI",
+     "raw": "aws cloudwatch put-composite-alarm --alarm-name HighLoad --alarm-rule \"ALARM(HighCPU) AND ALARM(HighIOPS)\" --alarm-actions arn:aws:sns:eu-west-1:111122223333:ops-topic",
+     "parts": [
+      {
+       "s": "put-composite-alarm",
+       "label": "Commande",
+       "note": "crée une alarme composite"
+      },
+      {
+       "s": "--alarm-name HighLoad",
+       "label": "Nom",
+       "note": "nom de l'alarme composite"
+      },
+      {
+       "s": "ALARM(HighCPU) AND ALARM(HighIOPS)",
+       "label": "Règle",
+       "note": "alerte seulement si les deux alarmes sont en ALARM"
+      },
+      {
+       "s": "arn:aws:sns:eu-west-1:111122223333:ops-topic",
+       "label": "Action",
+       "note": "topic SNS notifié"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "pipeline",
+     "title": "EC2 Instance Recovery",
+     "stages": [
+      {
+       "label": "Panne matérielle",
+       "sub": "sous la VM EC2",
+       "icon": "server",
+       "tone": "bad"
+      },
+      {
+       "label": "StatusCheckFailed_System",
+       "sub": "métrique surveillée",
+       "icon": "cloudwatch",
+       "tone": "warn"
+      },
+      {
+       "label": "Alarm : action recover",
+       "sub": "automate:ec2:recover",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Instance récupérée",
+       "sub": "mêmes IP, metadata, placement",
+       "icon": "ec2",
+       "tone": "good"
+      },
+      {
+       "label": "SNS en parallèle",
+       "sub": "alerte l'équipe",
+       "icon": "sns"
+      }
+     ],
+     "caption": "L'instance recréée garde IP privée, IP publique, Elastic IP, metadata et placement group."
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cards",
+     "title": "Les 3 status checks EC2",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Instance status",
+       "d": "Vérifie la VM EC2 elle-même.",
+       "tone": "info"
+      },
+      {
+       "icon": "server",
+       "t": "System status",
+       "d": "Vérifie le matériel sous-jacent : c'est lui qui déclenche recover.",
+       "tone": "warn"
+      },
+      {
+       "icon": "ebs",
+       "t": "Attached EBS status",
+       "d": "Vérifie les volumes EBS attachés.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "pipeline",
+     "title": "Alarme sur un metric filter de logs",
+     "stages": [
+      {
+       "label": "CloudWatch Logs",
+       "sub": "logs reçus",
+       "icon": "cloudwatch"
+      },
+      {
+       "label": "Metric filter",
+       "sub": "filtre sur un motif",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Métrique",
+       "sub": "le compteur",
+       "icon": "cloudwatch"
+      },
+      {
+       "label": "Alarm",
+       "sub": "dépassement du seuil",
+       "icon": "cloudwatch",
+       "tone": "warn"
+      },
+      {
+       "label": "SNS",
+       "sub": "notification",
+       "icon": "sns",
+       "tone": "good"
+      }
+     ],
+     "caption": "Base de la détection par seuil sur les logs (voir la leçon CloudTrail)."
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "pipeline",
+     "title": "Contributor Insights : top 10 des IP",
+     "stages": [
+      {
+       "label": "VPC Flow Logs",
+       "sub": "trafic du VPC",
+       "icon": "vpc"
+      },
+      {
+       "label": "CloudWatch Logs",
+       "sub": "stockage des logs",
+       "icon": "cloudwatch"
+      },
+      {
+       "label": "Contributor Insights",
+       "sub": "règle intégrée ou perso",
+       "icon": "finding",
+       "tone": "info"
+      },
+      {
+       "label": "Top talkers",
+       "sub": "séries temporelles",
+       "icon": "users",
+       "tone": "good"
+      }
+     ],
+     "caption": "Fonctionne avec tout log AWS stocké dans CloudWatch Logs : on voit qui est responsable de la hausse de trafic ou d'erreurs."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "hub",
+     "title": "EventBridge : règles, bus et cibles",
+     "center": {
+      "label": "EventBridge",
+      "sub": "bus d'événements serverless",
+      "icon": "eventbridge"
+     },
+     "spokes": [
+      {
+       "label": "Règle Schedule",
+       "sub": "cron",
+       "icon": "eventbridge",
+       "note": "Exemple : toutes les heures, exécute une Lambda.",
+       "tone": "info"
+      },
+      {
+       "label": "Règle Event pattern",
+       "sub": "réaction",
+       "icon": "finding",
+       "note": "Réagit à une action : connexion root, EC2 qui change d'état, appel API via CloudTrail.",
+       "tone": "warn"
+      },
+      {
+       "label": "Bus default",
+       "sub": "services AWS",
+       "icon": "internet",
+       "note": "Reçoit les événements des services AWS.",
+       "tone": "neutral"
+      },
+      {
+       "label": "Bus partner",
+       "sub": "SaaS",
+       "icon": "building",
+       "note": "Événements de SaaS partenaires.",
+       "tone": "neutral"
+      },
+      {
+       "label": "Bus custom",
+       "sub": "tes applications",
+       "icon": "gear",
+       "note": "Événements émis par tes propres applications.",
+       "tone": "neutral"
+      },
+      {
+       "label": "Archive et replay",
+       "sub": "rejouer",
+       "icon": "document",
+       "note": "Archive tous les événements ou une partie, durée définie ou indéfinie, puis rejeu.",
+       "tone": "good"
+      },
+      {
+       "label": "Cibles",
+       "sub": "targets",
+       "icon": "lambda",
+       "note": "Lambda, SQS, SNS, Kinesis, Step Functions, CodePipeline, CodeBuild, ECS, Batch, SSM, actions EC2.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "cards",
+     "title": "Schema Registry",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "eventbridge",
+       "t": "Inférence",
+       "d": "Analyse les événements du bus et déduit leur schéma.",
+       "tone": "info"
+      },
+      {
+       "icon": "cdk",
+       "t": "Code généré",
+       "d": "Génère du code qui connaît à l'avance la structure des données.",
+       "tone": "good"
+      },
+      {
+       "icon": "document",
+       "t": "Versionné",
+       "d": "Les schémas sont versionnés.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "decision",
+     "title": "Quel outil de détection choisir ?",
+     "root": {
+      "q": "Surveiller une métrique avec un seuil ?",
+      "yes": {
+       "q": "Combiner plusieurs alarmes (AND / OR) ?",
+       "yes": {
+        "a": "Composite alarm",
+        "icon": "cloudwatch",
+        "tone": "good",
+        "why": "Réduit le bruit d'alarmes"
+       },
+       "no": {
+        "a": "Alarme simple",
+        "icon": "cloudwatch",
+        "tone": "info",
+        "why": "Une métrique, un seuil"
+       }
+      },
+      "no": {
+       "q": "Réagir à un événement ou à un horaire ?",
+       "yes": {
+        "a": "EventBridge",
+        "icon": "eventbridge",
+        "tone": "good",
+        "why": "Event pattern ou schedule vers une cible"
+       },
+       "no": {
+        "a": "Contributor Insights",
+        "icon": "finding",
+        "tone": "info",
+        "why": "Trouver les top talkers dans les logs"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cloudwatch",
+       "ctx": "Alarmes sur métriques, composite alarms et Contributor Insights."
+      },
+      {
+       "k": "sns",
+       "ctx": "Cible habituelle des alarmes : notifie par email ou chat."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Cible de l'action recover quand le matériel tombe en panne."
+      },
+      {
+       "k": "autoscaling",
+       "ctx": "Action d'alarme possible : ajuster la capacité."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Bus d'événements : règles schedule et event pattern vers des cibles."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Fournit les appels API sur lesquels EventBridge réagit."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Cible fréquente : exécute la remédiation."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Ses Flow Logs alimentent Contributor Insights."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-06",
+  "services": [
+   "cloudtrail",
+   "s3",
+   "cloudwatch",
+   "eventbridge",
+   "athena",
+   "sns",
+   "iam",
+   "orgs"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   6,
+   10,
+   13,
+   16
+  ],
+  "shorten": {
+   "0": "Lazem tfarreq: CloudTrail ya3ni les ACTIONS (api calls: chkoun fasakh el bucket), mouch el paquets réseau (Flow Logs) w mouch les attaques intelligentes (GuardDuty). W mayetsajjelch fil wa9t el 7a9i9i: yparti b chwaya ta2khir."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "pipeline",
+     "title": "CloudTrail : de l'appel API à l'enquête",
+     "stages": [
+      {
+       "label": "Appel API",
+       "sub": "console, SDK, CLI, services",
+       "icon": "cli"
+      },
+      {
+       "label": "CloudTrail",
+       "sub": "enregistre l'événement",
+       "icon": "cloudtrail",
+       "tone": "info"
+      },
+      {
+       "label": "Trail",
+       "sub": "S3 et/ou CloudWatch Logs",
+       "icon": "s3",
+       "tone": "good"
+      },
+      {
+       "label": "Investigation",
+       "sub": "Athena, Lake, alerte",
+       "icon": "athena",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Règle d'or : si une ressource est supprimée dans AWS, investigue CloudTrail en premier. Un trail couvre toutes les Régions par défaut."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "facts",
+     "title": "Rapidité et portée de CloudTrail",
+     "items": [
+      {
+       "icon": "eventbridge",
+       "big": "15 min",
+       "label": "livraison à EventBridge",
+       "sub": "au plus après l'appel"
+      },
+      {
+       "icon": "s3",
+       "big": "~5 min",
+       "label": "fichiers de log dans S3",
+       "sub": "pas du temps réel"
+      },
+      {
+       "icon": "internet",
+       "big": "Toutes",
+       "label": "Régions par défaut",
+       "sub": "trail multi-Région"
+      },
+      {
+       "icon": "cloudtrail",
+       "big": "90 j",
+       "label": "Event history",
+       "sub": "dans la console"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Les 3 types d'événements",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "iam",
+       "t": "Management events",
+       "d": "Opérations de gestion, Read ou Write. Actifs par défaut. Ex : AttachRolePolicy, CreateSubnet, CreateTrail.",
+       "tone": "good"
+      },
+      {
+       "icon": "s3",
+       "t": "Data events",
+       "d": "Activité sur les données, très volumineuse. À activer. Ex : S3 GetObject, PutObject, DeleteObject ; Lambda Invoke.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Insights events",
+       "d": "Activité inhabituelle détectée par analyse. À activer. Ex : pics d'actions IAM, limites de service.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "stack",
+     "title": "Où conserver l'historique ?",
+     "layers": [
+      {
+       "label": "Event history",
+       "sub": "console, recherche rapide",
+       "icon": "cloudtrail",
+       "tone": "neutral",
+       "tags": [
+        "90 jours"
+       ]
+      },
+      {
+       "label": "Trail vers S3 + Athena",
+       "sub": "aussi longtemps que les objets",
+       "icon": "s3",
+       "tone": "info",
+       "tags": [
+        "SQL Athena"
+       ]
+      },
+      {
+       "label": "CloudTrail Lake",
+       "sub": "data lake managé, immuable",
+       "icon": "database",
+       "tone": "good",
+       "tags": [
+        "10 ans",
+        "SQL"
+       ]
+      }
+     ],
+     "side": "du plus court au plus long"
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "hub",
+     "title": "CloudTrail Lake",
+     "center": {
+      "label": "CloudTrail Lake",
+      "sub": "data store central managé",
+      "icon": "database"
+     },
+     "spokes": [
+      {
+       "label": "Contenu",
+       "sub": "événements variés",
+       "icon": "cloudtrail",
+       "note": "Management, data, network activity, Insights, Config configuration items, Audit Manager, événements tiers.",
+       "tone": "info"
+      },
+      {
+       "label": "SQL",
+       "sub": "requêtes",
+       "icon": "athena",
+       "note": "Interroge les événements en SQL.",
+       "tone": "info"
+      },
+      {
+       "label": "Immuable",
+       "sub": "jusqu'à 10 ans",
+       "icon": "padlock",
+       "note": "Stockage immuable, rétention jusqu'à 10 ans.",
+       "tone": "good"
+      },
+      {
+       "label": "Organization",
+       "sub": "multi-comptes",
+       "icon": "orgs",
+       "note": "Événements de toute une Organization : plusieurs comptes et Régions.",
+       "tone": "info"
+      },
+      {
+       "label": "Resource policy",
+       "sub": "accès",
+       "icon": "iam",
+       "note": "Resource-based policy attachable au data store.",
+       "tone": "warn"
+      },
+      {
+       "label": "Query validation",
+       "sub": "intégrité",
+       "icon": "document",
+       "note": "Vérifie que les résultats n'ont pas été altérés.",
+       "tone": "good"
+      },
+      {
+       "label": "Dashboards",
+       "sub": "sans SQL",
+       "icon": "quicksight",
+       "note": "Dashboards prêts à l'emploi : suppression de trails, erreurs access denied.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "stack",
+     "title": "Protéger les logs eux-mêmes",
+     "layers": [
+      {
+       "label": "IAM sur CloudTrail",
+       "sub": "qui peut StopLogging / DeleteTrail",
+       "icon": "iam",
+       "tone": "warn"
+      },
+      {
+       "label": "Bucket policy stricte",
+       "sub": "accès au bucket de logs",
+       "icon": "s3",
+       "tone": "warn"
+      },
+      {
+       "label": "Versioning + MFA Delete",
+       "sub": "anti-suppression",
+       "icon": "mfa",
+       "tone": "info"
+      },
+      {
+       "label": "Chiffrement",
+       "sub": "SSE-KMS",
+       "icon": "kms",
+       "tone": "info"
+      },
+      {
+       "label": "Object Lock",
+       "sub": "immuabilité des objets",
+       "icon": "padlock",
+       "tone": "good"
+      },
+      {
+       "label": "Integrity Validation",
+       "sub": "détecte, n'empêche pas",
+       "icon": "document",
+       "tone": "bad"
+      }
+     ],
+     "side": "empêcher, puis détecter"
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "decision",
+     "title": "Quel outil pour quelle question ?",
+     "root": {
+      "q": "Historique au-delà de 90 jours ?",
+      "yes": {
+       "q": "SQL managé multi-comptes, jusqu'à 10 ans ?",
+       "yes": {
+        "a": "CloudTrail Lake",
+        "icon": "database",
+        "tone": "good",
+        "why": "Data lake managé et immuable"
+       },
+       "no": {
+        "a": "Trail S3 + Athena",
+        "icon": "athena",
+        "tone": "info",
+        "why": "Rétention longue, analyses SQL"
+       }
+      },
+      "no": {
+       "q": "Prouver qu'un log n'a pas été modifié ?",
+       "yes": {
+        "a": "Integrity Validation",
+        "icon": "document",
+        "tone": "good",
+        "why": "Digest files, SHA-256 + RSA"
+       },
+       "no": {
+        "q": "Alerter sur un appel API précis ?",
+        "yes": {
+         "a": "CloudTrail + EventBridge",
+         "icon": "eventbridge",
+         "tone": "good",
+         "why": "Ou metric filter + alarme pour un seuil"
+        },
+        "no": {
+         "a": "Event history",
+         "icon": "cloudtrail",
+         "tone": "neutral",
+         "why": "90 jours, recherche dans la console"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cloudtrail",
+       "ctx": "Enregistre les appels API : qui, quoi, quand, d'où."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stocke les log files et digest files du trail."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Reçoit les logs pour metric filters et alarmes."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Réagit à un appel API précis, dans les 15 minutes."
+      },
+      {
+       "k": "athena",
+       "ctx": "Interroge en SQL les logs CloudTrail stockés dans S3."
+      },
+      {
+       "k": "sns",
+       "ctx": "Envoie l'alerte à l'équipe."
+      },
+      {
+       "k": "iam",
+       "ctx": "Contrôle qui peut arrêter ou supprimer un trail."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Organization trail : un seul trail pour tous les comptes."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-07",
+  "services": [
+   "athena",
+   "macie",
+   "s3",
+   "quicksight",
+   "kms",
+   "eventbridge",
+   "sqs",
+   "lambda"
+  ],
+  "drop": [
+   1,
+   2,
+   6,
+   7,
+   10,
+   13
+  ],
+  "shorten": {
+   "0": "Athena ma ya3mel 7ata serveur: tdfa3 ken 3ala 9addech men données 9ra. Macie yfatesh el buckets bil ML bch ymayiz el données sensibles. S3 Event Notifications tbaathou lil Lambda, SQS wala SNS ki objet jdid yousel."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Trois outils, trois questions",
+     "center": {
+      "label": "Données dans S3",
+      "sub": "analyser, protéger, réagir",
+      "icon": "s3"
+     },
+     "spokes": [
+      {
+       "label": "Athena",
+       "sub": "SQL serverless",
+       "icon": "athena",
+       "note": "Analyser en SQL les logs et données stockés dans S3.",
+       "tone": "info"
+      },
+      {
+       "label": "Macie",
+       "sub": "données sensibles",
+       "icon": "macie",
+       "note": "Découvrir PII, credentials et données financières dans les buckets.",
+       "tone": "warn"
+      },
+      {
+       "label": "S3 Event Notifications",
+       "sub": "réaction",
+       "icon": "sns",
+       "note": "Réagir automatiquement quand un objet est créé, supprimé ou restauré.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "facts",
+     "title": "Athena : à retenir",
+     "items": [
+      {
+       "icon": "athena",
+       "big": "Serverless",
+       "label": "SQL standard sur S3",
+       "sub": "basé sur Presto"
+      },
+      {
+       "icon": "document",
+       "big": "5 $ / To",
+       "label": "de données scannées",
+       "sub": "selon le cours"
+      },
+      {
+       "icon": "s3",
+       "big": "5 formats",
+       "label": "CSV, JSON, ORC, Avro, Parquet"
+      },
+      {
+       "icon": "quicksight",
+       "big": "BI",
+       "label": "reporting avec QuickSight",
+       "sub": "Flow Logs, ELB logs, CloudTrail"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Réduire le coût et accélérer Athena",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "glue",
+       "t": "Format colonnaire",
+       "d": "Parquet ou ORC : seules les colonnes utiles sont lues. Glue peut convertir.",
+       "tone": "good"
+      },
+      {
+       "icon": "document",
+       "t": "Compression",
+       "d": "gzip, bzip2, lz4, snappy, zstd : fichiers plus petits à lire.",
+       "tone": "good"
+      },
+      {
+       "icon": "s3",
+       "t": "Partitionnement",
+       "d": "On ne lit que les dossiers concernés (colonnes virtuelles).",
+       "tone": "good"
+      },
+      {
+       "icon": "disk",
+       "t": "Fichiers plus gros",
+       "d": "Au-delà de 128 MB : moins d'overhead par fichier.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "text",
+     "title": "Macie en bref",
+     "md": "Des fichiers avec cartes bancaires, clés privées ou PII traînent dans un bucket parfois public. **Amazon Macie** est un service managé qui utilise le **machine learning** et le **pattern matching** pour découvrir et protéger les données sensibles dans S3. Intégrations : EventBridge, Security Hub, S3."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Comment Macie reconnaît une donnée sensible",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "macie",
+       "t": "Managed data identifier",
+       "d": "Critères intégrés : cartes bancaires, credentials AWS, comptes bancaires.",
+       "tone": "good"
+      },
+      {
+       "icon": "gear",
+       "t": "Custom data identifier",
+       "d": "Tes critères : regex, mots-clés, proximité. Ex : identifiants employés.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Allow list",
+       "d": "Motif de texte à ignorer. Ex : numéros de téléphone publics.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "compare",
+     "title": "Les deux familles de findings Macie",
+     "cols": [
+      {
+       "name": "Policy findings",
+       "tag": "bucket",
+       "icon": "s3",
+       "points": [
+        "Violation de policy ou problème de sécurité d'un bucket",
+        "Chiffrement par défaut désactivé, bucket public",
+        "Policy:IAMUser/S3BucketPublic",
+        "Détecte les changements après l'activation de Macie"
+       ],
+       "use": "Exemple : Policy:IAMUser/S3BucketEncryptionDisabled."
+      },
+      {
+       "name": "Sensitive data findings",
+       "tag": "objets",
+       "icon": "macie",
+       "points": [
+        "Données sensibles trouvées dans les objets",
+        "SensitiveData:S3Object/Credentials",
+        "SensitiveData:S3Object/Financial",
+        "SensitiveData:S3Object/CustomIdentifier"
+       ],
+       "use": "Chaque finding : sévérité, ressource affectée, date."
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "facts",
+     "title": "Findings Macie : repères",
+     "items": [
+      {
+       "icon": "finding",
+       "big": "90 jours",
+       "label": "conservation des findings"
+      },
+      {
+       "icon": "gear",
+       "big": "Suppression rules",
+       "label": "archivage automatique",
+       "sub": "selon des critères d'attributs"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "pipeline",
+     "title": "S3 Event Notifications",
+     "stages": [
+      {
+       "label": "Objet déposé",
+       "sub": "ObjectCreated, Removed...",
+       "icon": "s3"
+      },
+      {
+       "label": "Événement S3",
+       "sub": "filtre par nom : *.jpg",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Destination",
+       "sub": "SNS, SQS ou Lambda",
+       "icon": "sns",
+       "tone": "good"
+      },
+      {
+       "label": "Réaction",
+       "sub": "miniature, scan, ingestion",
+       "icon": "lambda",
+       "tone": "good"
+      }
+     ],
+     "caption": "Événements : s3:ObjectCreated, ObjectRemoved, ObjectRestore, Replication. Délai : en général quelques secondes, parfois une minute ou plus."
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "decision",
+     "title": "Notification S3 native ou EventBridge ?",
+     "root": {
+      "q": "Besoin de filtres JSON fins, plusieurs cibles, archive ou replay ?",
+      "yes": {
+       "a": "S3 vers EventBridge",
+       "icon": "eventbridge",
+       "tone": "good",
+       "why": "Plus de 18 services en destination, livraison fiable"
+      },
+      "no": {
+       "q": "Une seule destination : SNS, SQS ou Lambda ?",
+       "yes": {
+        "a": "Notifications natives",
+        "icon": "s3",
+        "tone": "info",
+        "why": "Une resource policy par destination"
+       },
+       "no": {
+        "a": "EventBridge",
+        "icon": "eventbridge",
+        "tone": "good",
+        "why": "Dès qu'il faut plus de souplesse"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "athena",
+       "ctx": "Interroge en SQL serverless les logs stockés dans S3."
+      },
+      {
+       "k": "macie",
+       "ctx": "Découvre les données sensibles et les buckets mal protégés."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stocke logs et données ; émet les événements d'objets."
+      },
+      {
+       "k": "quicksight",
+       "ctx": "Visualise les résultats d'Athena ; besoin d'accès à la clé KMS."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffre les données : sans droit sur la clé, la lecture échoue."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Reçoit les findings Macie et les événements S3 avancés."
+      },
+      {
+       "k": "sqs",
+       "ctx": "File de destination d'une notification, via resource policy."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Traite l'objet déposé ou réagit au finding."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-08",
+  "services": [
+   "vpc",
+   "cloudwatch",
+   "s3",
+   "athena",
+   "elb",
+   "route53",
+   "guardduty",
+   "lambda"
+  ],
+  "drop": [
+   1,
+   4,
+   8,
+   9
+  ],
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "4 outils pour voir le réseau",
+     "center": {
+      "label": "Visibilité réseau",
+      "sub": "que circule-t-il ?",
+      "icon": "vpc"
+     },
+     "spokes": [
+      {
+       "label": "VPC Flow Logs",
+       "sub": "métadonnées",
+       "icon": "vpc",
+       "note": "Qui parle à qui, sur quel port, ACCEPT ou REJECT. Ne lit pas le contenu.",
+       "tone": "info"
+      },
+      {
+       "label": "Traffic Mirroring",
+       "sub": "paquets complets",
+       "icon": "elb",
+       "note": "Copie les paquets vers des appliances que tu gères : inspection de contenu, forensique.",
+       "tone": "warn"
+      },
+      {
+       "label": "Network Access Analyzer",
+       "sub": "chemins possibles",
+       "icon": "internet",
+       "note": "Analyse les chemins réseau possibles, pas le trafic réel.",
+       "tone": "good"
+      },
+      {
+       "label": "DNS logging",
+       "sub": "requêtes DNS",
+       "icon": "route53",
+       "note": "Route 53 query logging (zones publiques) et Resolver Query Logging (VPC).",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "VPC Flow Logs : de la capture à l'analyse",
+     "stages": [
+      {
+       "label": "VPC, subnet ou ENI",
+       "sub": "3 niveaux de capture",
+       "icon": "vpc"
+      },
+      {
+       "label": "Flow Logs",
+       "sub": "trafic IP entrant et sortant",
+       "icon": "vpc",
+       "tone": "info"
+      },
+      {
+       "label": "Destination",
+       "sub": "S3, CloudWatch, Firehose",
+       "icon": "s3",
+       "tone": "good"
+      },
+      {
+       "label": "Analyse",
+       "sub": "Athena ou Logs Insights",
+       "icon": "athena",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Capte aussi les interfaces gérées par AWS : ELB, RDS, ElastiCache, Redshift, WorkSpaces, NAT Gateway, Transit Gateway. Usages : troubleshooting, monitoring, détection de comportements malveillants."
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "matrix",
+     "title": "Diagnostic rapide avec le champ ACTION",
+     "rows": [
+      "Entrant REJECT",
+      "Entrant ACCEPT puis sortant REJECT",
+      "Sortant REJECT",
+      "Sortant ACCEPT puis entrant REJECT"
+     ],
+     "cols": [
+      "Security Group",
+      "NACL"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Coupable possible",
+      "no": "Écarté"
+     }
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "compare",
+     "title": "Pourquoi la NACL est seule en cause sur le retour",
+     "cols": [
+      {
+       "name": "Security Group",
+       "tag": "stateful",
+       "icon": "firewall",
+       "points": [
+        "Si l'aller est autorisé, le retour l'est aussi",
+        "Un REJECT sur le retour ne vient donc pas de lui"
+       ],
+       "use": "Niveau instance."
+      },
+      {
+       "name": "NACL",
+       "tag": "stateless",
+       "icon": "padlock",
+       "points": [
+        "Entrée et sortie évaluées séparément",
+        "Peut bloquer le retour d'un trafic accepté à l'aller"
+       ],
+       "use": "Niveau subnet."
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "Trafic NON capturé par les Flow Logs",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "route53",
+       "t": "Serveur DNS Amazon",
+       "d": "Le trafic vers un DNS personnalisé, lui, est loggé.",
+       "tone": "warn"
+      },
+      {
+       "icon": "ec2",
+       "t": "Metadata et Time Sync",
+       "d": "Trafic vers 169.254.169.254 et 169.254.169.123.",
+       "tone": "warn"
+      },
+      {
+       "icon": "server",
+       "t": "DHCP et licence Windows",
+       "d": "DHCP et activation de licence Windows Amazon.",
+       "tone": "warn"
+      },
+      {
+       "icon": "elb",
+       "t": "Trafic mirroré",
+       "d": "Le trafic copié par Traffic Mirroring n'est pas loggé.",
+       "tone": "warn"
+      },
+      {
+       "icon": "vpc",
+       "t": "IP du routeur VPC",
+       "d": "Ex : 10.0.0.1, IP réservée du routeur.",
+       "tone": "warn"
+      },
+      {
+       "icon": "privatelink",
+       "t": "Endpoint et NLB",
+       "d": "Entre l'ENI d'un VPC endpoint et l'ENI d'un NLB.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "callout",
+     "tone": "exam",
+     "title": "Piège d'examen",
+     "text": "L'absence d'une ligne dans les Flow Logs ne prouve pas l'absence de trafic."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "pipeline",
+     "title": "Traffic Mirroring : de la source à l'appliance",
+     "stages": [
+      {
+       "label": "Source",
+       "sub": "ENIs",
+       "icon": "ec2"
+      },
+      {
+       "label": "Filtre",
+       "sub": "tout ou paquets d'intérêt",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Cible",
+       "sub": "ENI ou Network LB (VXLAN)",
+       "icon": "elb",
+       "tone": "good"
+      },
+      {
+       "label": "Appliance",
+       "sub": "inspection, détection",
+       "icon": "firewall",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Source et cible dans le même VPC ou des VPC différents (peering). Troncature possible des paquets."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "compare",
+     "title": "Flow Logs vs Traffic Mirroring",
+     "cols": [
+      {
+       "name": "VPC Flow Logs",
+       "tag": "métadonnées",
+       "icon": "vpc",
+       "points": [
+        "IP source et destination, ports, ACCEPT ou REJECT",
+        "Ne contient pas le contenu des paquets"
+       ],
+       "use": "Troubleshooting et analytique d'usage."
+      },
+      {
+       "name": "Traffic Mirroring",
+       "tag": "paquets complets",
+       "icon": "elb",
+       "points": [
+        "Copie les paquets vers tes appliances",
+        "Contenu inspectable"
+       ],
+       "use": "Inspection de contenu et analyse forensique."
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "decision",
+     "title": "Quel outil réseau choisir ?",
+     "root": {
+      "q": "Besoin du contenu des paquets ?",
+      "yes": {
+       "a": "Traffic Mirroring",
+       "icon": "elb",
+       "tone": "warn",
+       "why": "Inspection de contenu, forensique"
+      },
+      "no": {
+       "q": "Comprendre un ACCEPT / REJECT ou le trafic observé ?",
+       "yes": {
+        "a": "VPC Flow Logs",
+        "icon": "vpc",
+        "tone": "info",
+        "why": "Métadonnées : SG ou NACL ?"
+       },
+       "no": {
+        "q": "Vérifier les chemins possibles (ex : base joignable depuis Internet) ?",
+        "yes": {
+         "a": "Network Access Analyzer",
+         "icon": "internet",
+         "tone": "good",
+         "why": "Analyse des chemins avec un Network Access Scope"
+        },
+        "no": {
+         "a": "Resolver Query Logging",
+         "icon": "route53",
+         "tone": "info",
+         "why": "Requêtes DNS faites par le VPC"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "vpc",
+       "ctx": "Flow Logs, Traffic Mirroring et analyse des chemins réseau du VPC."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Reçoit les Flow Logs et les logs DNS ; Insights et metric filters."
+      },
+      {
+       "k": "s3",
+       "ctx": "Destination des Flow Logs et des logs Resolver pour l'archivage."
+      },
+      {
+       "k": "athena",
+       "ctx": "Interroge en SQL les Flow Logs stockés dans S3."
+      },
+      {
+       "k": "elb",
+       "ctx": "Network Load Balancer : cible centralisée du Traffic Mirroring."
+      },
+      {
+       "k": "route53",
+       "ctx": "Journalise les requêtes DNS publiques et celles du VPC."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Un finding peut déclencher l'activation du mirroring."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Automatise le lancement de l'appliance et du mirroring."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d1-09",
+  "services": [
+   "opensearch",
+   "guardduty",
+   "securityhub",
+   "detective",
+   "cloudtrail",
+   "cloudwatch",
+   "firehose",
+   "athena"
+  ],
+  "drop": [
+   1,
+   5,
+   6
+  ],
+  "shorten": {
+   "0": "DynamoDB ma yelwejch ken bel clé. OpenSearch yelwej 3la ay champ, 7ata partiel: tbaath lih les logs (CloudWatch Logs, Firehose) w tfatesh w tarsem graphes. Lazem tfarreq: public access (endpoint 3al internet) wala VPC access (dakhel el réseau)."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "pipeline",
+     "title": "OpenSearch : chercher et visualiser les logs",
+     "stages": [
+      {
+       "label": "Sources de logs",
+       "sub": "CloudWatch Logs, IoT",
+       "icon": "cloudwatch"
+      },
+      {
+       "label": "Ingestion",
+       "sub": "Firehose, Lambda, Kinesis",
+       "icon": "firehose",
+       "tone": "info"
+      },
+      {
+       "label": "OpenSearch",
+       "sub": "recherche sur tout champ",
+       "icon": "opensearch",
+       "tone": "good"
+      },
+      {
+       "label": "Dashboards",
+       "sub": "graphes et exploration",
+       "icon": "grafana",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Successeur d'Elasticsearch, souvent utilisé en complément d'une autre base."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Amazon OpenSearch Service : à retenir",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "opensearch",
+       "t": "Recherche libre",
+       "d": "Sur n'importe quel champ, même en correspondance partielle ; là où DynamoDB exige la clé.",
+       "tone": "good"
+      },
+      {
+       "icon": "database",
+       "t": "Deux modes",
+       "d": "Cluster managé ou serverless.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Pas de SQL natif",
+       "d": "Un plugin SQL est possible.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Sécurité",
+       "d": "Cognito et IAM, chiffrement KMS, TLS.",
+       "tone": "info"
+      },
+      {
+       "icon": "firehose",
+       "t": "Ingestion",
+       "d": "Kinesis Data Firehose, AWS IoT et CloudWatch Logs.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "stack",
+     "title": "Surveiller l'activité du compte : quel outil selon la période ?",
+     "layers": [
+      {
+       "label": "Config configuration history",
+       "sub": "configuration recorder activé",
+       "icon": "config",
+       "tone": "info",
+       "tags": [
+        "configurations"
+       ]
+      },
+      {
+       "label": "CloudTrail Event history",
+       "sub": "appels API",
+       "icon": "cloudtrail",
+       "tone": "good",
+       "tags": [
+        "90 jours"
+       ]
+      },
+      {
+       "label": "CloudWatch Logs Insights",
+       "sub": "si le trail envoie vers CWL",
+       "icon": "cloudwatch",
+       "tone": "warn",
+       "tags": [
+        "> 90 jours"
+       ]
+      },
+      {
+       "label": "Athena",
+       "sub": "logs CloudTrail dans S3",
+       "icon": "athena",
+       "tone": "warn",
+       "tags": [
+        "> 90 jours"
+       ]
+      }
+     ],
+     "side": "de l'historique de configuration à l'historique d'API long"
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Table de décision 1 : menaces et vulnérabilités",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "guardduty",
+       "t": "GuardDuty",
+       "d": "Une menace est-elle en cours (crypto-mining, IP malveillante, credentials volés) ?",
+       "tone": "warn"
+      },
+      {
+       "icon": "detective",
+       "t": "Detective",
+       "d": "Comment c'est arrivé ? Cause racine, ressources touchées ?",
+       "tone": "info"
+      },
+      {
+       "icon": "inspector",
+       "t": "Inspector",
+       "d": "Mes EC2, images ECR ou Lambda ont-elles des CVE ou une exposition réseau ?",
+       "tone": "info"
+      },
+      {
+       "icon": "macie",
+       "t": "Macie",
+       "d": "Où sont les PII et données sensibles dans S3 ?",
+       "tone": "info"
+      },
+      {
+       "icon": "securityhub",
+       "t": "Security Hub (avec Config)",
+       "d": "Une vue unique des findings multi-comptes et la conformité CIS / PCI ?",
+       "tone": "good"
+      },
+      {
+       "icon": "internet",
+       "t": "Network Access Analyzer",
+       "d": "Une base est-elle joignable depuis Internet ?",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Table de décision 2 : audit des appels API",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "cloudtrail",
+       "t": "CloudTrail",
+       "d": "Qui a supprimé cette ressource, depuis quelle IP ? Event history, puis S3 + Athena ou Lake.",
+       "tone": "good"
+      },
+      {
+       "icon": "eventbridge",
+       "t": "CloudTrail + EventBridge",
+       "d": "Alerte quand un appel API précis se produit.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Metric filter + alarme",
+       "d": "Seuil : plus de 30 StartInstances ? CloudTrail vers CloudWatch Logs, filtre, alarme.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "CloudTrail Insights",
+       "d": "Activité API inhabituelle, comme une rafale d'actions IAM.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Table de décision 3 : réseau, logs et réaction",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "vpc",
+       "t": "VPC Flow Logs",
+       "d": "Pourquoi cette connexion est-elle rejetée : Security Group ou NACL ?",
+       "tone": "info"
+      },
+      {
+       "icon": "elb",
+       "t": "Traffic Mirroring",
+       "d": "Inspecter le contenu des paquets ?",
+       "tone": "info"
+      },
+      {
+       "icon": "route53",
+       "t": "Resolver Query Logging",
+       "d": "Quelles requêtes DNS fait mon VPC ?",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Contributor Insights",
+       "d": "Qui sont les top talkers dans mes logs ?",
+       "tone": "info"
+      },
+      {
+       "icon": "opensearch",
+       "t": "OpenSearch",
+       "d": "Rechercher du texte libre dans des logs avec dashboards ?",
+       "tone": "good"
+      },
+      {
+       "icon": "athena",
+       "t": "Athena",
+       "d": "Logs dans S3 à interroger en SQL serverless ?",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Table de décision 4 : réagir à un objet S3",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "S3 Event Notifications",
+       "d": "Réagir à un nouvel objet S3 ? Ou passer par EventBridge pour des filtres avancés.",
+       "tone": "good"
+      },
+      {
+       "icon": "macie",
+       "t": "Macie + EventBridge",
+       "d": "Être alerté quand une donnée sensible apparaît dans un bucket ?",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "opensearch",
+       "ctx": "Recherche en texte libre et dashboards sur les logs."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détecte la menace : premier maillon d'un incident."
+      },
+      {
+       "k": "securityhub",
+       "ctx": "Agrège les findings et publie les événements."
+      },
+      {
+       "k": "detective",
+       "ctx": "Investigue la cause racine après le finding."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Apporte les preuves : qui a fait quoi."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Logs Insights et Contributor Insights sur les logs."
+      },
+      {
+       "k": "firehose",
+       "ctx": "Livre les logs vers OpenSearch en quasi temps réel."
+      },
+      {
+       "k": "athena",
+       "ctx": "SQL serverless sur les logs stockés dans S3."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

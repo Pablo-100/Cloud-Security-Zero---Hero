@@ -1,0 +1,3337 @@
+[
+ {
+  "id": "d4-01",
+  "services": [
+   "iam",
+   "permissions",
+   "role",
+   "user",
+   "orgs",
+   "route53",
+   "cloudfront"
+  ],
+  "drop": [
+   1,
+   3,
+   7,
+   8,
+   11,
+   12,
+   14
+  ],
+  "shorten": {
+   "0": "NotAction ya3ni « kol chay ma3ada hedhi el liste ». Bawab mta3 7afla: Allow + NotAction = « edkhel kol ness ma3ada hedhom ». Deny + NotAction = « mamnou3 3lik kol chay ma3ada hedhom ». NotAction ma ymess 7atta 7aja fil liste: ma ysamma7hom w ma ymanna3hom."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "matrix",
+     "title": "Les 4 combinaisons Effect x Action / NotAction",
+     "rows": [
+      "Allow + Action",
+      "Allow + NotAction",
+      "Deny + Action",
+      "Deny + NotAction"
+     ],
+     "cols": [
+      "Actions de la liste",
+      "Toutes les autres"
+     ],
+     "cells": [
+      [
+       "ok",
+       "hors champ"
+      ],
+      [
+       "hors champ",
+       "ok"
+      ],
+      [
+       "no",
+       "hors champ"
+      ],
+      [
+       "hors champ",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé par ce statement",
+      "no": "Refusé par ce statement"
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "decision",
+     "title": "Quel statement écrire ?",
+     "root": {
+      "q": "Tu veux INTERDIRE quelque chose ?",
+      "yes": {
+       "q": "Interdire tout, sauf une liste (ex : services globaux) ?",
+       "yes": {
+        "a": "Deny + NotAction",
+        "icon": "padlock",
+        "tone": "bad",
+        "why": "Verrou large, n'autorise rien"
+       },
+       "no": {
+        "a": "Deny + Action",
+        "icon": "padlock",
+        "tone": "bad",
+        "why": "Refuse seulement la liste"
+       }
+      },
+      "no": {
+       "q": "Autoriser tout, sauf une liste ?",
+       "yes": {
+        "a": "Allow + NotAction",
+        "icon": "permissions",
+        "tone": "warn",
+        "why": "Permission large : à borner avec Resource"
+       },
+       "no": {
+        "a": "Allow + Action",
+        "icon": "permissions",
+        "tone": "good",
+        "why": "Moindre privilège : la liste seule"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "callout",
+     "tone": "exam",
+     "title": "Tombe à l'examen",
+     "text": "Principal n'existe que dans les resource-based et trust policies, jamais dans une identity-based policy."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "callout",
+     "tone": "warn",
+     "title": "En vrai, pas iam:* en entier",
+     "text": "On liste seulement les actions d'auto-gestion du MFA (CreateVirtualMFADevice, EnableMFADevice, ListMFADevices) : sinon un utilisateur sans MFA modifierait toute l'IAM."
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "pipeline",
+     "title": "Lire une double négation : Deny + NotAction + StringNotEquals",
+     "stages": [
+      {
+       "label": "NotAction",
+       "sub": "liste des actions exclues",
+       "icon": "permissions",
+       "tone": "info"
+      },
+      {
+       "label": "Effect Deny",
+       "sub": "toutes les autres : candidates",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "StringNotEquals",
+       "sub": "région demandée différente ?",
+       "icon": "gear",
+       "tone": "warn"
+      },
+      {
+       "label": "Hors région",
+       "sub": "refusé, sauf services exclus",
+       "icon": "firewall",
+       "tone": "bad"
+      },
+      {
+       "label": "Dans la région",
+       "sub": "Deny inactif : les Allow décident",
+       "icon": "role",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "arch",
+     "title": "Deny hors eu-central-1 : qui passe, qui est bloqué",
+     "groups": [
+      {
+       "id": "A",
+       "label": "Compte du développeur",
+       "kind": "account",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "dev",
+         "label": "Développeur",
+         "sub": "IAM User",
+         "icon": "user"
+        },
+        {
+         "id": "pol",
+         "label": "Deny + NotAction",
+         "sub": "aws:RequestedRegion",
+         "icon": "permissions"
+        }
+       ]
+      },
+      {
+       "id": "B",
+       "label": "eu-central-1 (autorisée)",
+       "kind": "generic",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ec2ok",
+         "label": "ec2:RunInstances",
+         "sub": "région conforme",
+         "icon": "ec2"
+        }
+       ]
+      },
+      {
+       "id": "C",
+       "label": "eu-west-1 (autre région)",
+       "kind": "generic",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "ec2ko",
+         "label": "ec2:RunInstances",
+         "sub": "région différente",
+         "icon": "ec2"
+        }
+       ]
+      },
+      {
+       "id": "D",
+       "label": "Services globaux (vus en us-east-1)",
+       "kind": "generic",
+       "col": 1,
+       "row": 2,
+       "nodes": [
+        {
+         "id": "glob",
+         "label": "iam, route53...",
+         "sub": "exclus via NotAction",
+         "icon": "iam"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "dev",
+       "to": "pol",
+       "label": "1. Requête API",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "pol",
+       "to": "ec2ok",
+       "label": "2a. Deny inactif",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "pol",
+       "to": "ec2ko",
+       "label": "2b. Deny actif",
+       "style": "deny"
+      },
+      {
+       "id": "e4",
+       "from": "pol",
+       "to": "glob",
+       "label": "2c. Hors champ",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "dev"
+       ],
+       "caption": "Chaque appel API est évalué avec la région de la requête."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "ec2ok"
+       ],
+       "caption": "Région = eu-central-1 : StringNotEquals est faux, le Deny ne se déclenche pas."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "ec2ko"
+       ],
+       "caption": "Autre région : le Deny s'applique à toute action absente de NotAction."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "glob"
+       ],
+       "caption": "IAM, CloudFront, Route 53, Support sont vus en us-east-1 : on les exclut pour ne pas tout bloquer."
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "hub",
+     "title": "Principal : les 8 formes possibles",
+     "center": {
+      "label": "Principal",
+      "sub": "resource-based et trust policy seulement",
+      "icon": "permissions"
+     },
+     "spokes": [
+      {
+       "label": "Compte AWS",
+       "sub": "root du compte",
+       "icon": "building",
+       "tone": "info",
+       "note": "{\"AWS\": \"123456789012\"} ou arn:aws:iam::123456789012:root : tout le compte est de confiance ; ses IAM policies décident ensuite."
+      },
+      {
+       "label": "IAM Role",
+       "sub": "le rôle",
+       "icon": "role",
+       "tone": "info",
+       "note": "{\"AWS\": \"arn:aws:iam::123456789012:role/role-name\"}"
+      },
+      {
+       "label": "Session de rôle",
+       "sub": "assumed-role",
+       "icon": "tempcred",
+       "tone": "info",
+       "note": "arn:aws:sts::123456789012:assumed-role/role-name/session-name : une session précise."
+      },
+      {
+       "label": "IAM User",
+       "sub": "utilisateur nommé",
+       "icon": "user",
+       "tone": "info",
+       "note": "{\"AWS\": \"arn:aws:iam::123456789012:user/user-name\"}"
+      },
+      {
+       "label": "Session fédérée",
+       "sub": "federated-user",
+       "icon": "sts",
+       "tone": "info",
+       "note": "arn:aws:sts::123456789012:federated-user/user-name (ex : GetFederationToken)."
+      },
+      {
+       "label": "Fournisseur fédéré",
+       "sub": "SAML / Cognito",
+       "icon": "saml",
+       "tone": "info",
+       "note": "{\"Federated\": \"cognito-identity.amazonaws.com\"} ou un saml-provider ; surtout dans les trust policies."
+      },
+      {
+       "label": "Service AWS",
+       "sub": "ecs.amazonaws.com...",
+       "icon": "gear",
+       "tone": "info",
+       "note": "{\"Service\": [\"ecs.amazonaws.com\"]} : un service qui agit pour toi."
+      },
+      {
+       "label": "Tout le monde",
+       "sub": "\"*\"",
+       "icon": "internet",
+       "tone": "bad",
+       "note": "\"*\" ou {\"AWS\": \"*\"} : public, anonyme compris. Seulement avec des conditions strictes."
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Porte les policies : Allow/Deny avec NotAction, et Principal dans les resource-based."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Statement : Effect, Action ou NotAction, Resource, Condition."
+      },
+      {
+       "k": "role",
+       "ctx": "Principal possible, y compris sous forme de session assumed-role."
+      },
+      {
+       "k": "user",
+       "ctx": "Principal nommé ; cible d'un Deny hors région."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Une SCP Deny + NotAction verrouille la région pour tout un compte."
+      },
+      {
+       "k": "route53",
+       "ctx": "Service global exclu du Deny : vu en us-east-1."
+      },
+      {
+       "k": "cloudfront",
+       "ctx": "Service global exclu du Deny : sinon il serait bloqué."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-02",
+  "services": [
+   "iam",
+   "permissions",
+   "s3",
+   "vpc",
+   "athena",
+   "ec2"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   7,
+   14
+  ],
+  "shorten": {
+   "0": "Condition = « chrout » mta3 el statement. Allow wa7dou: « inti tnajjem ». Allow + Condition: « inti tnajjem, ken… » (ken men el bureau, ken m3a MFA, ken fi 9al region). Plusieurs valeurs = OU, plusieurs clés = ET. Fhemt?"
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Syntaxe : Condition, opérateur, clé, valeur",
+     "stages": [
+      {
+       "label": "Condition",
+       "sub": "bloc du statement",
+       "icon": "permissions",
+       "tone": "info"
+      },
+      {
+       "label": "Opérateur",
+       "sub": "StringEquals, Bool...",
+       "icon": "gear",
+       "tone": "info"
+      },
+      {
+       "label": "Clé",
+       "sub": "aws:RequestedRegion",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Valeur(s)",
+       "sub": "eu-west-1, eu-west-2",
+       "icon": "database",
+       "tone": "info"
+      },
+      {
+       "label": "Vrai ou faux",
+       "sub": "le statement s'applique-t-il ?",
+       "icon": "question",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Si la condition est fausse, le statement est ignoré : Allow ne donne rien, Deny ne refuse rien."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Combiner les conditions : ET / OU",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Plusieurs valeurs = OU",
+       "d": "Pour une même clé, une seule valeur correcte suffit.",
+       "tone": "good"
+      },
+      {
+       "icon": "gear",
+       "t": "Plusieurs clés = ET",
+       "d": "Toutes les clés d'un même opérateur doivent être vraies.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Plusieurs opérateurs = ET",
+       "d": "Chaque opérateur du bloc Condition doit être vrai.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "hub",
+     "title": "Les opérateurs à connaître",
+     "center": {
+      "label": "Opérateurs",
+      "sub": "cliquer une branche pour un exemple",
+      "icon": "gear"
+     },
+     "spokes": [
+      {
+       "label": "String*",
+       "sub": "Equals, Like",
+       "icon": "document",
+       "tone": "info",
+       "note": "StringEquals : égalité exacte, sensible à la casse. StringLike : jokers * et ?. Ex : aws:RequestedRegion = eu-west-1."
+      },
+      {
+       "label": "ArnLike",
+       "sub": "ARN avec jokers",
+       "icon": "role",
+       "tone": "info",
+       "note": "Compare des ARN. Ex : aws:SourceArn = arn:aws:s3:::my-bucket."
+      },
+      {
+       "label": "Bool",
+       "sub": "vrai / faux",
+       "icon": "padlock",
+       "tone": "info",
+       "note": "Ex : aws:SecureTransport = false."
+      },
+      {
+       "label": "IpAddress",
+       "sub": "plage CIDR",
+       "icon": "internet",
+       "tone": "info",
+       "note": "IP publique d'origine seulement. Ex : aws:SourceIp = 203.0.113.0/24."
+      },
+      {
+       "label": "Numeric*",
+       "sub": "nombres",
+       "icon": "gear",
+       "tone": "info",
+       "note": "NumericLessThan... Ex : aws:MultiFactorAuthAge < 300."
+      },
+      {
+       "label": "Date*",
+       "sub": "dates",
+       "icon": "document",
+       "tone": "info",
+       "note": "DateEquals, DateLessThan... Ex : aws:TokenIssueTime < 2022-12-13T09:43:48Z."
+      },
+      {
+       "label": "...IfExists",
+       "sub": "clé absente = vrai",
+       "icon": "mfa",
+       "tone": "warn",
+       "note": "Suffixe : la condition est aussi vraie quand la clé est absente. Ex : BoolIfExists sur MFA."
+      },
+      {
+       "label": "ForAllValues / ForAnyValue",
+       "sub": "clés multi-valeurs",
+       "icon": "users",
+       "tone": "warn",
+       "note": "Toutes / au moins une valeur doivent correspondre. Ex : ForAllValues:StringEquals sur dynamodb:LeadingKeys."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "matrix",
+     "title": "Clé absente : quand la condition est-elle vraie ?",
+     "rows": [
+      "StringEquals",
+      "StringNotEquals",
+      "NotIpAddress",
+      "StringEqualsIfExists"
+     ],
+     "cols": [
+      "Clé présente, conforme",
+      "Clé présente, différente",
+      "Clé absente"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Condition vraie",
+      "no": "Condition fausse"
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Clés de condition vues en cours",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "aws:RequestedRegion",
+       "d": "Région ciblée par l'appel API : limiter les régions.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "aws:PrincipalArn",
+       "d": "ARN du principal ; pour un rôle, l'ARN du rôle.",
+       "tone": "info"
+      },
+      {
+       "icon": "gear",
+       "t": "aws:SourceArn",
+       "d": "Ressource qui déclenche un appel de service à service.",
+       "tone": "info"
+      },
+      {
+       "icon": "athena",
+       "t": "aws:CalledVia",
+       "d": "Services intermédiaires ayant appelé à la place du principal.",
+       "tone": "info"
+      },
+      {
+       "icon": "tempcred",
+       "t": "aws:PrincipalTag/<clé>",
+       "d": "Tag de l'appelant : ABAC.",
+       "tone": "good"
+      },
+      {
+       "icon": "s3",
+       "t": "aws:ResourceTag/<clé>",
+       "d": "Tag de la ressource : ABAC (ec2:ResourceTag pour EC2).",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "callout",
+     "tone": "tip",
+     "title": "Principal * : le contrôle est dans la condition",
+     "text": "Avec Principal * plus une condition stricte, une erreur dans la condition ouvre trop la ressource : teste avec le simulateur ou IAM Access Analyzer."
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "callout",
+     "tone": "warn",
+     "title": "Deny par IP et services AWS",
+     "text": "Un NotIpAddress global frappe aussi les services AWS qui agissent pour toi. Ajoute Bool aws:ViaAWSService = false dans la condition."
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "matrix",
+     "title": "IP et VPC : quelle clé selon le chemin ?",
+     "rows": [
+      "aws:SourceIp",
+      "aws:VpcSourceIp",
+      "aws:SourceVpc",
+      "aws:SourceVpce"
+     ],
+     "cols": [
+      "Via Internet",
+      "Via VPC endpoint",
+      "Restreint à"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no",
+       "IP publique"
+      ],
+      [
+       "no",
+       "ok",
+       "IP privée"
+      ],
+      [
+       "no",
+       "ok",
+       "un VPC"
+      ],
+      [
+       "no",
+       "ok",
+       "un endpoint"
+      ]
+     ],
+     "legend": {
+      "ok": "Clé présente",
+      "no": "Clé absente"
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "decision",
+     "title": "Quelle clé pour restreindre l'origine ?",
+     "root": {
+      "q": "La requête arrive par Internet (IP publique) ?",
+      "yes": {
+       "a": "aws:SourceIp",
+       "icon": "internet",
+       "tone": "good",
+       "why": "IP publique du bureau"
+      },
+      "no": {
+       "q": "Viser un endpoint précis ?",
+       "yes": {
+        "a": "aws:SourceVpce",
+        "icon": "privatelink",
+        "tone": "good",
+        "why": "ID vpce-..."
+       },
+       "no": {
+        "q": "Viser tout un VPC ?",
+        "yes": {
+         "a": "aws:SourceVpc",
+         "icon": "vpc",
+         "tone": "good",
+         "why": "ID vpc-..."
+        },
+        "no": {
+         "a": "aws:VpcSourceIp",
+         "icon": "vpc",
+         "tone": "info",
+         "why": "IP privée via endpoint"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Évalue les Condition des policies à chaque requête et rend Allow ou Deny."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Le bloc Condition : opérateur, clé, valeurs ; ET / OU entre elles."
+      },
+      {
+       "k": "s3",
+       "ctx": "Reçoit les bucket policies avec conditions de région, d'IP, d'endpoint ou de rôle."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Via VPC endpoint, aws:SourceIp disparaît ; on utilise VpcSourceIp, SourceVpc, SourceVpce."
+      },
+      {
+       "k": "athena",
+       "ctx": "Service intermédiaire illustrant aws:CalledVia : accès autorisé seulement à travers lui."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Cible des conditions de tags (ResourceTag, PrincipalTag) et appelant privé du scénario."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-03",
+  "services": [
+   "iam",
+   "permissions",
+   "orgs",
+   "s3",
+   "vpc",
+   "sqs",
+   "eventbridge",
+   "role"
+  ],
+  "drop": [
+   1,
+   5,
+   8,
+   20
+  ],
+  "shorten": {
+   "0": "Permission boundary = « sa9f » el dar. El modir y9olek « mrigel » ama el sa9f mta3ek howa S3, CloudWatch w EC2 bark: ma tnajjemch tzid 7atta Admin. El sa9f ma y3tik 7atta 7aja, ykhalli bark el 7add. Fhemt?"
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "stack",
+     "title": "Permissions effectives : la plus petite intersection",
+     "layers": [
+      {
+       "label": "SCP",
+       "sub": "plafond du compte ou de l'OU",
+       "icon": "orgs",
+       "tone": "warn",
+       "tags": [
+        "Organizations"
+       ]
+      },
+      {
+       "label": "Permission boundary",
+       "sub": "plafond d'un user ou d'un role",
+       "icon": "padlock",
+       "tone": "warn",
+       "tags": [
+        "pas les groupes"
+       ]
+      },
+      {
+       "label": "Session policy",
+       "sub": "plafond de la session assumée",
+       "icon": "tempcred",
+       "tone": "warn",
+       "tags": [
+        "AssumeRole"
+       ]
+      },
+      {
+       "label": "Identity-based policy",
+       "sub": "donne les permissions",
+       "icon": "iam",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      }
+     ],
+     "side": "du plus externe au plus interne : un Allow n'est effectif que s'il passe toutes les couches"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Permission boundary : à retenir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Une managed policy",
+       "d": "Utilisée comme limite maximale de permissions d'une entité IAM.",
+       "tone": "info"
+      },
+      {
+       "icon": "user",
+       "t": "Users et roles seulement",
+       "d": "Les groupes ne supportent pas de boundary.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "N'accorde rien",
+       "d": "Permissions effectives = intersection de l'identity policy et de la boundary.",
+       "tone": "bad"
+      },
+      {
+       "icon": "permissions",
+       "t": "Déléguer sans escalade",
+       "d": "Les développeurs créent users et roles sans pouvoir se donner Administrator.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Anti-escalade : la boundary est obligatoire à la création",
+     "stages": [
+      {
+       "label": "Développeur",
+       "sub": "iam:CreateUser",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "Condition IAM",
+       "sub": "iam:PermissionsBoundary",
+       "icon": "permissions",
+       "tone": "warn"
+      },
+      {
+       "label": "DevBoundary",
+       "sub": "attachée au nouveau user",
+       "icon": "padlock",
+       "tone": "good"
+      },
+      {
+       "label": "User plafonné",
+       "sub": "s3, cloudwatch, ec2 seulement",
+       "icon": "user",
+       "tone": "good"
+      }
+     ],
+     "caption": "Sans la boundary DevBoundary, la création est refusée : pas de user sans plafond."
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "pipeline",
+     "title": "Ordre d'évaluation (logique simplifiée du cours)",
+     "stages": [
+      {
+       "label": "Deny explicite ?",
+       "sub": "un seul = refus final",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "SCP",
+       "sub": "Allow requis",
+       "icon": "orgs",
+       "tone": "warn"
+      },
+      {
+       "label": "Resource-based",
+       "sub": "un Allow peut accorder",
+       "icon": "s3",
+       "tone": "info"
+      },
+      {
+       "label": "Identity-based",
+       "sub": "Allow requis",
+       "icon": "iam",
+       "tone": "info"
+      },
+      {
+       "label": "Boundary",
+       "sub": "Allow requis si définie",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "Session policy",
+       "sub": "Allow requis si présente",
+       "icon": "tempcred",
+       "tone": "warn"
+      },
+      {
+       "label": "Autorisé",
+       "sub": "si aucun Deny",
+       "icon": "role",
+       "tone": "good"
+      }
+     ],
+     "caption": "Un Deny explicite l'emporte toujours ; sinon il faut un Allow à chaque couche applicable."
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "decision",
+     "title": "Quel plafond poser ?",
+     "root": {
+      "q": "Limiter tout un compte ou une OU ?",
+      "yes": {
+       "a": "SCP",
+       "icon": "orgs",
+       "tone": "good",
+       "why": "Plafond Organizations"
+      },
+      "no": {
+       "q": "Limiter un user ou un role précis ?",
+       "yes": {
+        "a": "Permission boundary",
+        "icon": "padlock",
+        "tone": "good",
+        "why": "Plafond d'une entité IAM"
+       },
+       "no": {
+        "q": "Limiter une seule session assumée ?",
+        "yes": {
+         "a": "Session policy",
+         "icon": "tempcred",
+         "tone": "good",
+         "why": "Passée à AssumeRole"
+        },
+        "no": {
+         "a": "VPC endpoint policy",
+         "icon": "privatelink",
+         "tone": "info",
+         "why": "Filtre posé sur le tuyau"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "matrix",
+     "title": "Même compte vs compte différent : quels Allow ?",
+     "rows": [
+      "Allow identity seul",
+      "Allow resource seul",
+      "Les deux Allow"
+     ],
+     "cols": [
+      "Même compte",
+      "Compte différent"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Accès accordé",
+      "no": "Refusé (implicit deny)"
+     }
+    }
+   },
+   {
+    "after": 19,
+    "block": {
+     "type": "cards",
+     "title": "EventBridge : comment une règle appelle sa cible",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Resource-based policy",
+       "d": "Lambda, SNS, SQS, CloudWatch Logs, API Gateway : la cible autorise EventBridge.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "IAM role de la règle",
+       "d": "Kinesis, SSM Run Command, tâche ECS : EventBridge assume un rôle.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 20,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Porte les identity policies et les boundaries ; évalue l'ensemble des couches."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Policies : plafond (boundary) ou permission accordée (identity, resource)."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Les SCP plafonnent un compte entier, au-dessus des boundaries."
+      },
+      {
+       "k": "role",
+       "ctx": "Alternative cross-account : on abandonne ses droits pour ceux du rôle."
+      },
+      {
+       "k": "s3",
+       "ctx": "Bucket policy cross-account et verrou par endpoint dans les exemples."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Le VPC endpoint porte sa propre policy, filtre entre EC2 et S3."
+      },
+      {
+       "k": "sqs",
+       "ctx": "Queue partagée au compte B ; S3 y publie via aws:SourceArn."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Une règle a besoin d'une permission sur sa cible : policy ou rôle."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-04",
+  "services": [
+   "iam",
+   "mfa",
+   "sts",
+   "ec2",
+   "s3",
+   "user",
+   "role",
+   "tempcred"
+  ],
+  "drop": [
+   1,
+   7,
+   8,
+   10,
+   13,
+   14
+  ],
+  "shorten": {
+   "0": "RBAC = kol wadhifa 3andha badge: DBA, DevOps... w kol projet jdid tbaddel el badges. ABAC = el badge mouch 3la el wadhifa, 3la el étiquette (tag): ken tag mta3 el user = tag mta3 el ressource, edkhel. Policy wa7da lel kol."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cycle",
+     "title": "RBAC : la course aux policies à chaque projet",
+     "center": "RBAC",
+     "items": [
+      {
+       "label": "Nouveau projet",
+       "sub": "une équipe de plus",
+       "icon": "building"
+      },
+      {
+       "label": "Nouveau rôle",
+       "sub": "un de plus",
+       "icon": "role"
+      },
+      {
+       "label": "Nouvelle policy",
+       "sub": "à écrire et attacher",
+       "icon": "permissions"
+      },
+      {
+       "label": "Mise à jour",
+       "sub": "des ressources existantes",
+       "icon": "gear"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "facts",
+     "title": "MFA : à retenir",
+     "items": [
+      {
+       "icon": "padlock",
+       "big": "Savoir",
+       "label": "le mot de passe",
+       "sub": "peut être volé ou deviné"
+      },
+      {
+       "icon": "mfa",
+       "big": "Posséder",
+       "label": "l'appareil MFA",
+       "sub": "2e facteur indépendant"
+      },
+      {
+       "icon": "user",
+       "big": "Root + IAM",
+       "label": "users à protéger",
+       "sub": "ils modifient et suppriment"
+      },
+      {
+       "icon": "tempcred",
+       "big": "300 s",
+       "label": "MFA récent (exemple)",
+       "sub": "aws:MultiFactorAuthAge"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Types de MFA devices dans AWS",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "mobile",
+       "t": "Virtual MFA device",
+       "d": "Google Authenticator (téléphone seul), Authy (multi-appareils) ; plusieurs jetons possibles.",
+       "tone": "info"
+      },
+      {
+       "icon": "mfa",
+       "t": "Clé de sécurité U2F",
+       "d": "YubiKey (tiers) ; une même clé sert à plusieurs users root et IAM.",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "Hardware key fob",
+       "d": "Fob Gemalto (tiers) : appareil physique dédié.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Key fob GovCloud (US)",
+       "d": "Fob SurePassID (tiers) pour les comptes AWS GovCloud (US).",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "S3 MFA Delete : qui exige un MFA ?",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "MFA exigé : supprimer une version",
+       "d": "Suppression définitive d'une version d'objet.",
+       "tone": "bad"
+      },
+      {
+       "icon": "s3",
+       "t": "MFA exigé : suspendre le versioning",
+       "d": "Désactiver le versioning du bucket.",
+       "tone": "bad"
+      },
+      {
+       "icon": "s3",
+       "t": "Sans MFA : activer le versioning",
+       "d": "Et lister les versions supprimées.",
+       "tone": "good"
+      },
+      {
+       "icon": "user",
+       "t": "Prérequis",
+       "d": "Versioning activé ; seul le propriétaire (root) active MFA Delete, via CLI ou API.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "matrix",
+     "title": "Pourquoi BoolIfExists et pas Bool ?",
+     "rows": [
+      "Bool ... false",
+      "BoolIfExists ... false"
+     ],
+     "cols": [
+      "MFA actif (true)",
+      "MFA faux (false)",
+      "Clé absente (access keys)"
+     ],
+     "cells": [
+      [
+       "passe",
+       "bloqué",
+       "passe (!)"
+      ],
+      [
+       "passe",
+       "bloqué",
+       "bloqué"
+      ]
+     ],
+     "legend": {}
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "decision",
+     "title": "Quelle condition MFA écrire ?",
+     "root": {
+      "q": "Exiger un MFA récent (quelques minutes) ?",
+      "yes": {
+       "a": "NumericLessThan MultiFactorAuthAge",
+       "icon": "mfa",
+       "tone": "good",
+       "why": "Ex : moins de 300 s"
+      },
+      "no": {
+       "q": "Bloquer aussi les appels par access keys ?",
+       "yes": {
+        "a": "Deny + BoolIfExists false",
+        "icon": "padlock",
+        "tone": "good",
+        "why": "Clé absente = condition vraie"
+       },
+       "no": {
+        "a": "Bool MultiFactorAuthPresent",
+        "icon": "mfa",
+        "tone": "neutral",
+        "why": "Ne voit pas les clés long terme"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "pipeline",
+     "title": "Erreur « not authorized to perform iam:DeleteVirtualMFADevice »",
+     "stages": [
+      {
+       "label": "Association lancée",
+       "sub": "MFA virtuel créé",
+       "icon": "mfa",
+       "tone": "info"
+      },
+      {
+       "label": "Annulée",
+       "sub": "appareil jamais activé",
+       "icon": "question",
+       "tone": "warn"
+      },
+      {
+       "label": "Nouvelle tentative",
+       "sub": "doit supprimer l'ancien",
+       "icon": "user",
+       "tone": "warn"
+      },
+      {
+       "label": "Refus",
+       "sub": "user non autorisé à supprimer",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "Correction admin",
+       "sub": "delete-virtual-mfa-device",
+       "icon": "cli",
+       "tone": "good"
+      }
+     ],
+     "caption": "Prévention : autoriser l'utilisateur à supprimer son propre MFA virtuel seulement s'il est authentifié par MFA."
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Policies ABAC avec variables et tags ; policies de Deny exigeant le MFA."
+      },
+      {
+       "k": "mfa",
+       "ctx": "Second facteur : virtual MFA, clé U2F, fob ; protège root et IAM users."
+      },
+      {
+       "k": "sts",
+       "ctx": "GetSessionToken renvoie des credentials temporaires qui portent MultiFactorAuthPresent = true."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Ressource de l'exemple : Start/Stop/Terminate selon les tags ou le MFA."
+      },
+      {
+       "k": "s3",
+       "ctx": "MFA Delete protège la suppression définitive des versions."
+      },
+      {
+       "k": "user",
+       "ctx": "Porte les tags de principal (PrincipalTag) comparés aux tags des ressources."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Credentials issus de GetSessionToken : seuls eux attestent un MFA."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-05",
+  "services": [
+   "iam",
+   "role",
+   "ec2",
+   "config",
+   "ssm",
+   "sns",
+   "accessanalyzer",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   2,
+   4,
+   5,
+   7,
+   14,
+   15
+  ],
+  "shorten": {
+   "0": "Access key long terme = clé mta3 dar eli 3malt menha 20 copie: GitHub, logs, backup. Elle ma tn7alch w ma t3ref chkoun a5thha. El 7all: rôle, y3tik badge mo2a99at w yetjaddad wa7do. Ken el serveur 3ando certificat (Roles Anywhere), ma t7ottech clé."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Les défauts d'une access key d'IAM user",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "longcred",
+       "t": "N'expire jamais",
+       "d": "Valable jusqu'à suppression ou désactivation.",
+       "tone": "bad"
+      },
+      {
+       "icon": "document",
+       "t": "Fuit facilement",
+       "d": "GitHub, logs, backups : les copies se multiplient.",
+       "tone": "bad"
+      },
+      {
+       "icon": "gear",
+       "t": "Rotation pénible",
+       "d": "Changer la clé partout, sans casser les applications.",
+       "tone": "warn"
+      },
+      {
+       "icon": "finding",
+       "t": "Audit brouillon",
+       "d": "Difficile de savoir qui a utilisé quelle clé.",
+       "tone": "warn"
+      },
+      {
+       "icon": "user",
+       "t": "Faite pour un humain",
+       "d": "Un IAM user n'est pas fait pour un serveur.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Les 4 réflexes",
+     "stages": [
+      {
+       "label": "Inventorier",
+       "sub": "Credentials Report, Access Advisor",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Faire tourner",
+       "sub": "AWS Config + remédiation",
+       "icon": "config",
+       "tone": "info"
+      },
+      {
+       "label": "Remplacer",
+       "sub": "rôles, Roles Anywhere",
+       "icon": "role",
+       "tone": "good"
+      },
+      {
+       "label": "Contrôler",
+       "sub": "IAM Access Analyzer",
+       "icon": "accessanalyzer",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "hub",
+     "title": "Quel outil pour quelle question ?",
+     "center": {
+      "label": "Hygiène des credentials",
+      "sub": "cliquer un outil",
+      "icon": "iam"
+     },
+     "spokes": [
+      {
+       "label": "Credentials Report",
+       "sub": "niveau compte",
+       "icon": "document",
+       "tone": "info",
+       "note": "Liste tous les IAM users et l'état de leurs mots de passe, access keys et MFA. Régénérable au plus une fois toutes les 4 heures ; pour l'audit et la conformité."
+      },
+      {
+       "label": "Access Advisor",
+       "sub": "niveau utilisateur",
+       "icon": "user",
+       "tone": "info",
+       "note": "Services utilisables par un utilisateur et dernière utilisation : sert à réduire les policies (moindre privilège)."
+      },
+      {
+       "label": "AWS Config",
+       "sub": "access-keys-rotated",
+       "icon": "config",
+       "tone": "warn",
+       "note": "Détecte les access keys plus vieilles que le seuil (90 jours dans l'exemple) et peut déclencher une remédiation."
+      },
+      {
+       "label": "Access Analyzer",
+       "sub": "compte ou Organization",
+       "icon": "accessanalyzer",
+       "tone": "good",
+       "note": "Quelles ressources sont partagées hors de la zone de confiance ? Validation et génération de policies."
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "cards",
+     "title": "Rôles pour les services AWS : rien de stocké",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "EC2 Instance Roles",
+       "d": "L'instance obtient des credentials temporaires, renouvelés automatiquement.",
+       "tone": "good"
+      },
+      {
+       "icon": "lambda",
+       "t": "Lambda Function Roles",
+       "d": "La fonction agit avec son rôle d'exécution.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudformation",
+       "t": "Rôles CloudFormation",
+       "d": "Le service agit à ta place, sans clé dans le code.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "iam:PassRole : confier un rôle à un service",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "bot",
+       "t": "Le risque",
+       "d": "Attacher n'importe quel rôle à EC2 ou Lambda : escalade de privilèges.",
+       "tone": "bad"
+      },
+      {
+       "icon": "padlock",
+       "t": "La parade",
+       "d": "PassRole limite quels rôles un user peut passer à un service.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Détail d'examen",
+       "d": "PassRole n'est pas un appel d'API : aucun log CloudTrail propre.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Où enquêter",
+       "d": "Dans CloudTrail, l'appel qui crée la ressource, ex : RunInstances.",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "iam:PassedToService",
+       "d": "Condition précisant à quel service (ec2.amazonaws.com) le rôle est passé.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Quel mécanisme pour un workload ?",
+     "root": {
+      "q": "Le workload tourne dans AWS (EC2, Lambda) ?",
+      "yes": {
+       "a": "Rôle de service",
+       "icon": "role",
+       "tone": "good",
+       "why": "Instance role, function role"
+      },
+      "no": {
+       "q": "Il détient un certificat X.509 (CA) ?",
+       "yes": {
+        "a": "IAM Roles Anywhere",
+        "icon": "role",
+        "tone": "good",
+        "why": "Certificat contre credentials temporaires"
+       },
+       "no": {
+        "a": "Access keys",
+        "icon": "longcred",
+        "tone": "bad",
+        "why": "Dernier recours : fuite, pas d'expiration"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "compare",
+     "title": "Un rôle = deux policies",
+     "cols": [
+      {
+       "name": "Trust policy",
+       "tag": "QUI assume ?",
+       "icon": "sts",
+       "points": [
+        "Resource-based policy du rôle",
+        "Contient le Principal",
+        "Action sts:AssumeRole",
+        "Première chose à vérifier si AssumeRole échoue"
+       ],
+       "use": "Définit la confiance"
+      },
+      {
+       "name": "Permission policy",
+       "tag": "QUE peut faire le rôle ?",
+       "icon": "permissions",
+       "points": [
+        "Identity-based policy du rôle",
+        "Pas de Principal",
+        "Actions et Resources AWS",
+        "Effective une fois le rôle assumé"
+       ],
+       "use": "Définit les droits"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "cards",
+     "title": "IAM Access Analyzer : 3 usages",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "accessanalyzer",
+       "t": "Partages externes",
+       "d": "Zone de confiance (compte ou Organization) ; tout accès extérieur crée un finding.",
+       "tone": "info"
+      },
+      {
+       "icon": "s3",
+       "t": "Ressources analysées",
+       "d": "S3, IAM roles, KMS, Lambda, SQS, Secrets Manager.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Policy Validation",
+       "d": "Vérifie grammaire IAM et bonnes pratiques : warnings, erreurs, suggestions.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Policy Generation",
+       "d": "Policy fine générée depuis CloudTrail (jusqu'à 90 jours).",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 17,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Credentials Report, Access Advisor, PassRole et trust policies : l'hygiène des identités."
+      },
+      {
+       "k": "role",
+       "ctx": "Remplace les access keys : credentials temporaires pour services et serveurs."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Reçoit un rôle via instance profile ; RunInstances exige iam:PassRole."
+      },
+      {
+       "k": "config",
+       "ctx": "Règle access-keys-rotated : détecte les clés de plus de 90 jours."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Automation « Rotate Access Keys » : remédie à la clé non conforme."
+      },
+      {
+       "k": "sns",
+       "ctx": "Notifie l'équipe de la non-conformité ou du résultat de la remédiation."
+      },
+      {
+       "k": "accessanalyzer",
+       "ctx": "Partages externes, validation et génération de policies."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise RunInstances (pas PassRole) ; source de génération de policies."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-06",
+  "services": [
+   "sts",
+   "iam",
+   "role",
+   "tempcred",
+   "s3",
+   "ec2",
+   "saml",
+   "cognito"
+  ],
+  "drop": [
+   1,
+   2,
+   7,
+   10
+  ],
+  "shorten": {
+   "0": "STS metel bureau mta3 badges mou2a99at. Ma3andekch clé dayma: tgoul « n7eb badge mta3 rôle X », yeb3athlek badge yoush3al wa9t mou7added w ba3dha yfas5. Ken el badge ytsarra9, el dhorr 9ssir. Hedhi el far9 m3a access key eli ma tmout 3omrha."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "STS en chiffres et mots-clés",
+     "items": [
+      {
+       "icon": "sts",
+       "big": "4",
+       "label": "éléments renvoyés",
+       "sub": "KeyId, Secret, Token, Expiration"
+      },
+      {
+       "icon": "tempcred",
+       "big": "15 min - 1 h",
+       "label": "durée AssumeRole (cours)",
+       "sub": "à renouveler ensuite"
+      },
+      {
+       "icon": "role",
+       "big": "12 h",
+       "label": "durée max configurable",
+       "sub": "sur le rôle"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Les appels STS à connaître",
+     "center": {
+      "label": "AWS STS",
+      "sub": "credentials temporaires",
+      "icon": "sts"
+     },
+     "spokes": [
+      {
+       "label": "AssumeRole",
+       "sub": "le plus courant",
+       "icon": "role",
+       "tone": "good",
+       "note": "Prendre un rôle dans ton compte (sécurité renforcée) ou cross-account (agir dans le compte cible)."
+      },
+      {
+       "label": "AssumeRoleWithSAML",
+       "sub": "fédération d'entreprise",
+       "icon": "saml",
+       "tone": "info",
+       "note": "Credentials pour des utilisateurs connectés via SAML."
+      },
+      {
+       "label": "AssumeRoleWithWebIdentity",
+       "sub": "Google, Facebook, OIDC",
+       "icon": "cognito",
+       "tone": "info",
+       "note": "Credentials pour des utilisateurs d'un IdP web. AWS recommande d'utiliser Cognito à la place."
+      },
+      {
+       "label": "GetSessionToken",
+       "sub": "user ou root, MFA",
+       "icon": "mfa",
+       "tone": "info",
+       "note": "Credentials temporaires pour un user ou le root, notamment pour le MFA (leçon d4-04)."
+      },
+      {
+       "label": "GetFederationToken",
+       "sub": "custom identity broker",
+       "icon": "building",
+       "tone": "info",
+       "note": "Utilisé par un custom identity broker."
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "L'erreur classique AuthFailure et ses deux remèdes",
+     "stages": [
+      {
+       "label": "Jeton v1",
+       "sub": "endpoint global sts.amazonaws.com",
+       "icon": "sts",
+       "tone": "warn"
+      },
+      {
+       "label": "Région récente",
+       "sub": "ex : me-south-1",
+       "icon": "internet",
+       "tone": "warn"
+      },
+      {
+       "label": "AuthFailure",
+       "sub": "credentials non validés",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "Remède 1",
+       "sub": "endpoint STS régional",
+       "icon": "sts",
+       "tone": "good"
+      },
+      {
+       "label": "Remède 2",
+       "sub": "endpoint global : All Regions",
+       "icon": "gear",
+       "tone": "good"
+      }
+     ],
+     "caption": "SDK / CLI : sts_regional_endpoints = regional (ou AWS_STS_REGIONAL_ENDPOINTS=regional)."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "pipeline",
+     "title": "Révoquer des credentials temporaires de rôle",
+     "stages": [
+      {
+       "label": "Credentials exposés",
+       "sub": "session valable jusqu'à 12 h",
+       "icon": "tempcred",
+       "tone": "bad"
+      },
+      {
+       "label": "Revoke active sessions",
+       "sub": "action sur le rôle",
+       "icon": "role",
+       "tone": "warn"
+      },
+      {
+       "label": "Policy inline",
+       "sub": "AWSRevokeOlderSessions",
+       "icon": "permissions",
+       "tone": "warn"
+      },
+      {
+       "label": "Deny avant la date",
+       "sub": "aws:TokenIssueTime",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "Ré-authentification",
+       "sub": "nouveaux AssumeRole non touchés",
+       "icon": "user",
+       "tone": "good"
+      }
+     ],
+     "caption": "Inutile de supprimer la policy : seuls les jetons émis avant la date sont refusés."
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "sts",
+       "ctx": "Émet les credentials temporaires et contrôle la trust policy à chaque AssumeRole."
+      },
+      {
+       "k": "iam",
+       "ctx": "Trust policy, identity policy et policy inline de révocation."
+      },
+      {
+       "k": "role",
+       "ctx": "UpdateApp : le rôle que Dev assume pour agir dans Prod."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "AccessKeyId, SecretAccessKey, SessionToken : expirent seuls."
+      },
+      {
+       "k": "s3",
+       "ctx": "Bucket productionapp : la ressource accédée avec les droits du rôle."
+      },
+      {
+       "k": "ec2",
+       "ctx": "DescribeInstances : l'appel qui échoue avec un jeton v1 en région récente."
+      },
+      {
+       "k": "saml",
+       "ctx": "AssumeRoleWithSAML : credentials pour utilisateurs connectés via SAML."
+      },
+      {
+       "k": "cognito",
+       "ctx": "Recommandé à la place de AssumeRoleWithWebIdentity direct."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-07",
+  "services": [
+   "ec2",
+   "iam",
+   "role",
+   "tempcred",
+   "cloudwatch",
+   "orgs",
+   "sts"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   9,
+   10,
+   11
+  ],
+  "shorten": {
+   "0": "El IMDS metel « 7ajet sghira mta3 el serveur »: l'instance tsa2lou « inti chkoun? 3andek rôle? ». Adresse 169.254.169.254, ma tkhrejch men l'instance. Ama ken application vulnérable (SSRF) tjib el URL li ye3tiha el hacker, ykhaf ysre9 el badge mta3 el rôle. IMDSv2 ye7mi men hedhi."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "IMDS : ce qu'il faut savoir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Depuis l'instance seule",
+       "d": "http://169.254.169.254/latest/meta-data : inaccessible de l'extérieur.",
+       "tone": "info"
+      },
+      {
+       "icon": "cli",
+       "t": "Outils",
+       "d": "curl, wget, SDK ou CLI.",
+       "tone": "info"
+      },
+      {
+       "icon": "database",
+       "t": "Données clé / valeur",
+       "d": "Hostname, réseau, identité de l'instance, tags si activés.",
+       "tone": "info"
+      },
+      {
+       "icon": "tempcred",
+       "t": "Credentials de rôle",
+       "d": "Obtenus sans aucune clé stockée sur disque.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Chemins de métadonnées utiles",
+     "center": {
+      "label": "IMDS",
+      "sub": "169.254.169.254/latest/meta-data",
+      "icon": "server"
+     },
+     "spokes": [
+      {
+       "label": "Identité",
+       "sub": "ami-id, instance-id",
+       "icon": "ec2",
+       "tone": "info",
+       "note": "ami-id, instance-id, instance-type : identité de l'instance."
+      },
+      {
+       "label": "Réseau",
+       "sub": "hostname, ipv4",
+       "icon": "vpc",
+       "tone": "info",
+       "note": "hostname, local-hostname, local-ipv4, public-hostname, public-ipv4."
+      },
+      {
+       "label": "iam/",
+       "sub": "profil IAM",
+       "icon": "iam",
+       "tone": "info",
+       "note": "InstanceProfileArn, InstanceId : informations du profil IAM."
+      },
+      {
+       "label": "security-credentials",
+       "sub": "credentials du rôle",
+       "icon": "tempcred",
+       "tone": "bad",
+       "note": "iam/security-credentials/<nom-du-rôle> : credentials temporaires du rôle attaché. La cible des attaquants."
+      },
+      {
+       "label": "placement/",
+       "sub": "région, AZ",
+       "icon": "internet",
+       "tone": "info",
+       "note": "Région de lancement, zone de disponibilité, nom du placement group."
+      },
+      {
+       "label": "security-groups",
+       "sub": "noms des SG",
+       "icon": "firewall",
+       "tone": "info",
+       "note": "Noms des security groups de l'instance."
+      },
+      {
+       "label": "tags/instance",
+       "sub": "si activé",
+       "icon": "document",
+       "tone": "info",
+       "note": "Tags de l'instance, si l'option « tags dans les métadonnées » est activée."
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "pipeline",
+     "title": "Imposer IMDSv2 : les 4 leviers",
+     "stages": [
+      {
+       "label": "Mesurer",
+       "sub": "CloudWatch MetadataNoToken",
+       "icon": "cloudwatch",
+       "tone": "info"
+      },
+      {
+       "label": "Au lancement",
+       "sub": "HttpTokens=required",
+       "icon": "ec2",
+       "tone": "good"
+      },
+      {
+       "label": "Sur l'AMI",
+       "sub": "--imds-support v2.0",
+       "icon": "disk",
+       "tone": "good"
+      },
+      {
+       "label": "Policy / SCP",
+       "sub": "Deny RunInstances + RoleDelivery",
+       "icon": "orgs",
+       "tone": "good"
+      },
+      {
+       "label": "IMDSv2 partout",
+       "sub": "v1 impossible à rétablir",
+       "icon": "padlock",
+       "tone": "good"
+      }
+     ],
+     "caption": "Par défaut, les deux versions sont acceptées : on migre d'abord ce qui utilise v1."
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "Limiter ou couper l'accès à l'IMDS",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "firewall",
+       "t": "Pare-feu local",
+       "d": "iptables (Linux) : REJECT vers 169.254.169.254 pour l'utilisateur du serveur web.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Désactiver l'IMDS",
+       "d": "HttpEndpoint=disabled : plus de métadonnées, ni de user data au démarrage.",
+       "tone": "bad"
+      },
+      {
+       "icon": "gear",
+       "t": "Instance existante",
+       "d": "ModifyInstanceMetadataOptions avec --http-tokens required.",
+       "tone": "info"
+      },
+      {
+       "icon": "ecs",
+       "t": "Conteneurs : hop limit",
+       "d": "Valeur 1 par défaut ; un conteneur en réseau bridge peut en demander plus.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "decision",
+     "title": "Que faire de l'IMDS sur une instance ?",
+     "root": {
+      "q": "Un logiciel a besoin des métadonnées ?",
+      "yes": {
+       "q": "Il sait utiliser les tokens (IMDSv2) ?",
+       "yes": {
+        "a": "IMDSv2 only",
+        "icon": "padlock",
+        "tone": "good",
+        "why": "HttpTokens=required"
+       },
+       "no": {
+        "a": "Mesurer puis migrer",
+        "icon": "cloudwatch",
+        "tone": "warn",
+        "why": "MetadataNoToken avant de couper v1"
+       }
+      },
+      "no": {
+       "a": "Désactiver l'IMDS",
+       "icon": "firewall",
+       "tone": "neutral",
+       "why": "HttpEndpoint=disabled"
+      }
+     }
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "ec2",
+       "ctx": "Héberge l'IMDS : l'instance y lit ses métadonnées et les credentials de son rôle."
+      },
+      {
+       "k": "iam",
+       "ctx": "Policies ec2:RoleDelivery et ec2:MetadataHttpTokens imposent IMDSv2."
+      },
+      {
+       "k": "role",
+       "ctx": "Rôle d'instance via instance profile : cible du vol de credentials."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Credentials renvoyés par l'IMDS : ASIA, token, expiration, renouvelés."
+      },
+      {
+       "k": "sts",
+       "ctx": "Origine des credentials temporaires du rôle."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Métrique MetadataNoToken : mesure l'usage résiduel d'IMDSv1."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Une SCP empêche de lancer ou de repasser une instance en IMDSv1."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-08",
+  "services": [
+   "s3",
+   "iam",
+   "vpc",
+   "privatelink",
+   "user"
+  ],
+  "drop": [
+   1,
+   5,
+   8,
+   9,
+   10,
+   13
+  ],
+  "shorten": {
+   "0": "S3 3andou 3 couches: user context (inti IAM user mta3 chkoun?), bucket context (el bucket 3andou Deny?), object context (el objet yemlkou chkoun?). Lyoum par défaut ACL mteffya: el bucket owner yemlek kol chay, w bucket policy w IAM policy houma elli ya7kmou."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "stack",
+     "title": "Les trois contextes d'autorisation S3",
+     "layers": [
+      {
+       "label": "User context",
+       "sub": "le compte parent donne-t-il la permission ?",
+       "icon": "iam",
+       "tone": "info",
+       "tags": [
+        "IAM policy"
+       ]
+      },
+      {
+       "label": "Bucket context",
+       "sub": "compte du bucket : recherche d'un Deny explicite",
+       "icon": "s3",
+       "tone": "warn",
+       "tags": [
+        "bucket policy"
+       ]
+      },
+      {
+       "label": "Object context",
+       "sub": "permission du propriétaire de l'objet",
+       "icon": "document",
+       "tone": "warn",
+       "tags": [
+        "ACL d'objet"
+       ]
+      }
+     ],
+     "side": "évalués dans cet ordre ; si bucket owner = object owner, la bucket policy suffit"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Bucket Owner Enforced : le réglage par défaut",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "ACL désactivées",
+       "d": "Sur les nouveaux buckets ; non recommandé de les réactiver.",
+       "tone": "good"
+      },
+      {
+       "icon": "user",
+       "t": "Un seul propriétaire",
+       "d": "Le propriétaire du bucket possède tous les objets.",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "Qui décide ?",
+       "d": "Bucket policies, IAM policies, SCP et VPC endpoint policies.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "ACL : héritage",
+       "d": "Utiles seulement si Bucket Owner Enforced est désactivé.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "hub",
+     "title": "Canned ACL à connaître",
+     "center": {
+      "label": "Canned ACL",
+      "sub": "déconseillées ; désactivées par défaut depuis avril 2023",
+      "icon": "document"
+     },
+     "spokes": [
+      {
+       "label": "private",
+       "sub": "défaut",
+       "icon": "padlock",
+       "tone": "good",
+       "note": "Bucket et objet : le propriétaire a FULL_CONTROL, personne d'autre."
+      },
+      {
+       "label": "public-read",
+       "sub": "AllUsers : READ",
+       "icon": "internet",
+       "tone": "bad",
+       "note": "Bucket et objet : lecture pour tout le monde."
+      },
+      {
+       "label": "public-read-write",
+       "sub": "AllUsers : READ + WRITE",
+       "icon": "internet",
+       "tone": "bad",
+       "note": "Bucket et objet : lecture et écriture pour tous. Déconseillé."
+      },
+      {
+       "label": "authenticated-read",
+       "sub": "AuthenticatedUsers : READ",
+       "icon": "users",
+       "tone": "warn",
+       "note": "Bucket et objet : lecture pour les utilisateurs AWS authentifiés."
+      },
+      {
+       "label": "bucket-owner-read",
+       "sub": "objet",
+       "icon": "s3",
+       "tone": "info",
+       "note": "Propriétaire de l'objet : FULL_CONTROL ; propriétaire du bucket : READ."
+      },
+      {
+       "label": "bucket-owner-full-control",
+       "sub": "objet",
+       "icon": "s3",
+       "tone": "good",
+       "note": "Les deux propriétaires ont FULL_CONTROL. En cross-account, on exige s3:x-amz-acl = bucket-owner-full-control."
+      },
+      {
+       "label": "log-delivery-write",
+       "sub": "bucket",
+       "icon": "cloudwatch",
+       "tone": "info",
+       "note": "Le groupe LogDelivery : WRITE et READ_ACP."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "matrix",
+     "title": "Gateway endpoint vs Interface endpoint pour S3",
+     "rows": [
+      "Gratuit",
+      "Accès depuis on-premises",
+      "Entrée dans les route tables",
+      "ENI + Security Groups"
+     ],
+     "cols": [
+      "Gateway endpoint",
+      "Interface (PrivateLink)"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Quel VPC endpoint pour S3 ?",
+     "root": {
+      "q": "Accès depuis on-premises (VPN ou Direct Connect) ?",
+      "yes": {
+       "a": "Interface endpoint",
+       "icon": "privatelink",
+       "tone": "info",
+       "why": "Payant ; DNS Support + DNS Hostnames"
+      },
+      "no": {
+       "q": "Un seul VPC, accès depuis des EC2 ?",
+       "yes": {
+        "a": "Gateway endpoint",
+        "icon": "vpc",
+        "tone": "good",
+        "why": "Gratuit ; route tables ; DNS public de S3"
+       },
+       "no": {
+        "a": "Interface endpoint central",
+        "icon": "tgw",
+        "tone": "info",
+        "why": "Multi-VPC via Transit Gateway"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "cards",
+     "title": "Sécurité S3 : les autres briques",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Bucket verrouillé",
+       "d": "Un Deny s3:* pour tous : seul le root du compte supprime la policy.",
+       "tone": "bad"
+      },
+      {
+       "icon": "shield",
+       "t": "Block Public Access",
+       "d": "À laisser activé si le bucket n'est jamais public ; réglable au niveau du compte.",
+       "tone": "good"
+      },
+      {
+       "icon": "globalaccel",
+       "t": "Multi-Region Access Points",
+       "d": "Endpoint global : routage vers le bucket le plus proche, réplication, failover.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "S3 access logs",
+       "d": "Requêtes journalisées dans un autre bucket de la même région, jamais le même.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "arch",
+     "title": "S3 Access Points : une policy par équipe",
+     "groups": [
+      {
+       "id": "T",
+       "label": "Équipes",
+       "kind": "generic",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "fin",
+         "label": "Finance",
+         "sub": "lecture et écriture",
+         "icon": "users"
+        },
+        {
+         "id": "ana",
+         "label": "Analytics",
+         "sub": "lecture seule",
+         "icon": "users"
+        }
+       ]
+      },
+      {
+       "id": "AP",
+       "label": "Access points (DNS + policy)",
+       "kind": "generic",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "apf",
+         "label": "AP Finance",
+         "sub": "/finance : R/W",
+         "icon": "permissions"
+        },
+        {
+         "id": "apa",
+         "label": "AP Analytics",
+         "sub": "lecture seule",
+         "icon": "permissions"
+        }
+       ]
+      },
+      {
+       "id": "S",
+       "label": "Amazon S3",
+       "kind": "generic",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "bk",
+         "label": "Bucket partagé",
+         "sub": "my-bucket",
+         "icon": "s3"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "fin",
+       "to": "apf",
+       "label": "1. via son DNS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "ana",
+       "to": "apa",
+       "label": "2. via son DNS",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "apf",
+       "to": "bk",
+       "label": "3. R/W /finance",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "apa",
+       "to": "bk",
+       "label": "4. lecture",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "ana",
+       "to": "apf",
+       "label": "Interdit",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e3"
+       ],
+       "nodes": [
+        "fin",
+        "apf"
+       ],
+       "caption": "Finance passe par son access point, dont la policy donne R/W sur /finance."
+      },
+      {
+       "edges": [
+        "e2",
+        "e4"
+       ],
+       "nodes": [
+        "ana",
+        "apa"
+       ],
+       "caption": "Analytics lit via son propre access point."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "apf"
+       ],
+       "caption": "Origine VPC : accès seulement depuis le VPC, via un endpoint dont la policy autorise le bucket ET l'access point."
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "pipeline",
+     "title": "CORS : où poser la configuration ?",
+     "stages": [
+      {
+       "label": "Page sur bucket A",
+       "sub": "origin A",
+       "icon": "client",
+       "tone": "info"
+      },
+      {
+       "label": "Requête vers bucket B",
+       "sub": "autre origin",
+       "icon": "internet",
+       "tone": "warn"
+      },
+      {
+       "label": "Navigateur bloque",
+       "sub": "sauf en-têtes CORS (preflight OPTIONS)",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "CORS sur bucket B",
+       "sub": "celui qui est appelé",
+       "icon": "s3",
+       "tone": "good"
+      }
+     ],
+     "caption": "Question d'examen fréquente : la config se pose sur le bucket appelé, pas sur la page."
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "s3",
+       "ctx": "Buckets, objets, ACL, access points, access logs et CORS : le sujet de la leçon."
+      },
+      {
+       "k": "iam",
+       "ctx": "User context : la policy du compte parent doit donner la permission."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Gateway endpoint gratuit, via les route tables, pour accéder à S3 depuis le VPC."
+      },
+      {
+       "k": "privatelink",
+       "ctx": "Interface endpoint : ENI dans tes subnets, accessible aussi depuis on-premises."
+      },
+      {
+       "k": "user",
+       "ctx": "Le root du compte est le seul à débloquer un bucket verrouillé par un Deny."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-09",
+  "services": [
+   "cognito",
+   "iam",
+   "sts",
+   "role",
+   "s3",
+   "dynamodb",
+   "lambda",
+   "users"
+  ],
+  "drop": [
+   3,
+   8
+  ],
+  "shorten": {
+   "0": "Cognito zouz 7ajet: User Pool = el 9aïdet el ness (login, mot de passe, MFA) w yeb3athlek JWT. Identity Pool = guichet el badges AWS: ya5ou el JWT w y3tik credentials mo2a99atin. Ya3ni User Pool: inti chkoun? Identity Pool: chnoua tnajjem ta3mel fi AWS?"
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "decision",
+     "title": "User Pool, Identity Pool ou les deux ?",
+     "root": {
+      "q": "Besoin de login, inscription, JWT ?",
+      "yes": {
+       "q": "L'app appelle directement S3 ou DynamoDB ?",
+       "yes": {
+        "a": "User Pool + Identity Pool",
+        "icon": "cognito",
+        "tone": "good",
+        "why": "JWT puis credentials temporaires"
+       },
+       "no": {
+        "a": "User Pool seul",
+        "icon": "cognito",
+        "tone": "neutral",
+        "why": "JWT pour API Gateway ou ALB"
+       }
+      },
+      "no": {
+       "q": "Accès AWS pour IdP externe ou guest ?",
+       "yes": {
+        "a": "Identity Pool seul",
+        "icon": "sts",
+        "tone": "good",
+        "why": "Public providers, SAML, guest"
+       },
+       "no": {
+        "a": "Cognito inutile",
+        "icon": "question",
+        "tone": "neutral",
+        "why": "Pas d'utilisateurs finaux"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "User Pools : triggers Lambda (appel synchrone)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "lambda",
+       "t": "Authentification",
+       "d": "Pre Authentication (accepter ou refuser), Post Authentication (analytics), Pre Token Generation (claims).",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Inscription",
+       "d": "Pre Sign-up (valider), Post Confirmation (bienvenue, logs), Migrate User (ancien annuaire).",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Messages",
+       "d": "Custom Message : personnaliser ou localiser les messages.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "arch",
+     "title": "Policy variable : chaque utilisateur son dossier S3",
+     "groups": [
+      {
+       "id": "U",
+       "label": "Utilisateurs Cognito",
+       "kind": "generic",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "al",
+         "label": "Alice",
+         "sub": "sub = abc",
+         "icon": "user"
+        },
+        {
+         "id": "bo",
+         "label": "Bob",
+         "sub": "sub = def",
+         "icon": "user"
+        }
+       ]
+      },
+      {
+       "id": "R",
+       "label": "Rôle authenticated",
+       "kind": "account",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "pol",
+         "label": "Policy variable",
+         "sub": "${cognito-identity...:sub}",
+         "icon": "permissions"
+        }
+       ]
+      },
+      {
+       "id": "S",
+       "label": "S3 mybucket",
+       "kind": "generic",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "fa",
+         "label": "abc/*",
+         "sub": "dossier d'Alice",
+         "icon": "s3"
+        },
+        {
+         "id": "fb",
+         "label": "def/*",
+         "sub": "dossier de Bob",
+         "icon": "s3"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "al",
+       "to": "pol",
+       "label": "1. credentials du rôle",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "pol",
+       "to": "fa",
+       "label": "2. abc/* : autorisé",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "al",
+       "to": "fb",
+       "label": "3. def/* : refusé",
+       "style": "deny"
+      },
+      {
+       "id": "e4",
+       "from": "bo",
+       "to": "pol",
+       "label": "Bob : sub = def",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "pol",
+       "to": "fb",
+       "label": "def/* : autorisé",
+       "style": "solid"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "al"
+       ],
+       "caption": "Alice reçoit les credentials du rôle authenticated de l'Identity Pool."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "fa"
+       ],
+       "caption": "La variable est remplacée par l'identité d'Alice : seul abc/* est accessible."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "fb"
+       ],
+       "caption": "Le dossier de Bob lui est refusé : une seule policy pour tous les utilisateurs."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5"
+       ],
+       "nodes": [
+        "bo",
+        "fb"
+       ],
+       "caption": "Pour Bob, la même policy ouvre def/*."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Groupes, rôles et web identity",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "users",
+       "t": "Groupes de User Pool",
+       "d": "Chaque groupe porte un rôle IAM ; la precedence la plus basse gagne.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "Identity Pool : rôles",
+       "d": "Rôles par défaut (authenticated, guest) et règles de choix selon l'utilisateur.",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "Web identity sans Cognito",
+       "d": "AssumeRoleWithWebIdentity direct : non recommandé par AWS.",
+       "tone": "warn"
+      },
+      {
+       "icon": "database",
+       "t": "Cognito Sync",
+       "d": "Déprécié : utiliser AWS AppSync.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "facts",
+     "title": "Variables de policy selon le fournisseur",
+     "items": [
+      {
+       "icon": "cognito",
+       "big": "cognito-identity...:sub",
+       "label": "Cognito Identity"
+      },
+      {
+       "icon": "user",
+       "big": "www.amazon.com:user_id",
+       "label": "Login with Amazon"
+      },
+      {
+       "icon": "user",
+       "big": "graph.facebook.com:id",
+       "label": "Facebook"
+      },
+      {
+       "icon": "user",
+       "big": "accounts.google.com:sub",
+       "label": "Google"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cognito",
+       "ctx": "User Pool authentifie et émet le JWT ; Identity Pool échange le jeton."
+      },
+      {
+       "k": "sts",
+       "ctx": "AssumeRoleWithWebIdentity : source des credentials temporaires de l'app."
+      },
+      {
+       "k": "role",
+       "ctx": "Rôles authenticated et guest, mappés aux utilisateurs de l'Identity Pool."
+      },
+      {
+       "k": "iam",
+       "ctx": "Trust policy fédérée et policy variables par utilisateur."
+      },
+      {
+       "k": "s3",
+       "ctx": "Dossier par utilisateur via ${...:sub} ; accès direct sans serveur."
+      },
+      {
+       "k": "dynamodb",
+       "ctx": "Lignes par utilisateur avec dynamodb:LeadingKeys."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Triggers du User Pool : validation, claims, migration."
+      },
+      {
+       "k": "users",
+       "ctx": "Groupes de User Pool avec precedence pour choisir le rôle."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d4-10",
+  "services": [
+   "saml",
+   "sts",
+   "iam",
+   "sso",
+   "orgs",
+   "managedad",
+   "adconnector",
+   "directory"
+  ],
+  "drop": [
+   1,
+   3,
+   6,
+   8,
+   10
+  ],
+  "shorten": {
+   "0": "Fédération ya3ni el employés mta3 chrika yod5lou lil AWS b compte mta3hom el 9dim (Active Directory) bla IAM users. SAML metel bata9a mta3 identité mte3 el chrika, mdhmoua men IdP: AWS tsadda9ha w ta3ti badge mo2a99at."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Fédération : les variantes",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "saml",
+       "t": "SAML 2.0",
+       "d": "IdP d'entreprise compatible SAML (ADFS...) ; AssumeRoleWithSAML.",
+       "tone": "info"
+      },
+      {
+       "icon": "building",
+       "t": "Custom identity broker",
+       "d": "Seulement si l'IdP n'est pas compatible SAML.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cognito",
+       "t": "Web identity federation",
+       "d": "Avec ou sans Cognito (leçon d4-09).",
+       "tone": "info"
+      },
+      {
+       "icon": "sso",
+       "t": "IAM Identity Center",
+       "d": "Voie managée, plus simple que la fédération SAML manuelle.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "pipeline",
+     "title": "Configurer la fédération SAML 2.0",
+     "stages": [
+      {
+       "label": "AWS = SP chez l'IdP",
+       "sub": "metadata AWS signin",
+       "icon": "saml",
+       "tone": "info"
+      },
+      {
+       "label": "Metadata de l'IdP",
+       "sub": "issuer, expiration, clés publiques",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "SAML provider IAM",
+       "sub": "import du metadata XML",
+       "icon": "iam",
+       "tone": "warn"
+      },
+      {
+       "label": "Rôles IAM",
+       "sub": "provider = Principal",
+       "icon": "role",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cards",
+     "title": "Dépannage : Response signature invalid",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Symptôme",
+       "d": "STS renvoie 400 InvalidIdentityToken : Response signature invalid.",
+       "tone": "bad"
+      },
+      {
+       "icon": "document",
+       "t": "Cause",
+       "d": "Le metadata de l'IdP ne correspond plus à celui d'IAM, par exemple après renouvellement du certificat.",
+       "tone": "warn"
+      },
+      {
+       "icon": "cli",
+       "t": "Remède",
+       "d": "Télécharger le nouveau metadata, puis aws iam update-saml-provider.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "hub",
+     "title": "AWS IAM Identity Center (successeur d'AWS SSO)",
+     "center": {
+      "label": "Identity Center",
+      "sub": "un login, tous les comptes",
+      "icon": "sso"
+     },
+     "spokes": [
+      {
+       "label": "Login unique",
+       "sub": "comptes + applications",
+       "icon": "users",
+       "tone": "good",
+       "note": "Comptes de l'Organization, applications cloud (Salesforce, Box, Microsoft 365), applications SAML 2.0 et EC2 Windows."
+      },
+      {
+       "label": "Identity store",
+       "sub": "intégré ou externe",
+       "icon": "directory",
+       "tone": "info",
+       "note": "Identity store intégré, ou IdP externe : Active Directory, OneLogin, Okta."
+      },
+      {
+       "label": "Permission set",
+       "sub": "policies par compte",
+       "icon": "permissions",
+       "tone": "info",
+       "note": "Collection d'IAM policies assignée à des users ou groupes par compte. Avec une customer managed policy : même nom et mêmes permissions dans chaque compte (StackSets)."
+      },
+      {
+       "label": "ABAC",
+       "sub": "attributs du user",
+       "icon": "tempcred",
+       "tone": "info",
+       "note": "Centre de coût, titre, locale : on change l'accès en changeant l'attribut."
+      },
+      {
+       "label": "Attribute mappings",
+       "sub": "annuaire vers SAML",
+       "icon": "saml",
+       "tone": "info",
+       "note": "userprincipalname, mail, memberOf... alimentent les assertions SAML. Avec AD, la politique de mot de passe reste appliquée dans AD."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "matrix",
+     "title": "Délégation d'administration : compte de gestion ou délégué ?",
+     "rows": [
+      "Gérer les permission sets de son périmètre",
+      "Supprimer la configuration Identity Center",
+      "Gérer les permission sets provisionnés dans le compte de gestion",
+      "Ajouter ou retirer d'autres délégués",
+      "Activer l'accès des users du compte de gestion"
+     ],
+     "cols": [
+      "Compte de gestion",
+      "Compte délégué"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé",
+      "no": "Interdit"
+     }
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quel AWS Directory Service ?",
+     "root": {
+      "q": "Besoin d'un vrai AD (trusts, MFA, SQL Server) ?",
+      "yes": {
+       "a": "AWS Managed Microsoft AD",
+       "icon": "managedad",
+       "tone": "good",
+       "why": "Trusts one-way ou two-way, multi-AZ"
+      },
+      "no": {
+       "q": "AD on-premises existant, rien à migrer ?",
+       "yes": {
+        "a": "AD Connector",
+        "icon": "adconnector",
+        "tone": "info",
+        "why": "Proxy : pas de cache ni de trust"
+       },
+       "no": {
+        "a": "Simple AD",
+        "icon": "directory",
+        "tone": "neutral",
+        "why": "Basique : 500 ou 5000 users, ni MFA ni trust"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "saml",
+       "ctx": "Protocole d'assertion signée entre l'IdP d'entreprise et AWS."
+      },
+      {
+       "k": "sts",
+       "ctx": "AssumeRoleWithSAML délivre les credentials temporaires après l'assertion."
+      },
+      {
+       "k": "iam",
+       "ctx": "SAML provider et trust policy des rôles fédérés."
+      },
+      {
+       "k": "sso",
+       "ctx": "Login unique, permission sets et groupes pour tous les comptes."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Identity Center vit dans le compte de gestion ; administration déléguable."
+      },
+      {
+       "k": "managedad",
+       "ctx": "Vrai AD managé, avec trust vers l'AD on-premises."
+      },
+      {
+       "k": "adconnector",
+       "ctx": "Proxy vers l'AD on-premises : rien à migrer, pas de cache."
+      },
+      {
+       "k": "directory",
+       "ctx": "Simple AD : annuaire basique compatible AD (Samba 4)."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

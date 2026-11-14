@@ -1,0 +1,3740 @@
+[
+ {
+  "id": "ch2a-01",
+  "part": "ch2a",
+  "title": "Pourquoi l'IAM est central dans le cloud : vocabulaire et architecture",
+  "emoji": "🛂",
+  "level": 0,
+  "minutes": 12,
+  "core": true,
+  "src": "CH2 slides 2, 4-6",
+  "hook": {
+   "fr": "Dans le cloud il n'y a plus de réseau interne qui protège : l'identité devient le nouveau périmètre, et c'est l'IAM qui décide de tout.",
+   "derja": "Fi zamen, el 7ouma kolha ta3refek w el bab msakker. Fil cloud el bab maw3adch 3andou 7ouma: ay 7ad men ay blasa fil 3alam y9der yedfa3 3lih. Donc lazem 3andek bawab ki yos2el 'inti chkoun?' w ba3dha 'tnajjem tod5ol fin?'. Houwa hedha el IAM."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Ya3ni IAM houwa el bawab mta3 el cloud. Ki tji lel 3imara, el bawab ma yseltekch 'win rayeh?' bark: yotlob menek CIN (identifiant) w yet2akked elli el wejh mta3ek houwa nafsou mta3 el CIN (authentification). Ba3dha yochouf el liste: 'inti sakin fil étage 3, donc tala3 lel étage 3, mouch lel étage 5' (autorisation). W fel a5er yekteb fi carnet chkoun d5al w wa9tech (audit). Fil cloud, el 3imara hiya AWS w el bawab ma3andouch 7ouma ye9ef 3liha: kol 7ad yetsalla mel internet, donc el bawab houwa kol chay."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : le périmètre a disparu",
+    "md": "Avant, les employés et les serveurs étaient dans un réseau d'entreprise protégé par un pare-feu : *être dans le réseau* voulait presque dire *être de confiance*. Dans le cloud, ce modèle ne tient plus :\n- **Le périmètre change** : utilisateurs, services et charges de travail accèdent aux ressources depuis plusieurs réseaux (bureau, maison, mobile, autre cloud).\n- **La confiance s'étend** : les frontières de confiance englobent le fournisseur cloud et les applications SaaS.\n- **Les identités techniques comptent autant que les humaines** : une application, un rôle ou une fonction serverless agit sur des ressources exactement comme un employé.\n- **Le risque se déplace** : un compte compromis agit à distance, sans franchir de réseau interne ; des droits excessifs amplifient l'impact d'une erreur ou d'une attaque.\n- **La traçabilité devient obligatoire** : chaque action doit pouvoir être reliée à un principal et à une session."
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Idée clé",
+    "text": "Dans le cloud, on ne protège plus un lieu (le réseau) mais des identités et leurs droits. Si l'identité est volée ou trop puissante, le reste de la sécurité s'effondre. C'est pourquoi l'IAM est le premier domaine à maîtriser."
+   },
+   {
+    "type": "text",
+    "title": "Définition précise",
+    "md": "**IAM (Identity and Access Management)** : ensemble des processus, règles et technologies qui garantissent que **la bonne identité** accède **aux bonnes ressources**, **dans le bon contexte**, et que chaque accès est **tracé**.\n\nIl répond à deux questions enchaînées :\n- **Qui es-tu ?** → authentification\n- **Qu'as-tu le droit de faire ?** → autorisation\n\net à une troisième, après coup : **que s'est-il passé ?** → audit."
+   },
+   {
+    "type": "table",
+    "title": "Vocabulaire essentiel de l'IAM",
+    "head": [
+     "Concept",
+     "Question traitée",
+     "Exemple",
+     "Analogie tunisienne"
+    ],
+    "rows": [
+     [
+      "**Identité**",
+      "Qui ou quoi doit être reconnu ?",
+      "Employé, application, service, appareil",
+      "Ton nom et ton dossier à la mairie"
+     ],
+     [
+      "**Principal**",
+      "Qui effectue réellement la requête ?",
+      "Utilisateur, rôle ou charge de travail",
+      "La personne qui est au guichet en ce moment"
+     ],
+     [
+      "**Identifiant** (credential)",
+      "Quelle preuve présente le principal ?",
+      "Mot de passe, clé, certificat, jeton",
+      "La CIN que tu montres"
+     ],
+     [
+      "**Authentification**",
+      "L'identité est-elle valide ?",
+      "MFA, SAML, OIDC",
+      "Le bawab compare ta photo et ton visage"
+     ],
+     [
+      "**Autorisation**",
+      "Quelle action peut-elle exécuter ?",
+      "Rôle, attribut, politique",
+      "La liste des étages où tu as le droit d'aller"
+     ],
+     [
+      "**Audit**",
+      "Que s'est-il passé, dans quel contexte ?",
+      "Journaux, session, décision d'accès",
+      "Le carnet d'entrée/sortie du bawab"
+     ]
+    ],
+    "note": "Ordre logique d'une requête : identité → identifiant présenté → authentification → autorisation → trace d'audit."
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Identité vs principal (confusion fréquente)",
+    "text": "L'identité est ce qui est enregistré dans l'annuaire. Le principal est l'entité qui fait la requête à cet instant, et ce n'est pas toujours la même chose. Exemple AWS : Alice assume le rôle AuditRole ; la requête est envoyée par la session de rôle arn:aws:sts::111122223333:assumed-role/AuditRole/alice. C'est ce principal-là que les politiques évaluent et que les journaux enregistrent."
+   },
+   {
+    "type": "decode",
+    "title": "Anatomie d'un principal : la session de rôle d'Alice",
+    "raw": "arn:aws:sts::111122223333:assumed-role/AuditRole/alice",
+    "parts": [
+     {
+      "s": "arn",
+      "label": "Préfixe",
+      "note": "Amazon Resource Name : nom unique d'une entité AWS."
+     },
+     {
+      "s": "aws",
+      "label": "Partition",
+      "note": "Partition AWS standard."
+     },
+     {
+      "s": "sts",
+      "label": "Service",
+      "note": "AWS STS, le service qui émet les identifiants temporaires d'une session de rôle."
+     },
+     {
+      "s": "111122223333",
+      "label": "Compte",
+      "note": "Identifiant du compte AWS (12 chiffres) où le rôle existe."
+     },
+     {
+      "s": "assumed-role",
+      "label": "Type de principal",
+      "note": "C'est une session de rôle, pas un utilisateur IAM : un principal temporaire."
+     },
+     {
+      "s": "AuditRole",
+      "label": "Nom du rôle",
+      "note": "Le rôle assumé : c'est lui qui porte les permissions."
+     },
+     {
+      "s": "alice",
+      "label": "Nom de session",
+      "note": "Qui a assumé le rôle. Les journaux relient ainsi chaque action à une personne et à une session."
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Architecture fonctionnelle d'un système IAM",
+    "groups": [
+     {
+      "id": "G0",
+      "label": "Demandeur",
+      "kind": "internet",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "user",
+        "label": "Principal",
+        "sub": "employé, appli, rôle",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "G1",
+      "label": "Authentification",
+      "kind": "org",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "idp",
+        "label": "Fournisseur d'identité (IdP)",
+        "sub": "vérifie les identifiants",
+        "icon": "idp"
+       },
+       {
+        "id": "dir",
+        "label": "Annuaire",
+        "sub": "identités + attributs",
+        "icon": "db"
+       }
+      ]
+     },
+     {
+      "id": "G2",
+      "label": "Autorisation",
+      "kind": "org",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pdp",
+        "label": "Moteur d'autorisation",
+        "sub": "évalue les politiques",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "G3",
+      "label": "Protection",
+      "kind": "vpc",
+      "col": 3,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pep",
+        "label": "Point d'application (PEP)",
+        "sub": "intercepte la requête",
+        "icon": "shield"
+       },
+       {
+        "id": "res",
+        "label": "Ressource",
+        "sub": "bucket, VM, API",
+        "icon": "storage"
+       }
+      ]
+     },
+     {
+      "id": "G4",
+      "label": "Audit et conformité",
+      "kind": "zone",
+      "col": 2,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "log",
+        "label": "Journaux",
+        "sub": "qui, quoi, quand, décision",
+        "icon": "log"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "user",
+      "to": "idp",
+      "label": "1. Présente son identifiant",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "idp",
+      "to": "dir",
+      "label": "2. Retrouve l'identité et ses attributs",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "idp",
+      "to": "user",
+      "label": "3. Jeton ou session",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "user",
+      "to": "pep",
+      "label": "4. Requête avec jeton",
+      "style": "solid"
+     },
+     {
+      "id": "e5",
+      "from": "pep",
+      "to": "pdp",
+      "label": "5. Demande de décision",
+      "style": "solid"
+     },
+     {
+      "id": "e6",
+      "from": "pdp",
+      "to": "pep",
+      "label": "6. Allow ou Deny",
+      "style": "dashed"
+     },
+     {
+      "id": "e7",
+      "from": "pep",
+      "to": "res",
+      "label": "7. Accès si Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e8",
+      "from": "pep",
+      "to": "log",
+      "label": "8. Trace de la décision",
+      "style": "dashed"
+     },
+     {
+      "id": "e9",
+      "from": "idp",
+      "to": "log",
+      "label": "Trace des connexions",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "user",
+       "idp"
+      ],
+      "caption": "Le principal prouve qui il est : mot de passe, MFA, assertion SAML ou jeton OIDC."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "idp",
+       "dir"
+      ],
+      "caption": "L'IdP consulte l'annuaire (la source des identités et de leurs attributs) puis émet une session ou un jeton : c'est l'authentification."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "user",
+       "pep"
+      ],
+      "caption": "Le principal envoie sa requête vers la ressource. Le point d'application (PEP) l'intercepte : rien ne passe sans lui."
+     },
+     {
+      "edges": [
+       "e5",
+       "e6"
+      ],
+      "nodes": [
+       "pep",
+       "pdp"
+      ],
+      "caption": "Le PEP ne décide pas lui-même : il interroge le moteur d'autorisation, qui évalue les politiques et répond Allow ou Deny."
+     },
+     {
+      "edges": [
+       "e7"
+      ],
+      "nodes": [
+       "pep",
+       "res"
+      ],
+      "caption": "Seulement si la réponse est Allow, la requête atteint la ressource."
+     },
+     {
+      "edges": [
+       "e8",
+       "e9"
+      ],
+      "nodes": [
+       "log"
+      ],
+      "caption": "Chaque connexion et chaque décision part dans les journaux : ils alimentent l'audit et la conformité."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Même architecture, côté AWS (correspondance conceptuelle)",
+    "head": [
+     "Fonction IAM",
+     "Rôle",
+     "Équivalent typique dans AWS"
+    ],
+    "rows": [
+     [
+      "Annuaire",
+      "Conserve identités et attributs",
+      "IAM users et roles, ou IAM Identity Center, ou annuaire d'entreprise"
+     ],
+     [
+      "IdP",
+      "Authentifie l'utilisateur",
+      "Okta, Entra ID, Google Workspace... via SAML ou OIDC"
+     ],
+     [
+      "Moteur d'autorisation",
+      "Évalue les politiques",
+      "Moteur d'évaluation des policies IAM"
+     ],
+     [
+      "PEP",
+      "Applique la décision",
+      "Le service AWS appelé (S3, EC2, KMS...)"
+     ],
+     [
+      "Journaux",
+      "Audit, conformité",
+      "AWS CloudTrail (appels d'API), journaux d'accès des services"
+     ]
+    ],
+    "note": "Les équivalents AWS sont une mise en correspondance pédagogique : les composants s'appellent autrement, mais les rôles sont les mêmes."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le compte volé depuis un café",
+    "situation": "Un développeur de ta société se connecte depuis le wifi d'un café à Lac 2. Son mot de passe a été volé par phishing. L'attaquant n'est dans aucun réseau interne et pourtant il appelle l'API cloud de l'entreprise.",
+    "q": "Quel principe explique le mieux que l'attaque réussisse, et quelle défense est la plus pertinente ?",
+    "opts": [
+     {
+      "t": "Le pare-feu d'entreprise était mal configuré : il suffit de le renforcer.",
+      "ok": false,
+      "why": "Dans le cloud l'API est joignable depuis Internet : le pare-feu d'entreprise n'est plus la frontière. Le problème est l'identité."
+     },
+     {
+      "t": "L'identité est le nouveau périmètre : il faut un MFA, des droits minimaux et des journaux reliant chaque action à un principal.",
+      "ok": true,
+      "why": "Un compte compromis agit à distance sans franchir de réseau interne. On réduit la probabilité (MFA), l'impact (moindre privilège) et on garde la preuve (audit)."
+     },
+     {
+      "t": "Il faut interdire le télétravail et le wifi public.",
+      "ok": false,
+      "why": "Ce serait revenir au modèle du réseau interne, impossible dans le cloud et hors sujet : l'accès doit être sûr d'où qu'il vienne."
+     },
+     {
+      "t": "Il suffit de changer le mot de passe tous les jours.",
+      "ok": false,
+      "why": "Un mot de passe volé reste utilisable jusqu'à son changement, et la rotation seule ne règle ni les droits excessifs ni la traçabilité."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Sache réciter les 6 termes dans l'ordre (identité, principal, identifiant, authentification, autorisation, audit) avec UNE question associée à chacun, et sache nommer les 5 composants fonctionnels : annuaire, IdP, moteur d'autorisation, point d'application, journaux."
+   }
+  ],
+  "terms": [
+   {
+    "t": "IAM",
+    "d": "Identity and Access Management : processus et technologies qui garantissent que la bonne identité accède aux bonnes ressources, avec traçabilité.",
+    "derja": "El bawab mta3 el cloud."
+   },
+   {
+    "t": "Identité",
+    "d": "Entité à reconnaître : employé, application, service ou appareil.",
+    "derja": "Chkoun inti fil dossier."
+   },
+   {
+    "t": "Principal",
+    "d": "Entité qui effectue réellement la requête à un instant donné (utilisateur, rôle, charge de travail).",
+    "derja": "El wejh elli 9odem el guichet tawa."
+   },
+   {
+    "t": "Identifiant (credential)",
+    "d": "Preuve présentée par le principal : mot de passe, clé, certificat ou jeton.",
+    "derja": "El CIN elli t'werriha."
+   },
+   {
+    "t": "Authentification",
+    "d": "Vérification que l'identité présentée est valide.",
+    "derja": "El bawab y9arren el CIN bel wejh."
+   },
+   {
+    "t": "Autorisation",
+    "d": "Décision sur les actions qu'un principal authentifié peut exécuter sur une ressource.",
+    "derja": "El liste mta3 les étages elli tnajjem tod5olhom."
+   },
+   {
+    "t": "Audit",
+    "d": "Observation des usages et des décisions d'accès à partir des journaux.",
+    "derja": "El carnet mta3 el bawab."
+   },
+   {
+    "t": "Annuaire",
+    "d": "Base qui conserve les identités et leurs attributs.",
+    "derja": "El registre mta3 el 3imara."
+   },
+   {
+    "t": "IdP (Identity Provider)",
+    "d": "Composant qui authentifie l'utilisateur et émet une preuve d'identité (assertion, jeton).",
+    "derja": "El mairie elli t'sallem el wathika."
+   },
+   {
+    "t": "PEP (Policy Enforcement Point)",
+    "d": "Point d'application : intercepte la requête et applique la décision d'accès devant la ressource.",
+    "derja": "El bawab 9odem el bab."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Pourquoi dit-on que l'IAM est central dans le cloud ?",
+    "a": "Dans le cloud, le périmètre réseau disparaît : utilisateurs, services et applications accèdent aux ressources depuis plusieurs réseaux, et les frontières de confiance s'étendent au fournisseur et aux SaaS. Un compte compromis peut agir à distance sans franchir de réseau interne, et les identités techniques (rôles, applications) comptent autant que les humaines. L'identité devient donc le nouveau périmètre. D'où l'importance de l'authentification forte, du moindre privilège et de la traçabilité qui relie chaque action à un principal et à une session.",
+    "keys": [
+     "périmètre disparaît",
+     "identité = nouveau périmètre",
+     "compte compromis à distance",
+     "identités techniques",
+     "traçabilité"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre authentification et autorisation ?",
+    "a": "L'authentification répond à la question « qui es-tu ? » : elle vérifie que l'identité présentée est valide, par exemple avec un mot de passe, un MFA, SAML ou OIDC. L'autorisation répond à « que peux-tu faire ? » : elle décide, à partir de rôles, d'attributs ou de politiques, si le principal peut exécuter une action sur une ressource. L'authentification vient toujours avant. Exemple : se connecter à la console AWS est de l'authentification ; pouvoir lire un bucket S3 est de l'autorisation.",
+    "keys": [
+     "qui es-tu",
+     "que peux-tu faire",
+     "authentification d'abord",
+     "exemple console vs S3"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre identité et principal ?",
+    "a": "L'identité est l'entité enregistrée dans l'annuaire (employé, application, service, appareil). Le principal est l'entité qui effectue réellement la requête à cet instant : utilisateur, rôle ou charge de travail. Les deux peuvent différer : Alice (identité) qui assume un rôle envoie ses requêtes en tant que session de rôle (principal). Les politiques évaluent et les journaux enregistrent le principal.",
+    "keys": [
+     "annuaire",
+     "qui fait la requête",
+     "rôle assumé",
+     "journaux"
+    ]
+   },
+   {
+    "q": "Décrivez l'architecture fonctionnelle d'un système IAM.",
+    "a": "Elle comporte cinq éléments. L'annuaire conserve les identités et leurs attributs. Le fournisseur d'identité authentifie l'utilisateur et émet une session ou un jeton. Le moteur d'autorisation évalue les politiques et répond Allow ou Deny. Le point d'application protège la ressource : il intercepte la requête et applique cette décision. Enfin les journaux alimentent l'audit et la conformité. Dans AWS, le PEP est le service appelé, le moteur est l'évaluation des policies IAM et les journaux sont dans CloudTrail.",
+    "keys": [
+     "annuaire",
+     "IdP",
+     "moteur d'autorisation",
+     "PEP",
+     "journaux"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Confondre authentification (prouver qui on est) et autorisation (ce qu'on a le droit de faire) : un utilisateur authentifié n'a pas automatiquement accès à tout.",
+   "Croire qu'un pare-feu ou un VPN suffit à protéger le cloud : les API cloud sont atteignables depuis Internet, c'est l'identité qui protège.",
+   "Oublier les identités techniques (rôles, applications, fonctions) : elles sont souvent plus nombreuses et plus puissantes que les humains.",
+   "Dire que le PEP prend la décision : il l'applique ; c'est le moteur d'autorisation qui décide.",
+   "Confondre identité (annuaire) et principal (celui qui envoie la requête, parfois une session de rôle)."
+  ],
+  "quiz": [
+   {
+    "q": "Quel est le rôle du point d'application (PEP) ?",
+    "opts": [
+     "Stocker les identités et leurs attributs",
+     "Intercepter la requête et appliquer la décision d'accès devant la ressource",
+     "Authentifier l'utilisateur avec un mot de passe",
+     "Produire les rapports de conformité"
+    ],
+    "ans": 1,
+    "why": "Le PEP protège la ressource : il intercepte la requête, interroge le moteur d'autorisation et applique Allow ou Deny. Stocker les identités est le rôle de l'annuaire."
+   },
+   {
+    "q": "Dans le vocabulaire IAM, un mot de passe, une clé d'accès ou un certificat sont des :",
+    "opts": [
+     "Principaux",
+     "Identifiants (credentials)",
+     "Autorisations",
+     "Journaux d'audit"
+    ],
+    "ans": 1,
+    "why": "L'identifiant est la preuve présentée par le principal. Le principal est celui qui fait la requête."
+   },
+   {
+    "q": "Pourquoi l'identité devient-elle le nouveau périmètre dans le cloud ?",
+    "opts": [
+     "Parce que les mots de passe sont plus sûrs que les pare-feu",
+     "Parce que les accès viennent de multiples réseaux et qu'un compte compromis agit à distance sans franchir de réseau interne",
+     "Parce que le fournisseur cloud gère toutes les identités à la place du client",
+     "Parce que les identités techniques n'existent pas dans le cloud"
+    ],
+    "ans": 1,
+    "why": "Le réseau interne n'est plus la frontière de confiance : utilisateurs, services et SaaS accèdent depuis partout, donc l'identité et ses droits deviennent la défense principale."
+   },
+   {
+    "q": "Quelle question l'audit traite-t-il ?",
+    "opts": [
+     "L'identité est-elle valide ?",
+     "Quelle action peut-elle être exécutée ?",
+     "Que s'est-il passé, et dans quel contexte ?",
+     "Quelle preuve le principal présente-t-il ?"
+    ],
+    "ans": 2,
+    "why": "L'audit exploite journaux, sessions et décisions d'accès pour reconstituer ce qui s'est passé. Les autres questions correspondent à l'authentification, l'autorisation et l'identifiant."
+   },
+   {
+    "q": "Dans AWS, quel service enregistre principalement les appels d'API pour l'audit ?",
+    "opts": [
+     "AWS STS",
+     "AWS CloudTrail",
+     "Amazon S3",
+     "AWS KMS"
+    ],
+    "ans": 1,
+    "why": "CloudTrail journalise les appels d'API et alimente l'audit. STS émet des identifiants temporaires, S3 stocke des objets, KMS gère des clés."
+   }
+  ],
+  "recap": [
+   "Cloud = pas de périmètre réseau : l'identité est le nouveau périmètre, humaine comme technique.",
+   "6 termes : identité, principal, identifiant, authentification (qui es-tu), autorisation (que peux-tu faire), audit (que s'est-il passé).",
+   "Le principal est celui qui fait réellement la requête (parfois un rôle assumé), pas forcément l'identité d'origine.",
+   "Architecture : annuaire, IdP, moteur d'autorisation, PEP, journaux.",
+   "Le PEP applique, le moteur décide ; les journaux relient chaque action à un principal et à une session."
+  ]
+ },
+ {
+  "id": "ch2a-02",
+  "part": "ch2a",
+  "title": "Les 5 processus IAM et le cycle de vie d'une identité",
+  "emoji": "🔄",
+  "level": 0,
+  "minutes": 14,
+  "core": true,
+  "src": "CH2 slides 7-9",
+  "hook": {
+   "fr": "Une identité n'est pas créée une fois pour toutes : elle entre, évolue, est revue puis sort, et chaque oubli laisse un accès ouvert pour un attaquant.",
+   "derja": "Fel madrsa, el tilmidh yodkhol, ytbaddel el classe, w a5er l3am yokhrej. Ken el idara t'nsa tfassakh el carte mta3ou, ykoun 3andou accès l'bab el madrsa 3am-ayn ba3d. Fil IAM kif kif: kol compte lazem yetwallad, yetbaddel w yetfasakh fil wa9t. Elli yensa houwa elli yosna3 el 7ofra."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Khalli nsawwrou 3imara fiha 200 mosta3mel. Yodkhol wa7ed jdid (Joiner): yet3mallou badge. Yetbaddel mel étage 2 lel étage 5 (Mover): lazem yetnahha el badge el 9dim w yet3mallou jdid, mouch yab9a 3andou el zouz. Yokhrej mel 3imara (Leaver): el badge yetfasakh el nhar nafsou. Ki ma tosna3ch hedha, tel9a el 3imara fiha badgets mta3 nes mchew men 3am, w ay 7ad ykhatfou yod5ol bih. Hedha ism-ou 'compte orphelin'."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : des droits qui s'accumulent et ne meurent jamais",
+    "md": "Quand un compte est créé à la main et supprimé « quand on y pense », trois choses arrivent :\n- les **droits sont donnés sans validation** (on copie les droits d'un collègue),\n- les **droits s'accumulent** à chaque changement de poste (personne ne retire l'ancien),\n- les comptes de personnes parties restent actifs : ce sont les **comptes orphelins**, la cible préférée des attaquants car personne ne regarde ce qu'ils font.\n\nL'IAM répond avec **cinq processus** et un **cycle de vie** formalisé."
+   },
+   {
+    "type": "table",
+    "title": "Les 5 processus IAM",
+    "head": [
+     "Processus",
+     "Finalité",
+     "Contrôle attendu"
+    ],
+    "rows": [
+     [
+      "**Gouvernance**",
+      "Définir les rôles, règles et responsabilités",
+      "Propriétaire de chaque droit identifié"
+     ],
+     [
+      "**Administration**",
+      "Créer et maintenir comptes, groupes et attributs",
+      "Workflow validé et traçable"
+     ],
+     [
+      "**Authentification**",
+      "Vérifier l'identité du principal",
+      "MFA adapté au niveau de risque"
+     ],
+     [
+      "**Autorisation**",
+      "Décider l'accès à une ressource",
+      "Politique explicite et minimale"
+     ],
+     [
+      "**Audit**",
+      "Observer les usages et détecter les écarts",
+      "Journaux centralisés et revues périodiques"
+     ]
+    ],
+    "note": "Moyen mnémotechnique : on décide les règles (gouvernance), on les met en place (administration), on vérifie qui entre (authentification), on décide ce qu'il fait (autorisation), on contrôle après coup (audit)."
+   },
+   {
+    "type": "table",
+    "title": "Cycle de vie d'une identité",
+    "head": [
+     "Étape",
+     "Événement",
+     "Action IAM",
+     "Risque à maîtriser"
+    ],
+    "rows": [
+     [
+      "**Entrée**",
+      "Recrutement ou création d'un service",
+      "Créer l'identité, attribuer un rôle initial",
+      "Droits accordés sans validation"
+     ],
+     [
+      "**Évolution**",
+      "Mobilité, projet, changement de fonction",
+      "Adapter groupes, attributs et privilèges",
+      "Accumulation des droits"
+     ],
+     [
+      "**Revue**",
+      "Campagne périodique",
+      "Recertifier ou retirer les accès",
+      "Droits devenus inutiles"
+     ],
+     [
+      "**Suspension**",
+      "Incident ou absence prolongée",
+      "Bloquer sessions et identifiants",
+      "Accès persistant"
+     ],
+     [
+      "**Sortie**",
+      "Fin de contrat ou suppression d'un service",
+      "Déprovisionner immédiatement",
+      "Compte orphelin"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Joiner / Mover / Leaver (JML)",
+    "text": "Les professionnels résument le cycle de vie par trois mots : Joiner (entrée), Mover (évolution : mobilité, changement de projet) et Leaver (sortie). La revue périodique et la suspension sont des étapes transversales qui peuvent arriver à tout moment entre l'entrée et la sortie. Les identités techniques suivent le même cycle : un service créé = Joiner, un service supprimé = Leaver."
+   },
+   {
+    "type": "flow",
+    "title": "Cycle de vie automatisé : RH, annuaire, comptes",
+    "intro": "Le SIRH (système d'information RH) est la source de vérité : c'est lui qui déclenche les événements. L'annuaire ou l'IdP calcule les droits, puis les comptes sont créés, modifiés ou fermés dans les applications.",
+    "actors": [
+     {
+      "id": "rh",
+      "label": "SIRH",
+      "sub": "source de vérité RH",
+      "kind": "store"
+     },
+     {
+      "id": "dir",
+      "label": "Annuaire / IdP",
+      "sub": "règles et groupes",
+      "kind": "idp"
+     },
+     {
+      "id": "app",
+      "label": "Applications cloud",
+      "sub": "comptes cibles",
+      "kind": "app"
+     },
+     {
+      "id": "mgr",
+      "label": "Manager",
+      "sub": "propriétaire des accès",
+      "kind": "user"
+     }
+    ],
+    "steps": [
+     {
+      "from": "rh",
+      "to": "dir",
+      "label": "1. Joiner : nouvel employé",
+      "detail": "Le contrat est signé : le SIRH émet un événement d'arrivée avec les attributs de la personne.",
+      "derja": "El idara t'3ayet lel 'annuaire': fama wa7ed jdid.",
+      "payload": {
+       "title": "Événement RH (exemple)",
+       "fields": [
+        {
+         "k": "event",
+         "v": "hire",
+         "note": "type d'événement : Joiner"
+        },
+        {
+         "k": "employeeId",
+         "v": "E-20418",
+         "note": "identifiant RH stable"
+        },
+        {
+         "k": "department",
+         "v": "Engineering",
+         "note": "sert à calculer les groupes"
+        },
+        {
+         "k": "startDate",
+         "v": "2026-09-01",
+         "note": "date d'activation"
+        }
+       ]
+      }
+     },
+     {
+      "from": "dir",
+      "to": "dir",
+      "label": "2. Applique les règles d'affectation",
+      "detail": "L'annuaire attribue un rôle initial minimal et les groupes liés au département : pas de copie des droits d'un collègue.",
+      "derja": "Rôle initial sghir, mouch kol chay."
+     },
+     {
+      "from": "dir",
+      "to": "app",
+      "label": "3. Crée les comptes",
+      "detail": "Le compte est provisionné dans chaque application cible avec ses attributs et ses groupes.",
+      "tone": "good"
+     },
+     {
+      "from": "rh",
+      "to": "dir",
+      "label": "4. Mover : changement d'équipe",
+      "detail": "La personne passe de Engineering à Finance : nouvel événement RH.",
+      "payload": {
+       "title": "Événement RH (exemple)",
+       "fields": [
+        {
+         "k": "event",
+         "v": "transfer",
+         "note": "type d'événement : Mover"
+        },
+        {
+         "k": "employeeId",
+         "v": "E-20418",
+         "note": "même personne"
+        },
+        {
+         "k": "department",
+         "v": "Finance",
+         "note": "nouvelle valeur"
+        }
+       ]
+      }
+     },
+     {
+      "from": "dir",
+      "to": "app",
+      "label": "5. Retire les anciens droits, ajoute les nouveaux",
+      "detail": "On remplace les groupes : sans retrait des anciens droits, on accumule les privilèges (privilege creep).",
+      "tone": "good"
+     },
+     {
+      "from": "mgr",
+      "to": "dir",
+      "label": "6. Revue périodique",
+      "detail": "Le manager recertifie les accès de son équipe : chaque droit est confirmé ou retiré.",
+      "derja": "Kol 3 ou 6 chhor, el manager yochouf: 'hedhom lazem yab9aw?'"
+     },
+     {
+      "from": "rh",
+      "to": "dir",
+      "label": "7. Leaver : fin de contrat",
+      "detail": "Le SIRH signale la sortie. C'est l'événement le plus critique : tout accès restant devient un compte orphelin.",
+      "tone": "bad"
+     },
+     {
+      "from": "dir",
+      "to": "app",
+      "label": "8. Désactive, révoque sessions et clés",
+      "detail": "Connexion bloquée, sessions fermées, groupes retirés. La suppression définitive viendra ensuite, selon la politique de conservation.",
+      "tone": "good"
+     },
+     {
+      "from": "app",
+      "to": "dir",
+      "label": "9. Confirmation et trace",
+      "detail": "L'application confirme l'état final ; l'événement est journalisé pour l'audit.",
+      "dashed": true
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Un événement RH de départ (exemple) : ce que le SIRH envoie à l'annuaire",
+    "raw": "{\n  \"event\": \"leaver\",\n  \"employeeId\": \"E-20418\",\n  \"department\": \"Engineering\",\n  \"endDate\": \"2026-12-31\",\n  \"reason\": \"contract_end\"\n}",
+    "parts": [
+     {
+      "s": "\"event\": \"leaver\"",
+      "label": "Type d'événement",
+      "note": "Leaver : la sortie. Elle déclenche la désactivation des comptes et la révocation des accès."
+     },
+     {
+      "s": "\"employeeId\": \"E-20418\"",
+      "label": "Identifiant RH",
+      "note": "Identifiant stable qui relie la personne à tous ses comptes, dans l'annuaire et les applications."
+     },
+     {
+      "s": "\"department\": \"Engineering\"",
+      "label": "Attribut",
+      "note": "Département : permet de retrouver les groupes et rôles à retirer."
+     },
+     {
+      "s": "\"endDate\": \"2026-12-31\"",
+      "label": "Date de fin",
+      "note": "Moment à partir duquel les accès doivent être coupés : idéalement automatiquement."
+     },
+     {
+      "s": "\"reason\": \"contract_end\"",
+      "label": "Motif",
+      "note": "Fin de contrat. Un motif comme la révocation (incident) peut exiger une coupure immédiate."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Responsabilités IAM dans le cloud : client ou fournisseur ?",
+    "head": [
+     "Responsabilité",
+     "Qui ?"
+    ],
+    "rows": [
+     [
+      "Définir les rôles métiers et les propriétaires des accès",
+      "Client"
+     ],
+     [
+      "Configurer les politiques et les conditions d'accès",
+      "Client"
+     ],
+     [
+      "Gérer le cycle de vie et la revue des comptes",
+      "Client"
+     ],
+     [
+      "Surveiller les usages et traiter les anomalies",
+      "Client"
+     ],
+     [
+      "Protéger le service IAM et son plan de contrôle",
+      "Fournisseur"
+     ],
+     [
+      "Fournir des mécanismes de fédération et d'authentification",
+      "Fournisseur"
+     ],
+     [
+      "Appliquer les politiques de façon fiable",
+      "Fournisseur"
+     ],
+     [
+      "Produire les journaux et preuves nécessaires à l'audit",
+      "Fournisseur"
+     ],
+     [
+      "Activer et imposer le MFA (le fournisseur l'offre, le client l'impose)",
+      "Partagé"
+     ]
+    ],
+    "note": "Le fournisseur garantit que le moteur IAM fonctionne et applique les politiques ; le client décide quelles politiques écrire et qui a quoi. Un compte orphelin est TOUJOURS la faute du client, jamais celle du fournisseur."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le compte orphelin du consultant",
+    "situation": "Un consultant externe a quitté le projet il y a six mois. Son compte de service cloud existe toujours : il n'a pas de MFA et possède une clé d'accès jamais renouvelée. L'audit remarque des appels API depuis une adresse inconnue avec cette clé.",
+    "q": "Quelle est la bonne réponse, à court terme puis structurelle ?",
+    "opts": [
+     {
+      "t": "Attendre : le fournisseur cloud détecte et bloque les comptes inutilisés.",
+      "ok": false,
+      "why": "Le cycle de vie des comptes est une responsabilité du client. Le fournisseur n'a aucun moyen de savoir que le consultant est parti."
+     },
+     {
+      "t": "Désactiver tout de suite le compte et la clé, examiner les journaux de ses actions, puis automatiser la sortie depuis le SIRH et planifier une revue des accès.",
+      "ok": true,
+      "why": "On contient (désactiver identifiants et sessions), on enquête avec les journaux, puis on traite la cause : absence de déprovisionnement à la sortie."
+     },
+     {
+      "t": "Supprimer le compte immédiatement sans rien regarder.",
+      "ok": false,
+      "why": "On perd l'historique et la possibilité de reconstituer ce que l'attaquant a fait. Il faut désactiver d'abord et conserver les traces."
+     },
+     {
+      "t": "Imposer un mot de passe plus long à tous les employés.",
+      "ok": false,
+      "why": "Le problème est un compte qui n'aurait pas dû exister et une clé permanente, pas la longueur des mots de passe."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Sache citer les 5 étapes du cycle de vie (entrée, évolution, revue, suspension, sortie) avec le risque de chacune, notamment accumulation des droits pour l'évolution et compte orphelin pour la sortie. Sache aussi dire qui est responsable de quoi : le client gère le cycle de vie, les rôles, les politiques et la revue ; le fournisseur protège le service IAM et fournit les journaux."
+   }
+  ],
+  "terms": [
+   {
+    "t": "Joiner / Mover / Leaver",
+    "d": "Les trois grands événements du cycle de vie : arrivée, changement de poste ou de projet, départ.",
+    "derja": "Yodkhol, ytbaddel, yokhrej."
+   },
+   {
+    "t": "Gouvernance IAM",
+    "d": "Processus qui définit les rôles, règles et responsabilités et identifie le propriétaire de chaque droit."
+   },
+   {
+    "t": "Provisionnement / déprovisionnement",
+    "d": "Création, modification puis retrait des comptes et droits dans les systèmes cibles.",
+    "derja": "Tfaska7 wala tsawwab compte fi kol application."
+   },
+   {
+    "t": "Compte orphelin",
+    "d": "Compte resté actif alors que son propriétaire est parti ou que le service a disparu.",
+    "derja": "Badge mta3 wa7ed mchee, w mezal yekhdem."
+   },
+   {
+    "t": "Accumulation des droits (privilege creep)",
+    "d": "Cumul de privilèges au fil des changements de poste quand les anciens droits ne sont pas retirés."
+   },
+   {
+    "t": "Recertification (revue des accès)",
+    "d": "Campagne périodique où un responsable confirme ou retire chaque accès."
+   },
+   {
+    "t": "SIRH",
+    "d": "Système d'information RH, source de vérité des événements d'arrivée, de changement et de départ."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Décrivez le cycle de vie d'une identité.",
+    "a": "Il comporte cinq étapes. À l'entrée, on crée l'identité avec un rôle initial minimal, le risque étant d'accorder des droits sans validation. À l'évolution, on adapte groupes et privilèges lors d'une mobilité, avec le risque d'accumulation des droits. La revue est une campagne périodique de recertification qui retire les droits devenus inutiles. La suspension bloque sessions et identifiants lors d'un incident ou d'une absence prolongée. La sortie déprovisionne immédiatement pour éviter le compte orphelin. On parle aussi de Joiner, Mover, Leaver.",
+    "keys": [
+     "entrée, évolution, revue, suspension, sortie",
+     "privilege creep",
+     "compte orphelin",
+     "Joiner Mover Leaver"
+    ]
+   },
+   {
+    "q": "Quels sont les cinq processus IAM ?",
+    "a": "La gouvernance définit rôles, règles et responsabilités, avec un propriétaire pour chaque droit. L'administration crée et maintient comptes, groupes et attributs via un workflow validé et traçable. L'authentification vérifie l'identité, avec un MFA adapté au risque. L'autorisation décide l'accès selon une politique explicite et minimale. L'audit observe les usages et détecte les écarts grâce à des journaux centralisés et des revues périodiques.",
+    "keys": [
+     "gouvernance",
+     "administration",
+     "authentification",
+     "autorisation",
+     "audit"
+    ]
+   },
+   {
+    "q": "Qui est responsable de quoi en IAM dans le cloud ?",
+    "a": "Le client définit les rôles métiers et les propriétaires des accès, configure les politiques et conditions d'accès, gère le cycle de vie et la revue des comptes, et surveille les usages. Le fournisseur protège le service IAM et son plan de contrôle, fournit les mécanismes de fédération et d'authentification, applique fiablement les politiques et produit les journaux nécessaires à l'audit. En résumé, le fournisseur garantit l'outil, le client garantit son bon usage.",
+    "keys": [
+     "client : rôles, politiques, cycle de vie",
+     "fournisseur : plan de contrôle, journaux",
+     "responsabilité partagée"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'un compte orphelin et comment l'éviter ?",
+    "a": "C'est un compte qui reste actif alors que son titulaire a quitté l'organisation ou que le service a disparu. Il est dangereux car personne ne surveille son activité et il garde souvent des droits et des clés valides. On l'évite en déprovisionnant immédiatement à la sortie, idéalement de façon automatisée à partir du SIRH, en faisant des revues périodiques et en suivant un indicateur du nombre de comptes orphelins.",
+    "keys": [
+     "compte actif sans titulaire",
+     "déprovisionnement immédiat",
+     "automatisation SIRH",
+     "revues périodiques"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Oublier l'étape Mover : on pense à l'arrivée et au départ mais on ne retire pas les anciens droits lors d'un changement de poste, d'où l'accumulation des droits.",
+   "Confondre suspension (blocage temporaire, compte conservé) et sortie (déprovisionnement définitif).",
+   "Dire que le fournisseur cloud gère les comptes de l'entreprise : le cycle de vie et la revue sont des responsabilités du client.",
+   "Supprimer un compte compromis avant d'avoir conservé les journaux : on perd la preuve ; on désactive d'abord, on supprime ensuite selon la politique de conservation.",
+   "Croire que l'automatisation RH n'est qu'un confort : c'est le principal moyen d'éviter les comptes orphelins."
+  ],
+  "quiz": [
+   {
+    "q": "Quel risque principal est associé à l'étape « Évolution » du cycle de vie ?",
+    "opts": [
+     "Compte orphelin",
+     "Accumulation des droits",
+     "Droits accordés sans validation",
+     "Accès persistant après un incident"
+    ],
+    "ans": 1,
+    "why": "Lors d'une mobilité, si les anciens droits ne sont pas retirés, les privilèges s'accumulent. Le compte orphelin concerne la sortie, l'accès persistant la suspension."
+   },
+   {
+    "q": "Lors de la sortie d'un employé, que faut-il faire ?",
+    "opts": [
+     "Attendre la prochaine campagne de revue",
+     "Déprovisionner immédiatement ses accès",
+     "Réduire ses droits de moitié",
+     "Changer uniquement son mot de passe"
+    ],
+    "ans": 1,
+    "why": "La sortie impose un déprovisionnement immédiat pour éviter un compte orphelin ; attendre la revue laisse un accès ouvert pendant des mois."
+   },
+   {
+    "q": "Quel processus IAM a pour contrôle attendu un « workflow validé et traçable » ?",
+    "opts": [
+     "Gouvernance",
+     "Administration",
+     "Autorisation",
+     "Audit"
+    ],
+    "ans": 1,
+    "why": "L'administration crée et maintient comptes, groupes et attributs ; son contrôle est un workflow validé et traçable. La gouvernance exige un propriétaire par droit."
+   },
+   {
+    "q": "Qui est responsable de la revue périodique des comptes dans le modèle de responsabilités IAM ?",
+    "opts": [
+     "Le fournisseur cloud",
+     "Le client",
+     "Les deux à parts égales sans distinction",
+     "Aucun des deux : elle est automatique"
+    ],
+    "ans": 1,
+    "why": "Gérer le cycle de vie et la revue des comptes fait partie des responsabilités du client. Le fournisseur protège le service IAM et fournit les journaux."
+   },
+   {
+    "q": "Dans un cycle de vie automatisé, quelle est la source de vérité qui déclenche les événements Joiner/Mover/Leaver ?",
+    "opts": [
+     "Le navigateur de l'utilisateur",
+     "Le SIRH",
+     "L'application SaaS cible",
+     "Le journal d'audit"
+    ],
+    "ans": 1,
+    "why": "Le SIRH produit les événements d'arrivée, de changement et de départ ; l'annuaire ou l'IdP les orchestre vers les applications."
+   }
+  ],
+  "recap": [
+   "5 processus IAM : gouvernance, administration, authentification, autorisation, audit.",
+   "5 étapes du cycle de vie : entrée, évolution, revue, suspension, sortie (Joiner, Mover, Leaver).",
+   "Risques clés : accumulation des droits (évolution) et compte orphelin (sortie).",
+   "Le SIRH est la source de vérité ; l'annuaire ou l'IdP orchestre le provisionnement vers les applications.",
+   "Client : rôles, politiques, cycle de vie, revue, surveillance. Fournisseur : plan de contrôle IAM, fédération, application fiable des politiques, journaux."
+  ]
+ },
+ {
+  "id": "ch2a-03",
+  "part": "ch2a",
+  "title": "Authentification forte, MFA, SSO, fédération et standards IAM",
+  "emoji": "🔐",
+  "level": 0,
+  "minutes": 14,
+  "core": true,
+  "src": "CH2 slides 10-12",
+  "hook": {
+   "fr": "Un mot de passe seul se vole, se devine et se réutilise : on ajoute des facteurs indépendants (MFA), puis on évite de multiplier les connexions grâce au SSO et à la fédération.",
+   "derja": "El carte bancaire wa7dha ma tosla7ch: lazem code PIN, w houa deja zouz facteurs (el carte elli 3andek + el code elli t3arfou). Hedha el MFA. W ki ykoun 3andek 20 application, ma t7ebch t3awed tekteb el mot de passe 20 marra: tkhaddem SSO, ya3ni connexion wa7da w kol chay yemchi."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "MFA = ATM. Ma tsa7bch flous bel carte wa7dha (khater n'importe chkoun yeb9a l9ah-ha), w ma tsa7bch bel code wa7dou (khater ma3andouch carte). Lazem el zouz m3a ba3dhom. SSO = el bracelet mta3 l'hôtel: bracelet wa7ed yfta7lek el chambre, el restaurant w el piscine. Fédération = el passeport: Tounes tsallemlek passeport, w Fransa tafta7lek el 7odoud khater tsadda9 el passeport mta3 Tounes (confiance bin zouz domaines). El IdP houwa Tounes: yesdor el passeport, w Fransa tsadda9 fih."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : le mot de passe ne suffit plus",
+    "md": "Un mot de passe peut être volé (phishing), deviné, réutilisé entre services ou fuité. Pour un compte **privilégié** (administrateur cloud), les conséquences sont lourdes. L'idée de l'**authentification forte** : exiger **plusieurs preuves de natures différentes**, de sorte que le vol d'une seule ne suffise pas."
+   },
+   {
+    "type": "table",
+    "title": "Les 3 facteurs d'authentification",
+    "head": [
+     "Facteur",
+     "Ce que c'est",
+     "Exemples",
+     "Point d'attention"
+    ],
+    "rows": [
+     [
+      "**Connaissance**",
+      "Ce que tu sais",
+      "Mot de passe, code secret",
+      "Peut être volé, deviné ou réutilisé"
+     ],
+     [
+      "**Possession**",
+      "Ce que tu as",
+      "Clé de sécurité, appareil, application d'authentification",
+      "À perdre ou à voler : prévoir la récupération"
+     ],
+     [
+      "**Caractéristique**",
+      "Ce que tu es",
+      "Biométrie vérifiée localement",
+      "Non révocable comme un mot de passe : vérifiée sur l'appareil"
+     ]
+    ],
+    "note": "MFA = au moins deux facteurs indépendants, c'est-à-dire de catégories différentes."
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Deux mots de passe ne font pas un MFA",
+    "text": "Deux éléments de connaissance (mot de passe puis question secrète) restent un seul facteur. Il faut deux catégories différentes. Par ailleurs, tous les seconds facteurs ne se valent pas : une clé de sécurité matérielle ou une application d'authentification résiste mieux au phishing qu'un code reçu par SMS."
+   },
+   {
+    "type": "steps",
+    "title": "Politique d'usage du MFA",
+    "items": [
+     {
+      "t": "MFA obligatoire pour les comptes privilégiés",
+      "d": "Administrateurs, comptes racine, comptes d'accès à la production : jamais de mot de passe seul."
+     },
+     {
+      "t": "Nouvelle vérification avant une action sensible",
+      "d": "Supprimer une clé, modifier une politique, accéder à des données critiques : on redemande un facteur (step-up)."
+     },
+     {
+      "t": "Décision adaptée au risque de la session",
+      "d": "Nouvel appareil, pays inhabituel, heure étrange : le niveau d'exigence monte automatiquement."
+     },
+     {
+      "t": "Codes de récupération protégés, réinitialisation contrôlée",
+      "d": "Le processus de secours ne doit pas devenir la porte dérobée : codes stockés en lieu sûr, réinitialisation validée par un tiers."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Step-up MFA avant une action sensible",
+    "intro": "L'utilisateur est déjà connecté. Une action critique déclenche une nouvelle vérification, adaptée au risque.",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "administrateur cloud",
+      "kind": "user"
+     },
+     {
+      "id": "app",
+      "label": "Console / application",
+      "sub": "ressource protégée",
+      "kind": "app"
+     },
+     {
+      "id": "idp",
+      "label": "IdP",
+      "sub": "politique de risque et MFA",
+      "kind": "idp"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "app",
+      "label": "1. Travaille avec sa session normale",
+      "detail": "La session a été ouverte avec un mot de passe et un premier contrôle : les actions courantes passent."
+     },
+     {
+      "from": "u",
+      "to": "app",
+      "label": "2. Demande une action sensible",
+      "detail": "Par exemple supprimer une clé de chiffrement de production ou modifier une politique d'accès.",
+      "derja": "Hna el 7aja khtira: lazem nsa2lou mara okhra."
+     },
+     {
+      "from": "app",
+      "to": "idp",
+      "label": "3. Exige une ré-authentification forte",
+      "detail": "L'application constate que la session n'a pas le niveau de preuve requis et renvoie l'utilisateur vers l'IdP."
+     },
+     {
+      "from": "idp",
+      "to": "u",
+      "label": "4. Demande un second facteur",
+      "detail": "Le niveau de risque (appareil, localisation) détermine la méthode : clé de sécurité, application d'authentification.",
+      "dashed": true
+     },
+     {
+      "from": "u",
+      "to": "idp",
+      "label": "5. Fournit le facteur de possession",
+      "detail": "L'utilisateur touche sa clé de sécurité ou valide dans son application d'authentification."
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "6. Confirme l'authentification renforcée",
+      "detail": "L'IdP renvoie une preuve indiquant que le MFA vient d'être validé.",
+      "dashed": true,
+      "tone": "good"
+     },
+     {
+      "from": "app",
+      "to": "u",
+      "label": "7. Exécute et journalise l'action",
+      "detail": "L'action est exécutée, puis enregistrée avec le principal, la session et le niveau d'authentification.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Et dans AWS ?",
+    "text": "AWS permet d'exiger le MFA dans une policy grâce à la clé de condition aws:MultiFactorAuthPresent. Tu retrouveras cela dans les chapitres sur les policies : ici retiens seulement l'idée du step-up, c'est-à-dire redemander un facteur avant une action sensible."
+   },
+   {
+    "type": "text",
+    "title": "SSO et fédération : deux notions liées mais distinctes",
+    "md": "**Le problème** : sans SSO, l'utilisateur gère un mot de passe par application, les mots de passe sont réutilisés et, au départ de la personne, il faut fermer N comptes.\n\n- **SSO (Single Sign-On)** : l'utilisateur se connecte **une fois** et accède à plusieurs services sans ressaisir ses identifiants. Il réduit le nombre de connexions demandées. Un SSO peut rester **interne** à un seul domaine.\n- **Fédération d'identité** : une **relation de confiance** entre domaines distincts (par exemple l'entreprise et un fournisseur SaaS). Le service accepte une preuve d'identité émise par l'IdP de l'autre domaine, sans connaître le mot de passe.\n- Une fédération peut **fournir le SSO** entre plusieurs services cloud : c'est le cas le plus fréquent en entreprise."
+   },
+   {
+    "type": "compare",
+    "title": "SSO vs fédération",
+    "cols": [
+     {
+      "name": "SSO",
+      "tag": "Expérience utilisateur",
+      "points": [
+       "Une seule connexion pour plusieurs applications",
+       "Réduit les mots de passe et la fatigue de connexion",
+       "Peut fonctionner dans un seul domaine (interne)",
+       "Concerne le comportement vu par l'utilisateur"
+      ],
+      "use": "Quand on veut moins de connexions pour les utilisateurs."
+     },
+     {
+      "name": "Fédération",
+      "tag": "Confiance entre domaines",
+      "points": [
+       "Établit la confiance entre des domaines distincts",
+       "Le service accepte la preuve d'un IdP externe",
+       "Repose sur des standards : SAML, OIDC",
+       "Peut fournir le SSO entre plusieurs services cloud"
+      ],
+      "use": "Quand l'identité vient d'un autre domaine (entreprise vers SaaS ou cloud)."
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Fédération d'identité qui fournit le SSO",
+    "groups": [
+     {
+      "id": "U",
+      "label": "Utilisateur",
+      "kind": "internet",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "user",
+        "label": "Employé",
+        "sub": "se connecte une fois",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "E",
+      "label": "Domaine de l'entreprise",
+      "kind": "onprem",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "idp",
+        "label": "IdP d'entreprise",
+        "sub": "authentifie + MFA",
+        "icon": "idp"
+       },
+       {
+        "id": "dir",
+        "label": "Annuaire",
+        "sub": "identités de référence",
+        "icon": "db"
+       }
+      ]
+     },
+     {
+      "id": "C",
+      "label": "Domaines cloud et SaaS",
+      "kind": "vpc",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "saas1",
+        "label": "Application SaaS A",
+        "sub": "fait confiance à l'IdP",
+        "icon": "cloud"
+       },
+       {
+        "id": "saas2",
+        "label": "Application SaaS B",
+        "sub": "fait confiance à l'IdP",
+        "icon": "cloud"
+       },
+       {
+        "id": "aws",
+        "label": "Plateforme cloud",
+        "sub": "fait confiance à l'IdP",
+        "icon": "cloud"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "user",
+      "to": "idp",
+      "label": "1. Se connecte une seule fois",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "idp",
+      "to": "dir",
+      "label": "2. Vérifie l'identité",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "idp",
+      "to": "saas1",
+      "label": "3. Preuve signée",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "idp",
+      "to": "saas2",
+      "label": "3. Preuve signée",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "idp",
+      "to": "aws",
+      "label": "3. Preuve signée",
+      "style": "dashed"
+     },
+     {
+      "id": "e6",
+      "from": "user",
+      "to": "saas1",
+      "label": "4. Accède sans ressaisir",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1",
+       "e2"
+      ],
+      "nodes": [
+       "user",
+       "idp",
+       "dir"
+      ],
+      "caption": "L'authentification (mot de passe, MFA) se fait une seule fois, auprès de l'IdP de l'entreprise."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4",
+       "e5"
+      ],
+      "nodes": [
+       "idp",
+       "saas1",
+       "saas2",
+       "aws"
+      ],
+      "caption": "La fédération repose sur une confiance préétablie : chaque service reconnaît l'IdP et accepte ses preuves signées. Il n'a jamais le mot de passe."
+     },
+     {
+      "edges": [
+       "e6"
+      ],
+      "nodes": [
+       "user",
+       "saas1"
+      ],
+      "caption": "Résultat vu par l'utilisateur : le SSO. Il ouvre les applications sans nouvelle saisie."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Vue d'ensemble des standards IAM",
+    "head": [
+     "Standard",
+     "Fonction principale",
+     "Artefact échangé",
+     "Cas d'usage"
+    ],
+    "rows": [
+     [
+      "**SAML 2.0**",
+      "Fédération et SSO",
+      "Assertion XML signée",
+      "Employé vers une application SaaS"
+     ],
+     [
+      "**OAuth 2.0**",
+      "Délégation d'autorisation",
+      "Access token",
+      "Application vers une API"
+     ],
+     [
+      "**OpenID Connect**",
+      "Authentification moderne",
+      "ID token",
+      "Connexion web ou mobile"
+     ],
+     [
+      "**SCIM 2.0**",
+      "Provisionnement des identités",
+      "Ressources JSON via REST",
+      "Synchronisation des comptes et groupes"
+     ]
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "Qui fait quoi ? La question que chaque standard traite",
+    "cols": [
+     {
+      "name": "SAML 2.0",
+      "tag": "Qui est cet employé ?",
+      "points": [
+       "Fédération et SSO par navigateur",
+       "Assertion XML signée par l'IdP",
+       "Standard historique des SaaS d'entreprise"
+      ],
+      "use": "Connecter un employé à une application SaaS."
+     },
+     {
+      "name": "OAuth 2.0",
+      "tag": "Que peut faire cette application ?",
+      "points": [
+       "Délégation d'accès à une API",
+       "Access token limité par scopes, durée, audience",
+       "Ne prouve pas à lui seul l'identité"
+      ],
+      "use": "Autoriser une application à appeler une API."
+     },
+     {
+      "name": "OpenID Connect",
+      "tag": "Qui vient de se connecter ?",
+      "points": [
+       "Couche d'authentification au-dessus d'OAuth 2.0",
+       "ID token signé (JSON)",
+       "Adapté au web et au mobile"
+      ],
+      "use": "Connexion moderne web ou mobile."
+     },
+     {
+      "name": "SCIM 2.0",
+      "tag": "Quels comptes doivent exister ?",
+      "points": [
+       "Provisionnement automatique des comptes et groupes",
+       "Ressources JSON via API REST",
+       "Ne gère pas la connexion elle-même"
+      ],
+      "use": "Créer, modifier, désactiver les comptes dans les SaaS."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : choisir le bon mécanisme",
+    "situation": "Une entreprise de 300 employés adopte un SaaS de gestion de projets. Elle veut que les employés se connectent avec leur identité d'entreprise (sans nouveau mot de passe) et que les comptes soient créés à l'arrivée et désactivés au départ, automatiquement.",
+    "q": "Quelle combinaison de standards répond au besoin ?",
+    "opts": [
+     {
+      "t": "OAuth 2.0 seul : l'access token authentifie l'utilisateur et crée les comptes.",
+      "ok": false,
+      "why": "OAuth 2.0 délègue l'accès à une API ; il ne constitue pas seul une preuve d'identité et ne crée pas de comptes."
+     },
+     {
+      "t": "SAML 2.0 ou OIDC pour la connexion, plus SCIM 2.0 pour le provisionnement.",
+      "ok": true,
+      "why": "SAML ou OIDC fédère l'identité et fournit le SSO ; SCIM crée, met à jour et désactive les comptes. Chacun fait son travail."
+     },
+     {
+      "t": "SCIM 2.0 seul : il gère la connexion et le provisionnement.",
+      "ok": false,
+      "why": "SCIM synchronise comptes et groupes ; il ne porte pas la connexion de l'utilisateur."
+     },
+     {
+      "t": "SAML 2.0 seul : il crée aussi les comptes au départ et à l'arrivée.",
+      "ok": false,
+      "why": "SAML connecte l'utilisateur ; sans SCIM, les comptes sont créés à la main ou à la première connexion, et le départ n'est pas propagé automatiquement."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Retiens la phrase : SAML et OIDC connectent, SCIM provisionne, OAuth délègue. Et sache distinguer SSO (moins de connexions pour l'utilisateur) de fédération (confiance entre domaines) : une fédération peut fournir du SSO, mais un SSO peut exister sans fédération."
+   }
+  ],
+  "terms": [
+   {
+    "t": "MFA",
+    "d": "Authentification multifacteur : au moins deux facteurs de catégories différentes (connaissance, possession, caractéristique).",
+    "derja": "El carte + el code."
+   },
+   {
+    "t": "Step-up",
+    "d": "Redemande d'un facteur d'authentification avant une action sensible, selon le risque de la session."
+   },
+   {
+    "t": "SSO (Single Sign-On)",
+    "d": "Une seule connexion donne accès à plusieurs services sans ressaisir les identifiants.",
+    "derja": "El bracelet mta3 l'hôtel."
+   },
+   {
+    "t": "Fédération d'identité",
+    "d": "Relation de confiance entre domaines distincts : un service accepte la preuve d'identité émise par l'IdP d'un autre domaine.",
+    "derja": "El passeport: dawla t'thi9 fi dawla."
+   },
+   {
+    "t": "Clé de sécurité",
+    "d": "Appareil de possession (par exemple FIDO2) qui sert de second facteur résistant au phishing."
+   },
+   {
+    "t": "Assertion SAML",
+    "d": "Document XML signé par l'IdP qui contient l'identité, des attributs et le contexte d'authentification."
+   },
+   {
+    "t": "Access token / ID token",
+    "d": "L'access token délègue l'accès à une API (OAuth 2.0) ; l'ID token décrit l'authentification de l'utilisateur (OIDC)."
+   },
+   {
+    "t": "SCIM",
+    "d": "System for Cross-domain Identity Management : standard de provisionnement des comptes et groupes via API REST et JSON."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce que l'authentification forte et quels sont les facteurs ?",
+    "a": "L'authentification forte exige plusieurs preuves indépendantes pour réduire l'impact du vol d'un seul élément. Il existe trois catégories de facteurs : la connaissance (mot de passe, code secret), la possession (clé de sécurité, appareil, application d'authentification) et la caractéristique (biométrie vérifiée localement). Le MFA combine au moins deux catégories différentes ; deux mots de passe ne comptent pas. Il est obligatoire pour les comptes privilégiés et redemandé avant les actions sensibles.",
+    "keys": [
+     "connaissance, possession, caractéristique",
+     "facteurs indépendants",
+     "comptes privilégiés",
+     "step-up"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre SSO et fédération d'identité ?",
+    "a": "Le SSO est un bénéfice côté utilisateur : une seule connexion donne accès à plusieurs services, et il peut rester interne à un domaine. La fédération est un mécanisme de confiance entre domaines distincts : un service accepte une preuve d'identité émise par l'IdP d'un autre domaine, sans jamais voir le mot de passe. Une fédération peut fournir le SSO entre plusieurs services cloud, par exemple via SAML ou OIDC.",
+    "keys": [
+     "une seule connexion",
+     "confiance entre domaines",
+     "SSO interne possible",
+     "SAML ou OIDC"
+    ]
+   },
+   {
+    "q": "Comparez SAML, OAuth 2.0, OpenID Connect et SCIM.",
+    "a": "SAML 2.0 fait de la fédération et du SSO avec une assertion XML signée, typiquement d'un employé vers un SaaS. OAuth 2.0 délègue l'autorisation avec un access token, typiquement d'une application vers une API ; il ne prouve pas seul l'identité. OpenID Connect ajoute l'authentification moderne avec un ID token, pour la connexion web ou mobile. SCIM 2.0 provisionne les comptes et groupes via des ressources JSON sur REST. Pour résumer : SAML et OIDC connectent, SCIM provisionne, OAuth délègue.",
+    "keys": [
+     "SAML : assertion XML",
+     "OAuth : access token",
+     "OIDC : ID token",
+     "SCIM : JSON REST"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Compter deux mots de passe (ou mot de passe plus question secrète) comme du MFA : ce sont deux fois le même facteur.",
+   "Confondre SSO et fédération : l'un est l'expérience utilisateur, l'autre la relation de confiance entre domaines.",
+   "Croire qu'OAuth 2.0 authentifie l'utilisateur : il délègue l'accès ; l'authentification moderne vient d'OpenID Connect.",
+   "Oublier que SCIM ne gère pas la connexion : il provisionne seulement les comptes et groupes.",
+   "Négliger le processus de récupération (codes de secours, réinitialisation) : s'il est faible, il contourne le MFA."
+  ],
+  "quiz": [
+   {
+    "q": "Lequel de ces éléments est un facteur de possession ?",
+    "opts": [
+     "Un code PIN",
+     "Une clé de sécurité matérielle",
+     "Une empreinte digitale",
+     "Une question secrète"
+    ],
+    "ans": 1,
+    "why": "Une clé de sécurité est un objet que l'on possède. Le PIN et la question secrète sont de la connaissance, l'empreinte est une caractéristique."
+   },
+   {
+    "q": "Quel artefact est échangé dans SAML 2.0 ?",
+    "opts": [
+     "Un access token opaque",
+     "Une assertion XML signée",
+     "Une ressource JSON via REST",
+     "Un ID token seulement"
+    ],
+    "ans": 1,
+    "why": "SAML repose sur une assertion XML signée par l'IdP. L'access token appartient à OAuth, l'ID token à OIDC, le JSON REST à SCIM."
+   },
+   {
+    "q": "Quel standard convient pour synchroniser automatiquement les comptes et groupes de l'annuaire vers un SaaS ?",
+    "opts": [
+     "SAML 2.0",
+     "OpenID Connect",
+     "SCIM 2.0",
+     "OAuth 2.0"
+    ],
+    "ans": 2,
+    "why": "SCIM 2.0 est le standard de provisionnement. SAML et OIDC gèrent la connexion, OAuth la délégation d'accès à une API."
+   },
+   {
+    "q": "Quelle affirmation sur SSO et fédération est correcte ?",
+    "opts": [
+     "Un SSO ne peut jamais exister sans fédération",
+     "Une fédération établit la confiance entre domaines distincts et peut fournir le SSO",
+     "La fédération est toujours interne à un domaine",
+     "Le SSO partage le mot de passe avec chaque application"
+    ],
+    "ans": 1,
+    "why": "La fédération repose sur une confiance inter-domaines et peut fournir le SSO ; un SSO peut en revanche rester interne. Les applications ne reçoivent jamais le mot de passe."
+   },
+   {
+    "q": "Quelle question est traitée par OpenID Connect ?",
+    "opts": [
+     "Que peut faire cette application ?",
+     "Quels comptes doivent exister ?",
+     "Qui vient de se connecter ?",
+     "Quels droits a ce rôle ?"
+    ],
+    "ans": 2,
+    "why": "OIDC authentifie l'utilisateur grâce à l'ID token. « Que peut faire le client ? » est la question d'OAuth 2.0."
+   }
+  ],
+  "recap": [
+   "3 facteurs : connaissance (ce que tu sais), possession (ce que tu as), caractéristique (ce que tu es) ; le MFA en combine au moins deux de catégories différentes.",
+   "Politique : MFA obligatoire pour les privilégiés, step-up avant une action sensible, décision selon le risque, récupération protégée.",
+   "SSO = moins de connexions pour l'utilisateur ; fédération = confiance entre domaines ; la fédération peut fournir le SSO.",
+   "SAML : assertion XML signée (SSO web) ; OAuth 2.0 : access token (délégation) ; OIDC : ID token (connexion moderne) ; SCIM : JSON REST (provisionnement).",
+   "SAML et OIDC connectent, SCIM provisionne, OAuth délègue."
+  ]
+ },
+ {
+  "id": "ch2a-04",
+  "part": "ch2a",
+  "title": "SAML 2.0 (1/2) : acteurs, artefacts et flux initié par le SP",
+  "emoji": "📜",
+  "level": 1,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 13-15, 18",
+  "hook": {
+   "fr": "SAML permet à une application SaaS d'accepter ton identité d'entreprise sans jamais voir ton mot de passe : l'IdP signe une assertion XML et l'application fait confiance à la signature.",
+   "derja": "SAML kima wathika mokhtouma mel baladiya. Ma tsallemch el mot de passe lel banque: tmchi lel baladiya, t'authentifi, houma ya3tik wathika mokhtouma, w el banque taqbel-ha khater te3raf el khatm mta3 el baladiya. El khatm houwa signature, w el wathika hiya el assertion."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawwar bech tfta7 compte fil banque. El banque tgolek: 'jib wathika mel baladiya elli tbayyen inti chkoun'. Inti temchi lel baladiya (IdP), t'werri el CIN w tet2akked menek (authentification). El baladiya ta3tik wathika mokhtouma, mektouba fiha esmek, w el banque elli maw9ouda lahom (audience), w tarikh el sala7iya. Inti tarja3 lel banque w tsallem el wathika (el navigateur houwa el facteur elli yhezz el wathika, el baladiya ma temchich lel banque wa7dha). El banque tchouf: el khatm sa7i7? el wathika mazelt valable? mektouba lel banque hedhi? Ba3d, tod5ol. Ya3ni el banque ma chefch el mot de passe mta3ek 3omrha."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : un mot de passe par application",
+    "md": "Si chaque SaaS gère ses propres mots de passe, l'utilisateur multiplie les comptes, les mots de passe sont réutilisés, et le départ d'un employé oblige à fermer chaque compte à la main. On veut qu'**une seule autorité** (l'IdP de l'entreprise) authentifie, et que les applications **lui fassent confiance**.\n\n**SAML 2.0** (Security Assertion Markup Language) est le standard historique de **fédération et de SSO web** : l'IdP émet une **assertion XML signée** que l'application (SP) accepte comme preuve d'identité. L'application ne reçoit jamais le mot de passe."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 acteurs",
+    "head": [
+     "Acteur",
+     "Rôle",
+     "Dans l'exemple"
+    ],
+    "rows": [
+     [
+      "**Sujet** (subject)",
+      "L'utilisateur qui demande l'accès",
+      "Sara, employée"
+     ],
+     [
+      "**Identity Provider (IdP)**",
+      "Authentifie le sujet et signe l'assertion",
+      "Le système d'identité de l'entreprise"
+     ],
+     [
+      "**Service Provider (SP)**",
+      "Fournit l'application demandée et valide la réponse",
+      "Google Workspace"
+     ],
+     [
+      "**Navigateur**",
+      "Transporte les messages entre SP et IdP (il ne les interprète pas)",
+      "Chrome de Sara"
+     ]
+    ],
+    "note": "Le navigateur est un simple facteur : il porte les messages mais ne doit ni les lire ni les modifier."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 artefacts",
+    "head": [
+     "Artefact",
+     "Émis par",
+     "Contenu / rôle"
+    ],
+    "rows": [
+     [
+      "**AuthnRequest**",
+      "SP",
+      "Demande d'authentification : identifiant de requête, émetteur, URL de retour attendue (ACS)"
+     ],
+     [
+      "**SAML Response**",
+      "IdP",
+      "Réponse signée qui transporte le statut et l'assertion"
+     ],
+     [
+      "**Assertion**",
+      "IdP",
+      "Identité du sujet, attributs et contexte d'authentification"
+     ],
+     [
+      "**Metadata**",
+      "SP et IdP (échangées avant)",
+      "Certificats, URL et identifiants (entityID) qui établissent la confiance"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Metadata : la confiance se prépare avant le premier login",
+    "text": "Avant de pouvoir se connecter, l'administrateur échange les metadata : l'IdP donne au SP son entityID, son URL SSO et son certificat public ; le SP donne à l'IdP son entityID et son ACS URL. Plus tard, le SP vérifiera la signature avec ce certificat. Si un de ces éléments est faux, la connexion échoue."
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Comment les messages voyagent (bindings)",
+    "text": "Le plus courant : l'AuthnRequest voyage via une redirection HTTP (HTTP-Redirect : XML compressé, encodé en base64, passé dans l'URL) et la réponse revient via un formulaire HTTP POST vers l'ACS URL (HTTP-POST : XML encodé en base64 dans un champ SAMLResponse). Dans les deux cas, c'est le navigateur qui transporte."
+   },
+   {
+    "type": "flow",
+    "title": "SAML : flux initié par le SP (exemple Google Workspace)",
+    "intro": "Google est le Service Provider, le système de l'entreprise (Customer) est l'IdP. Domaine et URL fictifs.",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Sara",
+      "sub": "utilisatrice + navigateur",
+      "kind": "user"
+     },
+     {
+      "id": "sp",
+      "label": "Google Workspace",
+      "sub": "Service Provider",
+      "kind": "app"
+     },
+     {
+      "id": "idp",
+      "label": "IdP de l'entreprise",
+      "sub": "Customer",
+      "kind": "idp"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "sp",
+      "label": "1. Ouvre l'application protégée",
+      "detail": "Sara essaie d'atteindre l'application Google hébergée. Elle n'a pas de session locale valide.",
+      "derja": "Sara t'7eb tod5ol, mais Google ma ya3rfhech."
+     },
+     {
+      "from": "sp",
+      "to": "sp",
+      "label": "2. Génère l'AuthnRequest",
+      "detail": "Google crée une demande d'authentification avec un identifiant unique, mémorisé pour relier plus tard la réponse à cette demande.",
+      "payload": {
+       "title": "AuthnRequest",
+       "fields": [
+        {
+         "k": "ID",
+         "v": "_req123",
+         "note": "identifiant unique de la requête, repris dans InResponseTo"
+        },
+        {
+         "k": "Issuer",
+         "v": "google.com/a/tekup-demo.tn",
+         "note": "qui demande : l'entityID du SP"
+        },
+        {
+         "k": "AssertionConsumerServiceURL",
+         "v": "https://www.google.com/a/tekup-demo.tn/acs",
+         "note": "ACS : où l'IdP doit renvoyer la réponse"
+        },
+        {
+         "k": "Destination",
+         "v": "https://idp.entreprise.tn/saml/sso",
+         "note": "URL SSO de l'IdP"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sp",
+      "to": "u",
+      "label": "3. Redirige le navigateur vers l'IdP",
+      "detail": "Le SP répond par une redirection HTTP vers l'URL SSO de l'IdP, avec la requête encodée.",
+      "dashed": true,
+      "payload": {
+       "title": "HTTP 302 (binding HTTP-Redirect)",
+       "fields": [
+        {
+         "k": "Location",
+         "v": "https://idp.entreprise.tn/saml/sso?SAMLRequest=...&RelayState=...",
+         "note": "requête compressée en base64"
+        },
+        {
+         "k": "SAMLRequest",
+         "v": "deflate + base64 + URL-encode",
+         "note": "l'AuthnRequest XML"
+        },
+        {
+         "k": "RelayState",
+         "v": "/mail/inbox",
+         "note": "mémorise la page demandée au départ"
+        }
+       ]
+      }
+     },
+     {
+      "from": "u",
+      "to": "idp",
+      "label": "4. Le navigateur suit vers l'IdP",
+      "detail": "Le navigateur suit la redirection : l'IdP reçoit l'AuthnRequest.",
+      "derja": "El navigateur houwa el facteur: yhezz el talab."
+     },
+     {
+      "from": "idp",
+      "to": "idp",
+      "label": "5. Analyse la requête et authentifie Sara",
+      "detail": "L'IdP lit l'AuthnRequest, vérifie qu'il connaît ce SP, puis authentifie Sara : mot de passe, MFA, politique de risque."
+     },
+     {
+      "from": "idp",
+      "to": "idp",
+      "label": "6. Génère et signe la SAML Response",
+      "detail": "L'IdP construit une réponse qui contient l'assertion, puis la signe avec sa clé privée.",
+      "payload": {
+       "title": "SAML Response (en-tête)",
+       "fields": [
+        {
+         "k": "InResponseTo",
+         "v": "_req123",
+         "note": "lie la réponse à l'AuthnRequest du SP"
+        },
+        {
+         "k": "Destination",
+         "v": "https://www.google.com/a/tekup-demo.tn/acs",
+         "note": "ACS attendue"
+        },
+        {
+         "k": "StatusCode",
+         "v": "urn:oasis:names:tc:SAML:2.0:status:Success",
+         "note": "résultat de l'authentification"
+        },
+        {
+         "k": "Assertion",
+         "v": "signée par l'IdP",
+         "note": "identité, conditions, attributs"
+        }
+       ]
+      }
+     },
+     {
+      "from": "idp",
+      "to": "u",
+      "label": "7. Renvoie la réponse encodée au navigateur",
+      "detail": "L'IdP renvoie une page avec un formulaire qui se soumet automatiquement : la réponse est encodée en base64.",
+      "dashed": true
+     },
+     {
+      "from": "u",
+      "to": "sp",
+      "label": "8. POST vers l'ACS URL",
+      "detail": "Le navigateur envoie la SAML Response à l'ACS (Assertion Consumer Service) du SP.",
+      "payload": {
+       "title": "POST vers l'ACS",
+       "fields": [
+        {
+         "k": "SAMLResponse",
+         "v": "PHNhbWxwOlJlc3BvbnNl...",
+         "note": "réponse en base64"
+        },
+        {
+         "k": "RelayState",
+         "v": "/mail/inbox",
+         "note": "rend la page demandée au départ"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sp",
+      "to": "sp",
+      "label": "9. L'ACS vérifie la réponse",
+      "detail": "Signature, émetteur, audience, destination, dates et protection contre le rejeu : toutes les vérifications doivent réussir (détail dans la leçon suivante)."
+     },
+     {
+      "from": "sp",
+      "to": "u",
+      "label": "10. Crée la session : Sara est connectée",
+      "detail": "Google crée la session utilisateur et affiche la page demandée. L'accès est limité et journalisé.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Décodage d'une AuthnRequest (envoyée par le SP)",
+    "raw": "<samlp:AuthnRequest xmlns:samlp=\"urn:oasis:names:tc:SAML:2.0:protocol\" xmlns:saml=\"urn:oasis:names:tc:SAML:2.0:assertion\"\n    ID=\"_req123\" Version=\"2.0\" IssueInstant=\"2026-09-01T08:00:00Z\"\n    Destination=\"https://idp.entreprise.tn/saml/sso\"\n    AssertionConsumerServiceURL=\"https://www.google.com/a/tekup-demo.tn/acs\"\n    ProtocolBinding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\">\n  <saml:Issuer>google.com/a/tekup-demo.tn</saml:Issuer>\n  <samlp:NameIDPolicy Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\"/>\n</samlp:AuthnRequest>",
+    "parts": [
+     {
+      "s": "ID=\"_req123\"",
+      "label": "ID",
+      "note": "Identifiant unique de la requête. L'IdP le recopie dans InResponseTo pour que le SP relie réponse et requête."
+     },
+     {
+      "s": "IssueInstant=\"2026-09-01T08:00:00Z\"",
+      "label": "IssueInstant",
+      "note": "Moment d'émission de la requête."
+     },
+     {
+      "s": "Destination=\"https://idp.entreprise.tn/saml/sso\"",
+      "label": "Destination",
+      "note": "URL SSO de l'IdP à laquelle la requête est destinée."
+     },
+     {
+      "s": "AssertionConsumerServiceURL=\"https://www.google.com/a/tekup-demo.tn/acs\"",
+      "label": "ACS URL",
+      "note": "Où le SP veut recevoir la réponse. L'IdP doit la comparer à celle des metadata enregistrées."
+     },
+     {
+      "s": "ProtocolBinding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST\"",
+      "label": "Binding de retour",
+      "note": "Le SP demande que la réponse revienne en HTTP POST."
+     },
+     {
+      "s": "<saml:Issuer>google.com/a/tekup-demo.tn</saml:Issuer>",
+      "label": "Issuer",
+      "note": "Identifiant (entityID) du SP qui émet la requête."
+     },
+     {
+      "s": "<samlp:NameIDPolicy Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\"/>",
+      "label": "NameIDPolicy",
+      "note": "Format de l'identifiant demandé pour l'utilisateur : ici son e-mail."
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Décodage d'une assertion SAML (émise par l'IdP)",
+    "raw": "<saml2:Assertion ID=\"_a75adf55\" IssueInstant=\"2026-09-01T08:00:05Z\" Version=\"2.0\">\n  <saml2:Issuer>https://idp.entreprise.tn/saml</saml2:Issuer>\n  <ds:Signature>...</ds:Signature>\n  <saml2:Subject>\n    <saml2:NameID Format=\"urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress\">sara.benali@entreprise.tn</saml2:NameID>\n    <saml2:SubjectConfirmation Method=\"urn:oasis:names:tc:SAML:2.0:cm:bearer\">\n      <saml2:SubjectConfirmationData InResponseTo=\"_req123\" Recipient=\"https://www.google.com/a/tekup-demo.tn/acs\" NotOnOrAfter=\"2026-09-01T08:05:05Z\"/>\n    </saml2:SubjectConfirmation>\n  </saml2:Subject>\n  <saml2:Conditions NotBefore=\"2026-09-01T07:59:05Z\" NotOnOrAfter=\"2026-09-01T08:05:05Z\">\n    <saml2:AudienceRestriction>\n      <saml2:Audience>google.com/a/tekup-demo.tn</saml2:Audience>\n    </saml2:AudienceRestriction>\n  </saml2:Conditions>\n  <saml2:AuthnStatement AuthnInstant=\"2026-09-01T08:00:03Z\">\n    <saml2:AuthnContext>\n      <saml2:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport</saml2:AuthnContextClassRef>\n    </saml2:AuthnContext>\n  </saml2:AuthnStatement>\n  <saml2:AttributeStatement>\n    <saml2:Attribute Name=\"Department\">\n      <saml2:AttributeValue>Sales</saml2:AttributeValue>\n    </saml2:Attribute>\n  </saml2:AttributeStatement>\n</saml2:Assertion>",
+    "parts": [
+     {
+      "s": "<saml2:Assertion ID=\"_a75adf55\"",
+      "label": "Assertion + ID",
+      "note": "L'assertion a un identifiant unique : le SP le mémorise pour refuser une réutilisation (anti-rejeu)."
+     },
+     {
+      "s": "https://idp.entreprise.tn/saml",
+      "label": "Issuer",
+      "note": "L'émetteur : doit correspondre à l'IdP de confiance déclaré dans les metadata."
+     },
+     {
+      "s": "<ds:Signature>...</ds:Signature>",
+      "label": "Signature",
+      "note": "Signature numérique de l'IdP (abrégée ici). Le SP la vérifie avec le certificat de l'IdP."
+     },
+     {
+      "s": "sara.benali@entreprise.tn",
+      "label": "NameID (Subject)",
+      "note": "Le sujet : ici son adresse e-mail. C'est l'identité que le SP associe au compte local."
+     },
+     {
+      "s": "InResponseTo=\"_req123\"",
+      "label": "InResponseTo",
+      "note": "Reprend l'ID de l'AuthnRequest : prouve que l'assertion répond à une demande de ce SP."
+     },
+     {
+      "s": "Recipient=\"https://www.google.com/a/tekup-demo.tn/acs\"",
+      "label": "Recipient",
+      "note": "L'URL qui doit recevoir l'assertion : ici l'ACS du SP. Toute autre destination est refusée."
+     },
+     {
+      "s": "NotBefore=\"2026-09-01T07:59:05Z\"",
+      "label": "NotBefore",
+      "note": "Début de validité : avant cette date l'assertion est refusée (avec une petite tolérance d'horloge)."
+     },
+     {
+      "s": "NotOnOrAfter=\"2026-09-01T08:05:05Z\"",
+      "label": "NotOnOrAfter",
+      "note": "Fin de validité : à partir de cette date, l'assertion est expirée. Durée volontairement courte (ici 6 minutes)."
+     },
+     {
+      "s": "<saml2:Audience>google.com/a/tekup-demo.tn</saml2:Audience>",
+      "label": "Audience",
+      "note": "Pour quel SP l'assertion est destinée. Si le SP n'est pas cette audience, il la refuse."
+     },
+     {
+      "s": "AuthnInstant=\"2026-09-01T08:00:03Z\"",
+      "label": "AuthnInstant",
+      "note": "Moment où l'utilisateur s'est réellement authentifié auprès de l'IdP."
+     },
+     {
+      "s": "urn:oasis:names:tc:SAML:2.0:ac:classes:PasswordProtectedTransport",
+      "label": "AuthnContext",
+      "note": "Comment il s'est authentifié (mot de passe via canal protégé). Utile pour exiger un niveau plus fort."
+     },
+     {
+      "s": "<saml2:Attribute Name=\"Department\">",
+      "label": "Attribut",
+      "note": "Attributs transmis au SP (ici le département, valeur Sales) pour créer ou autoriser le compte."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : l'authentification réussit mais l'accès est refusé",
+    "situation": "Tu configures un nouveau SaaS comme SP. Sara s'authentifie sans problème chez l'IdP, mais le SP affiche une erreur après le retour. Dans les journaux, tu vois : « Recipient https://app-test.example.tn/acs différent de l'ACS attendue https://app.example.tn/acs ».",
+    "q": "Quelle est la cause la plus probable et la bonne correction ?",
+    "opts": [
+     {
+      "t": "Le mot de passe de Sara est faux : il faut le réinitialiser.",
+      "ok": false,
+      "why": "Sara s'est authentifiée avec succès chez l'IdP : l'erreur survient après, lors de la validation de l'assertion par le SP."
+     },
+     {
+      "t": "L'IdP a été configuré avec une ACS URL de test : il faut corriger l'ACS URL dans la configuration de l'IdP ou les metadata du SP.",
+      "ok": true,
+      "why": "L'assertion est adressée (Recipient) à une URL différente de l'ACS attendue : c'est un contrôle de destination qui protège contre la redirection d'une assertion vers une mauvaise application."
+     },
+     {
+      "t": "Désactiver la vérification de la destination dans le SP pour que ça passe.",
+      "ok": false,
+      "why": "Ce serait affaiblir la sécurité : une assertion pourrait être acceptée par une application pour laquelle elle n'était pas destinée."
+     },
+     {
+      "t": "Rendre la durée de validité de l'assertion plus longue.",
+      "ok": false,
+      "why": "La durée de validité n'a aucun rapport avec une destination incorrecte."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Sache réciter les 4 acteurs (sujet, IdP, SP, navigateur) et les 4 artefacts (AuthnRequest, SAML Response, Assertion, Metadata), et décrire le flux initié par le SP en 6 étapes : accès, redirection avec AuthnRequest, authentification, SAML Response signée, validation et session, accès. Précise toujours que le navigateur transporte les messages sans les interpréter."
+   }
+  ],
+  "terms": [
+   {
+    "t": "SAML 2.0",
+    "d": "Standard XML de fédération d'identité et de SSO web, fondé sur une assertion signée par l'IdP.",
+    "derja": "El wathika mokhtouma."
+   },
+   {
+    "t": "Identity Provider (IdP)",
+    "d": "Acteur qui authentifie le sujet et émet l'assertion signée.",
+    "derja": "El baladiya."
+   },
+   {
+    "t": "Service Provider (SP)",
+    "d": "Application qui fournit le service et valide l'assertion avant de créer une session.",
+    "derja": "El banque."
+   },
+   {
+    "t": "AuthnRequest",
+    "d": "Demande d'authentification émise par le SP vers l'IdP."
+   },
+   {
+    "t": "Assertion",
+    "d": "Document XML signé qui contient l'identité, les attributs et le contexte d'authentification."
+   },
+   {
+    "t": "ACS (Assertion Consumer Service)",
+    "d": "URL du SP qui reçoit et valide la SAML Response."
+   },
+   {
+    "t": "Metadata",
+    "d": "Document échangé à l'avance qui contient entityID, URL et certificats : base de la confiance."
+   },
+   {
+    "t": "NameID",
+    "d": "Identifiant du sujet dans l'assertion (par exemple son e-mail)."
+   },
+   {
+    "t": "InResponseTo",
+    "d": "Champ de la réponse qui reprend l'ID de l'AuthnRequest et relie les deux."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Expliquez le principe de SAML 2.0 et ses acteurs.",
+    "a": "SAML 2.0 est un standard de fédération et de SSO web : un IdP authentifie l'utilisateur et émet une assertion XML signée que le SP accepte sans connaître le mot de passe. Il y a quatre acteurs : le sujet, c'est-à-dire l'utilisateur ; l'Identity Provider qui authentifie ; le Service Provider qui fournit l'application ; et le navigateur qui transporte les messages entre les parties. La confiance repose sur des metadata échangées à l'avance, avec le certificat de l'IdP.",
+    "keys": [
+     "assertion XML signée",
+     "sujet, IdP, SP, navigateur",
+     "pas de mot de passe chez le SP",
+     "metadata"
+    ]
+   },
+   {
+    "q": "Décrivez le flux SAML initié par le SP.",
+    "a": "L'utilisateur ouvre l'application protégée et n'a pas de session. Le SP génère une AuthnRequest avec un identifiant et l'URL de retour, et redirige le navigateur vers l'IdP. L'IdP authentifie l'utilisateur, avec MFA selon la politique de risque, puis renvoie une SAML Response signée. Le navigateur la poste vers l'ACS du SP, qui valide la signature, l'expiration, l'audience et le rejeu, puis crée une session. L'utilisateur accède enfin à l'application, avec une session limitée et journalisée.",
+    "keys": [
+     "AuthnRequest",
+     "redirection vers l'IdP",
+     "SAML Response signée",
+     "ACS",
+     "session"
+    ]
+   },
+   {
+    "q": "Que contient une assertion SAML ?",
+    "a": "Elle contient l'émetteur (Issuer), la signature de l'IdP, le sujet avec son NameID, les conditions de validité NotBefore et NotOnOrAfter avec l'audience visée, l'AuthnStatement qui décrit quand et comment l'utilisateur s'est authentifié, et éventuellement des attributs comme le département. Le SP s'appuie sur ces éléments pour valider l'assertion puis créer la session.",
+    "keys": [
+     "Issuer",
+     "Subject / NameID",
+     "Conditions NotBefore / NotOnOrAfter",
+     "Audience",
+     "AuthnStatement",
+     "Signature"
+    ]
+   },
+   {
+    "q": "Quel est le rôle des metadata ?",
+    "a": "Les metadata sont échangées entre IdP et SP avant la première connexion. Elles contiennent les identifiants (entityID), les URL (SSO, ACS) et les certificats publics. C'est grâce à elles que le SP sait quel certificat utiliser pour vérifier la signature de l'IdP et quelle ACS est légitime. Sans metadata correctes, la confiance n'existe pas et la connexion échoue.",
+    "keys": [
+     "entityID",
+     "URL SSO et ACS",
+     "certificat public",
+     "confiance préétablie"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire que le SP voit le mot de passe : il ne reçoit qu'une assertion signée, jamais l'identifiant secret.",
+   "Dire que le navigateur « authentifie » ou « valide » : il ne fait que transporter ; l'IdP authentifie et le SP valide.",
+   "Confondre SAML Response (enveloppe, avec statut) et Assertion (contenu : identité, conditions, attributs).",
+   "Oublier InResponseTo : c'est lui qui lie la réponse à la requête du SP dans le flux initié par le SP.",
+   "Ne pas vérifier la signature avec le certificat de l'IdP issu des metadata, mais faire confiance à n'importe quel certificat joint à la réponse."
+  ],
+  "quiz": [
+   {
+    "q": "Qui génère l'AuthnRequest dans le flux initié par le SP ?",
+    "opts": [
+     "L'IdP",
+     "Le navigateur",
+     "Le Service Provider",
+     "Le sujet"
+    ],
+    "ans": 2,
+    "why": "L'AuthnRequest est la demande d'authentification émise par le SP vers l'IdP, via le navigateur."
+   },
+   {
+    "q": "Quel rôle joue le navigateur dans SAML ?",
+    "opts": [
+     "Il authentifie l'utilisateur",
+     "Il signe l'assertion",
+     "Il transporte les messages entre SP et IdP sans les interpréter",
+     "Il stocke les metadata"
+    ],
+    "ans": 2,
+    "why": "Le navigateur est un simple porteur : il ne doit ni lire ni modifier les messages SAML."
+   },
+   {
+    "q": "Quelle partie de l'assertion délimite sa durée de validité ?",
+    "opts": [
+     "Issuer",
+     "Subject",
+     "Conditions (NotBefore / NotOnOrAfter)",
+     "AttributeStatement"
+    ],
+    "ans": 2,
+    "why": "L'élément Conditions porte NotBefore et NotOnOrAfter. L'Issuer identifie l'émetteur, Subject l'utilisateur, AttributeStatement les attributs."
+   },
+   {
+    "q": "À quoi sert l'élément Audience de l'assertion ?",
+    "opts": [
+     "Identifier l'IdP",
+     "Indiquer pour quel SP l'assertion est destinée",
+     "Donner l'heure d'authentification",
+     "Contenir la clé privée"
+    ],
+    "ans": 1,
+    "why": "Audience désigne le SP destinataire : un autre SP doit refuser cette assertion."
+   },
+   {
+    "q": "Dans quel ordre se déroule le flux initié par le SP ?",
+    "opts": [
+     "SAML Response, AuthnRequest, authentification, session",
+     "Accès à l'application, AuthnRequest vers l'IdP, authentification, SAML Response vers l'ACS, validation et session",
+     "Authentification, accès à l'application, SAML Response, AuthnRequest",
+     "Validation par le SP, authentification, AuthnRequest, accès"
+    ],
+    "ans": 1,
+    "why": "Le flux démarre au SP : accès, AuthnRequest, authentification chez l'IdP, SAML Response postée à l'ACS, validation, session."
+   }
+  ],
+  "recap": [
+   "SAML 2.0 = fédération + SSO web par assertion XML signée ; le SP ne voit jamais le mot de passe.",
+   "4 acteurs : sujet, IdP, SP, navigateur (simple transporteur). 4 artefacts : AuthnRequest, Response, Assertion, Metadata.",
+   "Flux initié par le SP : accès, AuthnRequest, authentification, Response signée, POST vers l'ACS, validation, session.",
+   "Une assertion contient Issuer, Signature, Subject/NameID, Conditions (NotBefore/NotOnOrAfter, Audience), AuthnStatement, attributs.",
+   "Les metadata échangées à l'avance établissent la confiance (entityID, URL, certificat)."
+  ]
+ },
+ {
+  "id": "ch2a-05",
+  "part": "ch2a",
+  "title": "SAML 2.0 (2/2) : flux initié par l'IdP, validation et attaques",
+  "emoji": "🛡️",
+  "level": 1,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 16-18",
+  "hook": {
+   "fr": "Le SP ne doit jamais croire une assertion sur parole : il vérifie la signature, l'émetteur, l'audience, la destination, les dates et le rejeu avant d'ouvrir une session.",
+   "derja": "El bawab ma yedkhelch 7ad bech 9al 'ana Sara'. Yechouf el wathika: el khatm sa7i7? men el baladiya elli na3rafha? mektouba lel 3imara hedhi? mazelt valable? w mouch nafs el wathika elli d5elt biha mbare7? Ken wa7da men hedhom na9sa, ma yod5olch."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fil flux SP-initiated, enti tmchi direct lel banque (SP) w houa yb3athek lel baladiya (IdP). Fil flux IdP-initiated, tbda mel baladiya: tod5ol lel portail mta3 el mairie, tkhtar 'banque' men el liste, w el baladiya tb3athek lel banque bel wathika mokhtouma. El far9 el kbir: fil 7ala el thenya el banque ma talabetch el wathika, donc ma3andhech talab 9dim yqarrenou bih. Hedhi el 7ala elli lazem el banque tkoun fiha a7ras: tchouf el khatm, el destination w el date mliha, khater ma3andhech wathika 'tantadher'."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : qui garantit que l'assertion est légitime ?",
+    "md": "L'assertion arrive par le **navigateur**, donc par un canal que l'utilisateur (ou un attaquant sur son poste) contrôle. Le SP doit pouvoir répondre à : *cette assertion a-t-elle vraiment été émise par mon IdP ? m'est-elle destinée ? est-elle encore valable ? n'a-t-elle pas déjà servi ?* \n\nLes deux flux SAML diffèrent par **qui démarre** et donc par ce que le SP peut vérifier."
+   },
+   {
+    "type": "flow",
+    "title": "SAML : flux initié par l'IdP (portail SSO)",
+    "intro": "L'utilisateur part du portail de l'IdP. Le SP n'envoie pas d'AuthnRequest.",
+    "actors": [
+     {
+      "id": "idp",
+      "label": "IdP",
+      "sub": "portail SSO",
+      "kind": "idp"
+     },
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "navigateur",
+      "kind": "user"
+     },
+     {
+      "id": "sp",
+      "label": "Application cloud",
+      "sub": "Service Provider",
+      "kind": "app"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "idp",
+      "label": "1. Ouvre le portail SSO",
+      "detail": "L'utilisateur se rend directement sur le portail de l'entreprise : le point de départ est l'IdP, pas l'application.",
+      "derja": "Yebda mel portail, mouch mel application."
+     },
+     {
+      "from": "idp",
+      "to": "idp",
+      "label": "2. Authentifie l'utilisateur",
+      "detail": "L'IdP applique le MFA et sa politique de risque."
+     },
+     {
+      "from": "u",
+      "to": "idp",
+      "label": "3. Sélectionne l'application",
+      "detail": "L'utilisateur clique sur la tuile de l'application cloud : c'est l'IdP qui choisit le SP cible."
+     },
+     {
+      "from": "idp",
+      "to": "u",
+      "label": "4. SAML Response signée",
+      "detail": "L'IdP génère une réponse signée sans qu'aucune AuthnRequest ne l'ait précédée, et la renvoie au navigateur.",
+      "dashed": true,
+      "payload": {
+       "title": "SAML Response (IdP-initiated)",
+       "fields": [
+        {
+         "k": "Destination",
+         "v": "https://app.example.tn/saml/acs",
+         "note": "ACS du SP choisi : à contrôler précisément"
+        },
+        {
+         "k": "InResponseTo",
+         "v": "(absent)",
+         "note": "aucune AuthnRequest à relier : le SP ne peut pas vérifier une corrélation"
+        },
+        {
+         "k": "Issuer",
+         "v": "https://idp.entreprise.tn/saml",
+         "note": "l'IdP émetteur"
+        },
+        {
+         "k": "Audience",
+         "v": "https://app.example.tn/saml/metadata",
+         "note": "le SP visé par l'assertion"
+        }
+       ]
+      }
+     },
+     {
+      "from": "u",
+      "to": "sp",
+      "label": "5. POST vers l'ACS",
+      "detail": "Le navigateur transporte la réponse vers l'ACS du SP. Il ne doit ni l'interpréter ni la modifier.",
+      "payload": {
+       "title": "POST vers l'ACS",
+       "fields": [
+        {
+         "k": "Méthode",
+         "v": "HTTP POST",
+         "note": "binding HTTP-POST"
+        },
+        {
+         "k": "SAMLResponse",
+         "v": "base64(XML signé)",
+         "note": "la réponse complète"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sp",
+      "to": "sp",
+      "label": "6. Validation par le SP",
+      "detail": "Le SP contrôle signature, émetteur, audience, destination, validité et anti-rejeu. Sans AuthnRequest, il ne peut pas utiliser InResponseTo.",
+      "tone": "good",
+      "payload": {
+       "title": "Contrôles du SP",
+       "fields": [
+        {
+         "k": "Signature",
+         "v": "vérifiée avec le certificat de l'IdP",
+         "note": "intégrité et origine"
+        },
+        {
+         "k": "Issuer / Audience",
+         "v": "IdP attendu / mon entityID",
+         "note": "bon émetteur, bon destinataire"
+        },
+        {
+         "k": "Destination",
+         "v": "mon ACS exacte",
+         "note": "pas une autre URL"
+        },
+        {
+         "k": "NotBefore / NotOnOrAfter",
+         "v": "période valide",
+         "note": "avec faible tolérance d'horloge"
+        },
+        {
+         "k": "ID d'assertion",
+         "v": "jamais vu",
+         "note": "anti-rejeu"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sp",
+      "to": "u",
+      "label": "7. Session applicative ouverte",
+      "detail": "Si tous les contrôles passent, le SP crée la session et donne accès à l'application.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "IdP-initiated vs SP-initiated",
+    "head": [
+     "Aspect",
+     "IdP-initiated",
+     "SP-initiated"
+    ],
+    "rows": [
+     [
+      "**Point de départ**",
+      "Portail du fournisseur d'identité",
+      "Application cible"
+     ],
+     [
+      "**AuthnRequest**",
+      "Généralement absente",
+      "Créée par le SP"
+     ],
+     [
+      "**Contexte initial**",
+      "L'IdP choisit l'application",
+      "Le SP conserve la demande initiale"
+     ],
+     [
+      "**Usage**",
+      "Portail d'entreprise (tuiles d'applications)",
+      "Lien direct vers une application (signet, e-mail)"
+     ],
+     [
+      "**Vigilance**",
+      "Contrôler précisément la destination",
+      "Lier la réponse à la requête (InResponseTo)"
+     ]
+    ],
+    "note": "Idée à retenir : dans le flux SP-initiated, le SP se souvient de ce qu'il a demandé ; dans le flux IdP-initiated, il reçoit une réponse « non sollicitée » et doit être plus strict sur le reste."
+   },
+   {
+    "type": "steps",
+    "title": "Valider une assertion : les 7 contrôles du SP",
+    "items": [
+     {
+      "t": "1. Signature",
+      "d": "La signature est vérifiée avec le certificat de l'IdP (issu des metadata), et elle couvre bien l'assertion que l'on va consommer. Sans signature valide, on rejette."
+     },
+     {
+      "t": "2. Émetteur (Issuer)",
+      "d": "L'émetteur doit être exactement l'IdP configuré, pas un autre."
+     },
+     {
+      "t": "3. Audience",
+      "d": "L'assertion doit être destinée à ce SP (son entityID)."
+     },
+     {
+      "t": "4. Destination et Recipient",
+      "d": "L'URL de destination doit être l'ACS exacte du SP."
+     },
+     {
+      "t": "5. Dates",
+      "d": "NotBefore et NotOnOrAfter encadrent la validité ; on tolère un très faible décalage d'horloge, pas plus."
+     },
+     {
+      "t": "6. Lien avec la requête",
+      "d": "Quand le flux le permet (SP-initiated), InResponseTo doit correspondre à l'ID de l'AuthnRequest envoyée."
+     },
+     {
+      "t": "7. Anti-rejeu",
+      "d": "L'ID de l'assertion est enregistré ; toute assertion déjà consommée est refusée, au moins jusqu'à sa date d'expiration."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Chaque contrôle bloque une attaque précise",
+    "head": [
+     "Contrôle",
+     "Attaque évitée"
+    ],
+    "rows": [
+     [
+      "Signature",
+      "Falsification : un attaquant invente une assertion ou change le sujet"
+     ],
+     [
+      "Émetteur",
+      "Un IdP malveillant ou non autorisé se fait passer pour l'IdP légitime"
+     ],
+     [
+      "Audience",
+      "Assertion valide pour un autre SP, réutilisée sur celui-ci"
+     ],
+     [
+      "Destination / Recipient",
+      "Assertion détournée vers une autre application"
+     ],
+     [
+      "NotBefore / NotOnOrAfter",
+      "Utilisation d'une très vieille assertion volée"
+     ],
+     [
+      "InResponseTo",
+      "Réponse non sollicitée imposée à l'utilisateur"
+     ],
+     [
+      "Anti-rejeu (ID déjà vu)",
+      "Réutilisation d'une assertion interceptée"
+     ]
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "À quoi ressemble le POST reçu par l'ACS",
+    "raw": "POST /a/tekup-demo.tn/acs HTTP/1.1\nHost: www.google.com\nContent-Type: application/x-www-form-urlencoded\n\nSAMLResponse=PHNhbWxwOlJlc3BvbnNl...&RelayState=%2Fmail%2Finbox",
+    "parts": [
+     {
+      "s": "POST /a/tekup-demo.tn/acs HTTP/1.1",
+      "label": "Requête vers l'ACS",
+      "note": "Le navigateur poste vers l'ACS URL du SP. Le SP doit vérifier que la destination dans l'assertion correspond à cette URL."
+     },
+     {
+      "s": "Content-Type: application/x-www-form-urlencoded",
+      "label": "Formulaire HTML",
+      "note": "La réponse est envoyée comme un formulaire HTML classique, auto-soumis par la page de l'IdP."
+     },
+     {
+      "s": "SAMLResponse=PHNhbWxwOlJlc3BvbnNl...",
+      "label": "SAMLResponse",
+      "note": "La réponse XML encodée en base64. PHNhbWxwOlJlc3BvbnNl décode en <samlp:Response : le SP décode, puis valide."
+     },
+     {
+      "s": "RelayState=%2Fmail%2Finbox",
+      "label": "RelayState",
+      "note": "Valeur de contexte renvoyée telle quelle (ici la page demandée). À traiter comme une donnée non fiable."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Attaque : rejeu d'une assertion interceptée",
+    "intro": "Un attaquant récupère une SAML Response valide et tente de l'utiliser à son tour.",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Sara",
+      "sub": "utilisatrice légitime",
+      "kind": "user"
+     },
+     {
+      "id": "sp",
+      "label": "Service Provider",
+      "sub": "ACS",
+      "kind": "app"
+     },
+     {
+      "id": "att",
+      "label": "Attaquant",
+      "sub": "a copié la réponse",
+      "kind": "attacker"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "sp",
+      "label": "1. Connexion légitime",
+      "detail": "Sara poste sa SAML Response à l'ACS. Le SP la valide et ouvre une session.",
+      "tone": "good",
+      "payload": {
+       "title": "Assertion consommée",
+       "fields": [
+        {
+         "k": "ID",
+         "v": "_a75adf55",
+         "note": "identifiant unique de l'assertion"
+        },
+        {
+         "k": "NotOnOrAfter",
+         "v": "2026-09-01T08:05:05Z",
+         "note": "fin de validité"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sp",
+      "to": "sp",
+      "label": "2. Mémorise l'ID consommé",
+      "detail": "Le SP enregistre l'ID de l'assertion jusqu'à sa date d'expiration : c'est la base de la protection anti-rejeu."
+     },
+     {
+      "from": "u",
+      "to": "att",
+      "label": "3. La réponse fuit",
+      "detail": "La réponse est copiée par une fuite quelconque : journal de proxy, historique, poste infecté, capture réseau d'un lien non protégé.",
+      "dashed": true,
+      "tone": "bad"
+     },
+     {
+      "from": "att",
+      "to": "sp",
+      "label": "4. Rejoue la même SAML Response",
+      "detail": "L'attaquant poste la réponse copiée à l'ACS : la signature est toujours valide et l'assertion n'a pas encore expiré.",
+      "tone": "bad"
+     },
+     {
+      "from": "sp",
+      "to": "sp",
+      "label": "5. Contrôle anti-rejeu",
+      "detail": "Le SP constate que l'ID _a75adf55 a déjà été consommé et refuse.",
+      "tone": "good"
+     },
+     {
+      "from": "sp",
+      "to": "att",
+      "label": "6. Refus : aucune session",
+      "detail": "Pas de session pour l'attaquant. La durée de validité courte limite en plus la fenêtre d'attaque si le cache anti-rejeu est défaillant.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Signature wrapping (expliqué simplement)",
+    "text": "Le SP vérifie que la signature est valide, mais lit ensuite une autre partie du XML. L'attaquant garde l'assertion signée d'origine à un endroit détourné du document et en insère une fausse, avec un autre utilisateur, à l'endroit que le SP lira. La signature passe, mais les données lues ne sont pas celles qui ont été signées. Défense : vérifier que la signature couvre exactement l'élément consommé, utiliser une bibliothèque SAML maintenue et ne pas écrire son propre analyseur XML."
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Bonnes pratiques côté SP",
+    "text": "Refuser toute réponse non signée. Garder des assertions à courte durée de vie. Stocker les ID consommés. Comparer l'ACS et l'audience exactement (pas de « commence par »). Utiliser HTTPS partout. Si l'usage du flux IdP-initiated n'est pas nécessaire et que le SP le permet, préférer le flux SP-initiated, qui lie la réponse à une requête."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : la même réponse est rejouée",
+    "situation": "Dans les journaux de ton application, la même SAML Response (même ID d'assertion) est reçue deux fois à 40 secondes d'écart, d'une adresse IP différente la deuxième fois. La signature est valide et l'assertion n'a pas encore expiré.",
+    "q": "Que doit faire le SP et quelle mesure manquait-elle si la deuxième connexion a réussi ?",
+    "opts": [
+     {
+      "t": "Accepter : la signature est valide et la date est bonne.",
+      "ok": false,
+      "why": "Signature et dates valides ne suffisent pas : une assertion interceptée reste valide jusqu'à son expiration. Il faut refuser la réutilisation."
+     },
+     {
+      "t": "Refuser la deuxième réponse : l'ID d'assertion a déjà été consommé. La mesure manquante est le cache anti-rejeu.",
+      "ok": true,
+      "why": "Le SP doit mémoriser les ID consommés au moins jusqu'à NotOnOrAfter et refuser tout doublon."
+     },
+     {
+      "t": "Augmenter la durée de validité des assertions pour éviter les erreurs.",
+      "ok": false,
+      "why": "Allonger la durée agrandit la fenêtre de rejeu. Il faut au contraire des durées courtes."
+     },
+     {
+      "t": "Désactiver la vérification de l'audience pour faciliter les connexions.",
+      "ok": false,
+      "why": "L'audience n'a pas de rapport avec le rejeu et protège contre une autre attaque : l'assertion destinée à un autre SP."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : l'assertion destinée à un autre SP",
+    "situation": "Ton SP reçoit une SAML Response signée par le bon IdP, valide dans le temps, jamais rejouée, mais son Audience est https://autre-app.example.tn/metadata.",
+    "q": "Comment réagit le SP ?",
+    "opts": [
+     {
+      "t": "Il l'accepte : la signature de l'IdP prouve qu'elle est authentique.",
+      "ok": false,
+      "why": "Authentique ne veut pas dire destinée à ce SP. Un attaquant pourrait réutiliser une assertion obtenue pour une application moins protégée."
+     },
+     {
+      "t": "Il refuse : l'audience ne correspond pas à son entityID.",
+      "ok": true,
+      "why": "Le contrôle d'audience garantit que l'assertion n'est utilisable que par le SP visé."
+     },
+     {
+      "t": "Il accepte si l'utilisateur est un administrateur.",
+      "ok": false,
+      "why": "Le rôle de l'utilisateur ne change pas la règle : l'assertion n'est pas destinée à ce SP."
+     },
+     {
+      "t": "Il demande à l'utilisateur de confirmer.",
+      "ok": false,
+      "why": "La décision est technique et automatique. L'utilisateur ne peut pas juger de la validité d'une assertion."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Retiens le point de départ et l'AuthnRequest : IdP-initiated = portail de l'IdP, pas d'AuthnRequest, vigilance sur la destination ; SP-initiated = application cible, AuthnRequest créée par le SP, vigilance sur le lien réponse-requête. Et la liste de validation : signature, émetteur, audience, destination, dates NotBefore et NotOnOrAfter, lien à la requête, anti-rejeu."
+   }
+  ],
+  "terms": [
+   {
+    "t": "IdP-initiated SSO",
+    "d": "Flux SAML qui démarre depuis le portail de l'IdP : le SP reçoit une réponse sans AuthnRequest préalable.",
+    "derja": "Tbda mel baladiya."
+   },
+   {
+    "t": "SP-initiated SSO",
+    "d": "Flux SAML qui démarre depuis l'application : le SP crée une AuthnRequest et conserve la demande initiale.",
+    "derja": "Tbda mel banque."
+   },
+   {
+    "t": "Audience",
+    "d": "Élément de l'assertion qui désigne le SP destinataire."
+   },
+   {
+    "t": "Destination / Recipient",
+    "d": "URL à laquelle la réponse ou l'assertion est destinée : doit être l'ACS exacte du SP."
+   },
+   {
+    "t": "Anti-rejeu",
+    "d": "Mécanisme qui mémorise les ID d'assertions consommées pour refuser leur réutilisation."
+   },
+   {
+    "t": "Rejeu (replay)",
+    "d": "Attaque qui consiste à renvoyer une réponse légitime interceptée.",
+    "derja": "Y3awed ynayyek nafs el wathika."
+   },
+   {
+    "t": "Signature wrapping",
+    "d": "Attaque XML où la signature valide couvre un élément, mais l'application lit un autre élément inséré par l'attaquant."
+   },
+   {
+    "t": "RelayState",
+    "d": "Valeur de contexte transportée avec le flux (par exemple la page demandée) et renvoyée telle quelle."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Décrivez le flux SAML initié par l'IdP et dites en quoi il diffère du flux initié par le SP.",
+    "a": "L'utilisateur ouvre le portail SSO de l'IdP, s'authentifie avec MFA et politique de risque, sélectionne l'application ; l'IdP génère une SAML Response signée que le navigateur poste vers l'ACS du SP. Le SP valide signature, émetteur, audience, destination, dates et rejeu, puis ouvre la session. La différence est le point de départ : ici c'est le portail de l'IdP et il n'y a généralement pas d'AuthnRequest, alors que dans le flux SP-initiated l'application démarre et crée l'AuthnRequest.",
+    "keys": [
+     "portail de l'IdP",
+     "pas d'AuthnRequest",
+     "POST vers l'ACS",
+     "validation par le SP"
+    ]
+   },
+   {
+    "q": "Quels contrôles un SP doit-il faire sur une assertion SAML ?",
+    "a": "Il vérifie la signature avec le certificat de l'IdP, puis l'émetteur et l'audience attendus. Il contrôle la destination, c'est-à-dire l'ACS exacte, et les dates NotBefore et NotOnOrAfter. Quand le flux le permet, il lie la réponse à la requête avec InResponseTo. Enfin il refuse toute assertion déjà consommée pour bloquer le rejeu. Chaque contrôle bloque une attaque précise.",
+    "keys": [
+     "signature",
+     "émetteur",
+     "audience",
+     "destination",
+     "NotBefore/NotOnOrAfter",
+     "anti-rejeu"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'une attaque par rejeu en SAML et comment s'en protéger ?",
+    "a": "C'est la réutilisation d'une SAML Response légitime interceptée : sa signature est valide et elle est parfois encore dans sa période de validité. On se protège en mémorisant l'ID de chaque assertion consommée pour refuser les doublons, en limitant fortement la durée de validité, en utilisant HTTPS pour réduire les fuites et en vérifiant la destination et l'audience.",
+    "keys": [
+     "réponse interceptée",
+     "ID consommé",
+     "durée courte",
+     "HTTPS"
+    ]
+   },
+   {
+    "q": "Pourquoi le flux IdP-initiated demande-t-il plus de vigilance ?",
+    "a": "Parce qu'aucune AuthnRequest ne précède la réponse : le SP n'a pas de requête d'origine à laquelle la lier, donc il ne peut pas utiliser InResponseTo. Il doit être particulièrement strict sur la destination, l'audience, la signature et l'anti-rejeu. Quand le besoin n'existe pas, le flux SP-initiated est préférable car il conserve le contexte de la demande.",
+    "keys": [
+     "pas d'AuthnRequest",
+     "pas de InResponseTo",
+     "destination",
+     "préférer SP-initiated"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Dire que le flux IdP-initiated utilise une AuthnRequest : généralement il n'y en a pas.",
+   "Penser qu'une signature valide suffit : il faut aussi vérifier émetteur, audience, destination, dates et rejeu.",
+   "Accepter des dates trop tolérantes : seul un très faible décalage d'horloge est acceptable, pas des minutes ou des heures.",
+   "Oublier l'anti-rejeu parce que « HTTPS protège déjà » : une réponse peut fuir autrement (poste, logs, proxy).",
+   "Comparer l'audience ou l'ACS avec « contient » ou « commence par » au lieu d'une égalité exacte."
+  ],
+  "quiz": [
+   {
+    "q": "Dans le flux initié par l'IdP, qu'est-ce qui est généralement absent ?",
+    "opts": [
+     "La signature de l'assertion",
+     "L'AuthnRequest du SP",
+     "L'authentification de l'utilisateur",
+     "L'ACS URL"
+    ],
+    "ans": 1,
+    "why": "Le flux démarre au portail de l'IdP : aucune AuthnRequest du SP ne précède la réponse. La signature, l'authentification et l'ACS restent présentes."
+   },
+   {
+    "q": "Quel contrôle empêche qu'une assertion valide mais destinée à un autre SP soit acceptée ?",
+    "opts": [
+     "La vérification de l'audience",
+     "La vérification du format du NameID",
+     "Le RelayState",
+     "La compression de la requête"
+    ],
+    "ans": 0,
+    "why": "Audience désigne le SP destinataire : le SP refuse une assertion dont l'audience n'est pas la sienne."
+   },
+   {
+    "q": "Comment un SP bloque-t-il le rejeu d'une assertion interceptée ?",
+    "opts": [
+     "En allongeant la validité de l'assertion",
+     "En ignorant la signature",
+     "En mémorisant les ID d'assertions déjà consommées",
+     "En changeant le certificat de l'IdP à chaque connexion"
+    ],
+    "ans": 2,
+    "why": "Il enregistre l'ID de chaque assertion consommée et refuse les doublons, au moins jusqu'à l'expiration."
+   },
+   {
+    "q": "Quelle vigilance est associée au flux SP-initiated dans le comparatif ?",
+    "opts": [
+     "Contrôler uniquement l'heure",
+     "Lier la réponse à la requête (InResponseTo)",
+     "Supprimer la signature pour accélérer",
+     "Ne jamais utiliser HTTPS"
+    ],
+    "ans": 1,
+    "why": "Le SP conserve la demande initiale et doit vérifier que la réponse lui correspond. Pour IdP-initiated, la vigilance porte surtout sur la destination."
+   },
+   {
+    "q": "Quel élément contrôle-t-on pour appliquer NotBefore et NotOnOrAfter ?",
+    "opts": [
+     "La validité temporelle de l'assertion",
+     "Le format de l'e-mail du sujet",
+     "L'adresse IP du navigateur",
+     "L'algorithme de chiffrement du certificat"
+    ],
+    "ans": 0,
+    "why": "NotBefore et NotOnOrAfter délimitent la période pendant laquelle l'assertion est valable ; en dehors, le SP la refuse."
+   }
+  ],
+  "recap": [
+   "IdP-initiated : départ au portail de l'IdP, généralement sans AuthnRequest ; SP-initiated : départ à l'application, AuthnRequest créée par le SP.",
+   "Le navigateur transporte la réponse SAML sans l'interpréter ni la modifier.",
+   "Validation : signature (certificat de l'IdP), émetteur, audience, destination, NotBefore/NotOnOrAfter, lien requête-réponse, anti-rejeu.",
+   "Rejeu = réutilisation d'une réponse interceptée ; défense : mémoriser les ID consommés + durées courtes.",
+   "Signature wrapping = signature valide mais élément lu différent ; défense : bibliothèque maintenue et signature qui couvre l'élément consommé."
+  ]
+ },
+ {
+  "id": "ch2a-06",
+  "part": "ch2a",
+  "title": "SCIM 2.0 : provisionnement automatique des comptes et groupes",
+  "emoji": "🔁",
+  "level": 1,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 19-23",
+  "hook": {
+   "fr": "SCIM est le standard qui crée, met à jour et désactive automatiquement les comptes dans les applications cloud : SAML ou OIDC fait entrer l'utilisateur, SCIM s'occupe de son compte.",
+   "derja": "Fi 3ors, el liste mta3 el invités tetbaddel: wa7ed jdid yetzed, wa7ed yetna7a. Ken kol salle 3andha liste w el wa7ed yodkhol y9ayed fi kol salle b'yedou, yodkhol 3la 3ibad ma9assouchin. SCIM houwa el secrétaire elli ybadal el liste fi kol salle w7dou, f nafs el wa9t, w bnafs el sigha."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fil mariage kbir, kol salle (SaaS) 3andha liste mta3 el invités. Ki yetzed wa7ed jdid, ken el mdir lazem yemchi lel salle 1, 2, w 3 w yzidou b'yedou, yensa wa7da. Ki yetna7a 7ad, yensa y9ayed w yb9a e5ou yod5ol. SCIM houwa secrétaire wa7ed: yekhdhelek el 7aja mel liste el principale (annuaire) w yb3athha l'kol salle b'format wa7ed (JSON). Yzid, ybaddel, yfassakh. Houwa ma3andouch 5edma bel bab: el bawab (SAML/OIDC) houwa elli yedkhel el nes. SCIM bark el liste."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : des comptes créés et supprimés à la main",
+    "md": "Quand chaque SaaS gère sa propre liste d'utilisateurs :\n- l'**arrivée** d'un employé demande des créations de comptes à la main, application par application ;\n- les **changements** de poste (équipe, projet) ne sont pas propagés : les droits s'accumulent ;\n- le **départ** est oublié dans une ou plusieurs applications : comptes orphelins.\n\nSAML ou OIDC règle *la connexion* mais **ne crée pas le compte** et ne le supprime pas. Il faut un standard dédié au **provisionnement**."
+   },
+   {
+    "type": "text",
+    "title": "Définition précise",
+    "md": "**SCIM 2.0 (System for Cross-domain Identity Management)** est un standard de **provisionnement des identités** : il définit un **schéma** commun d'utilisateurs et de groupes (en JSON) et une **API REST** pour les créer, lire, modifier et supprimer.\n\n- **RFC 7643** : le **schéma** (quels attributs, quels types de ressources).\n- **RFC 7644** : le **protocole** (les requêtes HTTP, le filtrage, le PATCH).\n\nIl synchronise **comptes et groupes** entre l'annuaire ou l'IdP et les applications cloud."
+   },
+   {
+    "type": "compare",
+    "title": "Client SCIM vs serveur SCIM",
+    "cols": [
+     {
+      "name": "Client SCIM",
+      "tag": "Côté IdP ou annuaire",
+      "points": [
+       "Utilise l'annuaire ou l'IdP comme source de vérité",
+       "Détecte la création, la modification ou la suppression d'une identité",
+       "Envoie des requêtes REST avec des ressources JSON normalisées",
+       "Associe groupes et attributs aux comptes cibles"
+      ],
+      "use": "C'est lui qui prend l'initiative d'appeler les applications."
+     },
+     {
+      "name": "Serveur SCIM",
+      "tag": "Côté application (SaaS, plateforme)",
+      "points": [
+       "Expose les endpoints /Users et /Groups",
+       "Valide l'appel et applique l'opération demandée",
+       "Maintient l'identifiant stable de chaque ressource",
+       "Renvoie un état cohérent au client"
+      ],
+      "use": "Chaque application cible implémente son propre serveur SCIM."
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Architecture SCIM 2.0 dans le cloud",
+    "groups": [
+     {
+      "id": "S",
+      "label": "Source des événements",
+      "kind": "onprem",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "rh",
+        "label": "SIRH",
+        "sub": "arrivée, changement, départ",
+        "icon": "org"
+       }
+      ]
+     },
+     {
+      "id": "I",
+      "label": "Identité de référence",
+      "kind": "org",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "dir",
+        "label": "Annuaire / IdP",
+        "sub": "utilisateurs, groupes, attributs",
+        "icon": "idp"
+       }
+      ]
+     },
+     {
+      "id": "C",
+      "label": "Provisionnement",
+      "kind": "org",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "scim",
+        "label": "Client SCIM",
+        "sub": "compare l'état, génère les requêtes",
+        "icon": "api"
+       }
+      ]
+     },
+     {
+      "id": "A",
+      "label": "Applications cloud (serveurs SCIM)",
+      "kind": "vpc",
+      "col": 3,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "a1",
+        "label": "Application SaaS A",
+        "sub": "/Users /Groups",
+        "icon": "cloud"
+       },
+       {
+        "id": "a2",
+        "label": "Application SaaS B",
+        "sub": "/Users /Groups",
+        "icon": "cloud"
+       },
+       {
+        "id": "a3",
+        "label": "Plateforme cloud",
+        "sub": "/Users /Groups",
+        "icon": "cloud"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "rh",
+      "to": "dir",
+      "label": "1. Événement RH",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "dir",
+      "to": "scim",
+      "label": "2. État cible",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "scim",
+      "to": "a1",
+      "label": "3. API SCIM",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "scim",
+      "to": "a2",
+      "label": "3. API SCIM",
+      "style": "solid"
+     },
+     {
+      "id": "e5",
+      "from": "scim",
+      "to": "a3",
+      "label": "3. API SCIM",
+      "style": "solid"
+     },
+     {
+      "id": "e6",
+      "from": "a1",
+      "to": "scim",
+      "label": "4. Réponses et erreurs",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "rh",
+       "dir"
+      ],
+      "caption": "Le SIRH déclenche le changement : arrivée, changement ou départ. L'annuaire ou l'IdP met à jour l'identité de référence."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "dir",
+       "scim"
+      ],
+      "caption": "L'IdP expose l'état cible : quels utilisateurs, quels groupes, quels attributs doivent exister."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4",
+       "e5"
+      ],
+      "nodes": [
+       "scim",
+       "a1",
+       "a2",
+       "a3"
+      ],
+      "caption": "Le client SCIM compare l'état cible avec l'état des applications, génère les requêtes (POST, PATCH, DELETE) et les envoie aux serveurs SCIM de chaque application."
+     },
+     {
+      "edges": [
+       "e6"
+      ],
+      "nodes": [
+       "a1",
+       "scim"
+      ],
+      "caption": "Chaque application applique l'état demandé et renvoie un résultat. Le client gère les erreurs et une réconciliation périodique corrige les écarts."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Contrôles de l'architecture SCIM",
+    "text": "TLS pour protéger les échanges ; jeton OAuth à privilèges limités pour que le client SCIM ne puisse faire que ce qui est nécessaire ; rotation des secrets ; journalisation ; gestion des erreurs ; réconciliation périodique pour corriger les écarts entre l'annuaire et les applications. Le client SCIM détient un pouvoir de création et de suppression de comptes : son jeton est une cible de choix."
+   },
+   {
+    "type": "decode",
+    "title": "Décodage d'une ressource User SCIM (réponse du serveur)",
+    "raw": "{\n  \"schemas\": [\n    \"urn:ietf:params:scim:schemas:core:2.0:User\",\n    \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\"\n  ],\n  \"id\": \"2819c223-7f76-453a-919d-413861904646\",\n  \"userName\": \"john.doe@company.com\",\n  \"name\": {\n    \"givenName\": \"John\",\n    \"familyName\": \"Doe\"\n  },\n  \"displayName\": \"John Doe\",\n  \"emails\": [\n    {\n      \"type\": \"work\",\n      \"value\": \"john.doe@company.com\",\n      \"primary\": true\n    }\n  ],\n  \"active\": true,\n  \"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\": {\n    \"department\": \"Sales\"\n  },\n  \"meta\": {\n    \"resourceType\": \"User\",\n    \"location\": \"https://app.example.com/scim/v2/Users/2819c223-7f76-453a-919d-413861904646\"\n  }\n}",
+    "parts": [
+     {
+      "s": "\"urn:ietf:params:scim:schemas:core:2.0:User\"",
+      "label": "schemas : schéma de base",
+      "note": "Le tableau schemas liste les schémas utilisés par la ressource. Le premier est le schéma de base User de la RFC 7643."
+     },
+     {
+      "s": "\"urn:ietf:params:scim:schemas:extension:enterprise:2.0:User\"",
+      "label": "schemas : extension Enterprise",
+      "note": "Une extension complète le schéma de base sans le casser : ici Enterprise User, qui porte department. Ses attributs sont regroupés sous une clé du même nom plus bas."
+     },
+     {
+      "s": "\"id\": \"2819c223-7f76-453a-919d-413861904646\"",
+      "label": "id",
+      "note": "Identifiant unique et stable attribué par le serveur SCIM. Les PATCH et DELETE ultérieurs l'utilisent dans l'URL, jamais userName."
+     },
+     {
+      "s": "\"userName\": \"john.doe@company.com\"",
+      "label": "userName",
+      "note": "Identifie le compte dans le service cible. Il doit être unique : le serveur refuse un doublon."
+     },
+     {
+      "s": "\"givenName\": \"John\"",
+      "label": "name.givenName",
+      "note": "Prénom, dans l'objet complexe name."
+     },
+     {
+      "s": "\"familyName\": \"Doe\"",
+      "label": "name.familyName",
+      "note": "Nom de famille."
+     },
+     {
+      "s": "\"displayName\": \"John Doe\"",
+      "label": "displayName",
+      "note": "Nom affiché dans les interfaces."
+     },
+     {
+      "s": "\"primary\": true",
+      "label": "emails[].primary",
+      "note": "emails est une liste (type work, value, primary) : un utilisateur peut avoir plusieurs adresses, une seule principale."
+     },
+     {
+      "s": "\"active\": true",
+      "label": "active",
+      "note": "Booléen : true = compte utilisable, false = compte désactivé sans suppression. Permet de bloquer l'accès en conservant l'historique."
+     },
+     {
+      "s": "\"department\": \"Sales\"",
+      "label": "department (extension)",
+      "note": "Attribut de l'extension Enterprise User (les slides l'affichent à plat pour simplifier). Les extensions complètent le schéma de base."
+     },
+     {
+      "s": "\"resourceType\": \"User\"",
+      "label": "meta.resourceType",
+      "note": "Métadonnées gérées par le serveur : type de ressource, date, URL (location) de la ressource."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Opérations SCIM et cycle de vie",
+    "head": [
+     "Besoin",
+     "Requête SCIM",
+     "Résultat attendu",
+     "Contrôle"
+    ],
+    "rows": [
+     [
+      "**Créer**",
+      "`POST /Users`",
+      "Compte provisionné avec ses attributs",
+      "Unicité de userName"
+     ],
+     [
+      "**Rechercher**",
+      "`GET /Users?filter=...`",
+      "Identité retrouvée sans ambiguïté",
+      "Filtrage et pagination"
+     ],
+     [
+      "**Modifier**",
+      "`PATCH /Users/{id}`",
+      "Attribut ou groupe mis à jour",
+      "Validation des opérations"
+     ],
+     [
+      "**Désactiver**",
+      "`PATCH` avec `active=false`",
+      "Connexion et sessions bloquées",
+      "Propagation rapide"
+     ],
+     [
+      "**Supprimer**",
+      "`DELETE /Users/{id}`",
+      "Compte retiré selon la politique",
+      "Conservation des traces"
+     ],
+     [
+      "**Groupes**",
+      "`POST /Groups`, `PATCH /Groups/{id}`",
+      "Groupe créé, membres ajoutés ou retirés",
+      "Appartenances cohérentes avec l'annuaire"
+     ]
+    ],
+    "note": "Exemple de recherche : GET /Users?filter=userName eq \"john.doe@company.com\". La pagination utilise startIndex et count ; la réponse est une ListResponse avec totalResults."
+   },
+   {
+    "type": "decode",
+    "title": "Décodage d'une requête PATCH : désactiver un compte",
+    "raw": "PATCH /scim/v2/Users/2819c223-7f76-453a-919d-413861904646 HTTP/1.1\nHost: app.example.com\nAuthorization: Bearer <jeton-oauth>\nContent-Type: application/scim+json\n\n{\n  \"schemas\": [\"urn:ietf:params:scim:api:messages:2.0:PatchOp\"],\n  \"Operations\": [\n    {\n      \"op\": \"replace\",\n      \"path\": \"active\",\n      \"value\": false\n    }\n  ]\n}",
+    "parts": [
+     {
+      "s": "PATCH /scim/v2/Users/2819c223-7f76-453a-919d-413861904646",
+      "label": "Méthode et URL",
+      "note": "PATCH modifie partiellement la ressource identifiée par son id. La base /scim/v2 dépend de l'application ; /Users et /Groups sont les endpoints standard."
+     },
+     {
+      "s": "Authorization: Bearer <jeton-oauth>",
+      "label": "Authentification du client",
+      "note": "Le client SCIM s'authentifie avec un jeton OAuth à privilèges limités (ou un secret équivalent), toujours sur TLS."
+     },
+     {
+      "s": "application/scim+json",
+      "label": "Content-Type",
+      "note": "Type de contenu SCIM : du JSON respectant le schéma SCIM."
+     },
+     {
+      "s": "urn:ietf:params:scim:api:messages:2.0:PatchOp",
+      "label": "schemas (PatchOp)",
+      "note": "Indique que le corps est un message de modification (PATCH) au format standard."
+     },
+     {
+      "s": "\"op\": \"replace\"",
+      "label": "op",
+      "note": "Opération demandée : add, remove ou replace."
+     },
+     {
+      "s": "\"path\": \"active\"",
+      "label": "path",
+      "note": "Attribut ciblé : ici active."
+     },
+     {
+      "s": "\"value\": false",
+      "label": "value",
+      "note": "Nouvelle valeur : false désactive le compte. Connexion et sessions sont bloquées, mais l'historique est conservé."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Flux SCIM : arrivée, changement et départ",
+    "intro": "Le SIRH déclenche, l'IdP orchestre le provisionnement, chaque application applique l'état cible.",
+    "actors": [
+     {
+      "id": "rh",
+      "label": "SIRH",
+      "sub": "source des événements",
+      "kind": "store"
+     },
+     {
+      "id": "idp",
+      "label": "IdP / client SCIM",
+      "sub": "orchestre",
+      "kind": "idp"
+     },
+     {
+      "id": "app",
+      "label": "Application SaaS",
+      "sub": "serveur SCIM",
+      "kind": "app"
+     }
+    ],
+    "steps": [
+     {
+      "from": "rh",
+      "to": "idp",
+      "label": "1. Arrivée : nouvel employé ou partenaire",
+      "detail": "Le SIRH signale l'arrivée de John Doe au département Sales.",
+      "derja": "Fama wa7ed jdid fi l'equipe Sales.",
+      "payload": {
+       "title": "Événement RH",
+       "fields": [
+        {
+         "k": "event",
+         "v": "hire",
+         "note": "Joiner"
+        },
+        {
+         "k": "userName",
+         "v": "john.doe@company.com",
+         "note": "sera le userName SCIM"
+        },
+        {
+         "k": "department",
+         "v": "Sales",
+         "note": "sert à calculer les groupes"
+        }
+       ]
+      }
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "2. POST /Users",
+      "detail": "Le client SCIM crée le compte avec ses attributs. userName doit être unique dans l'application.",
+      "payload": {
+       "title": "POST /Users",
+       "fields": [
+        {
+         "k": "schemas",
+         "v": "urn:ietf:params:scim:schemas:core:2.0:User",
+         "note": "schéma de la ressource"
+        },
+        {
+         "k": "userName",
+         "v": "john.doe@company.com",
+         "note": "identifiant du compte"
+        },
+        {
+         "k": "name.givenName / familyName",
+         "v": "John / Doe",
+         "note": "attributs"
+        },
+        {
+         "k": "active",
+         "v": "true",
+         "note": "compte actif"
+        }
+       ]
+      }
+     },
+     {
+      "from": "app",
+      "to": "idp",
+      "label": "3. 201 Created + id",
+      "detail": "Le serveur renvoie la ressource créée avec son id stable : le client le mémorise pour les futures modifications.",
+      "dashed": true,
+      "tone": "good",
+      "payload": {
+       "title": "Réponse 201 Created",
+       "fields": [
+        {
+         "k": "id",
+         "v": "2819c223-7f76-453a-919d-413861904646",
+         "note": "identifiant attribué par le serveur"
+        },
+        {
+         "k": "meta.location",
+         "v": "https://app.example.com/scim/v2/Users/2819c223-...",
+         "note": "URL de la ressource"
+        }
+       ]
+      }
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "4. PATCH /Groups/{id} : ajoute au groupe",
+      "detail": "Le groupe lié au département reçoit John comme nouveau membre : c'est ce qui lui donne ses accès.",
+      "payload": {
+       "title": "PATCH /Groups/{id}",
+       "fields": [
+        {
+         "k": "op",
+         "v": "add",
+         "note": "ajouter un membre"
+        },
+        {
+         "k": "path",
+         "v": "members",
+         "note": "attribut ciblé"
+        },
+        {
+         "k": "value",
+         "v": "[{ \"value\": \"2819c223-...\" }]",
+         "note": "id SCIM de l'utilisateur"
+        }
+       ]
+      }
+     },
+     {
+      "from": "rh",
+      "to": "idp",
+      "label": "5. Changement : John passe au département Finance",
+      "detail": "Mobilité : l'équipe change, les accès doivent suivre.",
+      "payload": {
+       "title": "Événement RH",
+       "fields": [
+        {
+         "k": "event",
+         "v": "transfer",
+         "note": "Mover"
+        },
+        {
+         "k": "department",
+         "v": "Finance",
+         "note": "nouvelle valeur"
+        }
+       ]
+      }
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "6. PATCH /Users et PATCH /Groups",
+      "detail": "L'attribut est mis à jour, l'ancien groupe est retiré et le nouveau ajouté : les accès sont recalculés.",
+      "tone": "good",
+      "derja": "Ki ybaddel el poste, yetna7a 3lih el 9dim w yetzedlou el jdid."
+     },
+     {
+      "from": "rh",
+      "to": "idp",
+      "label": "7. Départ : fin de contrat ou révocation",
+      "detail": "Le SIRH signale la sortie : l'événement le plus critique du cycle de vie.",
+      "tone": "bad"
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "8. PATCH active=false (et retrait des groupes)",
+      "detail": "Le compte est désactivé : connexion bloquée, groupes retirés, accès révoqués. L'historique est préservé.",
+      "tone": "good",
+      "payload": {
+       "title": "PATCH /Users/{id}",
+       "fields": [
+        {
+         "k": "op",
+         "v": "replace",
+         "note": "modifier"
+        },
+        {
+         "k": "path",
+         "v": "active",
+         "note": "attribut ciblé"
+        },
+        {
+         "k": "value",
+         "v": "false",
+         "note": "désactivé"
+        }
+       ]
+      }
+     },
+     {
+      "from": "idp",
+      "to": "app",
+      "label": "9. Plus tard : DELETE /Users/{id}",
+      "detail": "Selon la politique de conservation, le compte peut être supprimé définitivement. Le serveur répond 204 No Content.",
+      "payload": {
+       "title": "DELETE /Users/{id}",
+       "fields": [
+        {
+         "k": "Méthode",
+         "v": "DELETE",
+         "note": "suppression de la ressource"
+        },
+        {
+         "k": "Réponse attendue",
+         "v": "204 No Content",
+         "note": "supprimé : plus de corps"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "Départ : désactiver (active:false) ou supprimer (DELETE) ?",
+    "cols": [
+     {
+      "name": "PATCH active:false",
+      "tag": "Désactivation",
+      "points": [
+       "Bloque connexion et sessions",
+       "Conserve l'historique et les traces",
+       "Réversible si la sortie était une erreur",
+       "Réponse immédiate à un incident ou une révocation"
+      ],
+      "use": "Premier réflexe à la sortie ou en cas de compromission."
+     },
+     {
+      "name": "DELETE /Users/{id}",
+      "tag": "Suppression",
+      "points": [
+       "Retire le compte selon la politique",
+       "Libère le userName et les licences",
+       "Irréversible dans l'application",
+       "À appliquer après la durée de conservation requise"
+      ],
+      "use": "Suppression définitive, une fois les obligations de conservation satisfaites."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Pas de provisionnement = pas de déprovisionnement",
+    "text": "Si le SSO fonctionne mais que SCIM n'est pas en place, bloquer l'utilisateur chez l'IdP l'empêche de se reconnecter par SSO, mais son compte (et ses clés ou jetons locaux) existe toujours dans l'application. Le déprovisionnement par SCIM supprime cette dernière brèche."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le départ d'une stagiaire avec obligation de conservation",
+    "situation": "Une stagiaire termine son stage vendredi. L'entreprise doit conserver les traces de ses actions pendant un an pour des raisons d'audit. Le SIRH génère l'événement de départ.",
+    "q": "Quelle séquence SCIM correspond à la politique ?",
+    "opts": [
+     {
+      "t": "DELETE /Users/{id} dès vendredi pour être sûr d'avoir tout fermé.",
+      "ok": false,
+      "why": "La suppression immédiate peut détruire l'historique que l'entreprise doit conserver."
+     },
+     {
+      "t": "PATCH active=false et retrait des groupes dès vendredi, puis DELETE à la fin de la durée de conservation.",
+      "ok": true,
+      "why": "On bloque l'accès tout de suite tout en préservant l'historique, puis on supprime définitivement selon la politique."
+     },
+     {
+      "t": "Ne rien faire : l'accès SSO sera bloqué par l'IdP.",
+      "ok": false,
+      "why": "Le compte reste présent dans l'application, avec d'éventuelles clés et sessions. Il faut déprovisionner."
+     },
+     {
+      "t": "Changer le userName du compte pour qu'il ne corresponde plus à la personne.",
+      "ok": false,
+      "why": "Cela ne bloque rien, et rend les traces plus difficiles à relier à la personne."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "La phrase à retenir : SCIM provisionne, SAML ou OIDC connecte. Sache nommer l'architecture (SIRH, annuaire ou IdP, client SCIM, serveurs SCIM des applications), les opérations (POST, GET, PATCH, DELETE sur /Users et /Groups), le schéma (userName, name, emails, active) et la différence entre active:false et DELETE. Références : RFC 7643 pour le schéma, RFC 7644 pour le protocole."
+   }
+  ],
+  "terms": [
+   {
+    "t": "SCIM 2.0",
+    "d": "System for Cross-domain Identity Management : standard de provisionnement des comptes et groupes par API REST et JSON.",
+    "derja": "El secrétaire elli ybadal el liste fi kol salle."
+   },
+   {
+    "t": "Client SCIM / serveur SCIM",
+    "d": "Le client (côté IdP) envoie les requêtes ; le serveur (côté application) expose /Users et /Groups et applique les opérations."
+   },
+   {
+    "t": "/Users et /Groups",
+    "d": "Endpoints standard SCIM pour gérer les utilisateurs et les groupes."
+   },
+   {
+    "t": "userName",
+    "d": "Attribut SCIM qui identifie le compte dans le service cible ; doit être unique."
+   },
+   {
+    "t": "active",
+    "d": "Attribut booléen SCIM : false désactive le compte sans le supprimer, ce qui préserve l'historique."
+   },
+   {
+    "t": "PATCH (PatchOp)",
+    "d": "Modification partielle d'une ressource avec des opérations add, remove, replace."
+   },
+   {
+    "t": "Réconciliation",
+    "d": "Comparaison périodique de l'état cible et de l'état réel pour corriger les écarts."
+   },
+   {
+    "t": "RFC 7643 / RFC 7644",
+    "d": "Les deux normes de SCIM : 7643 définit le schéma, 7644 définit le protocole."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce que SCIM 2.0 et à quoi sert-il ?",
+    "a": "SCIM 2.0 est un standard de provisionnement des identités : il normalise un schéma d'utilisateurs et de groupes en JSON et une API REST avec les endpoints /Users et /Groups. Il sert à synchroniser automatiquement les comptes et groupes de l'annuaire ou de l'IdP vers les applications cloud, au rythme du cycle de vie Joiner, Mover, Leaver. Il est défini par la RFC 7643 pour le schéma et la RFC 7644 pour le protocole. Il ne gère pas la connexion : c'est le rôle de SAML ou d'OIDC.",
+    "keys": [
+     "provisionnement",
+     "/Users et /Groups",
+     "JSON REST",
+     "RFC 7643 et 7644"
+    ]
+   },
+   {
+    "q": "Décrivez l'architecture SCIM.",
+    "a": "Le SIRH est la source des événements : arrivée, changement, départ. L'annuaire ou l'IdP conserve l'identité de référence, avec utilisateurs, groupes et attributs. Le client SCIM, ou service de provisionnement, compare l'état cible avec l'état des applications, génère les requêtes et gère les erreurs. Il appelle les serveurs SCIM des applications cloud, qui exposent /Users et /Groups. Les contrôles sont TLS, jeton OAuth à privilèges limités, rotation des secrets, journalisation, gestion des erreurs et réconciliation périodique.",
+    "keys": [
+     "SIRH",
+     "annuaire/IdP",
+     "client SCIM",
+     "serveurs SCIM",
+     "contrôles"
+    ]
+   },
+   {
+    "q": "Quelles sont les opérations SCIM pour le cycle de vie d'un compte ?",
+    "a": "POST /Users crée le compte avec ses attributs et exige un userName unique. GET /Users avec un filter retrouve une identité, avec pagination. PATCH /Users/{id} modifie un attribut ou un groupe. Pour désactiver, un PATCH met active à false : la connexion et les sessions sont bloquées et l'historique est préservé. DELETE /Users/{id} supprime le compte selon la politique de conservation. Les groupes se gèrent avec /Groups, notamment PATCH pour les appartenances.",
+    "keys": [
+     "POST",
+     "GET filter",
+     "PATCH",
+     "active=false",
+     "DELETE"
+    ]
+   },
+   {
+    "q": "Quelle différence entre désactiver et supprimer un compte, et lequel choisir au départ d'un employé ?",
+    "a": "Désactiver avec active=false bloque la connexion et les sessions mais conserve le compte et son historique ; c'est réversible. Supprimer avec DELETE retire le compte selon la politique et libère le userName, mais détruit l'état de l'application. À la sortie, on désactive immédiatement et on retire les groupes pour révoquer les accès, puis on supprime plus tard, quand la durée de conservation et les obligations d'audit sont satisfaites.",
+    "keys": [
+     "active=false",
+     "DELETE",
+     "historique préservé",
+     "politique de conservation"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre SCIM et SAML ou OIDC ?",
+    "a": "SAML et OIDC gèrent la connexion : ils prouvent l'identité de l'utilisateur à l'application. SCIM gère le cycle de vie des comptes : il crée, met à jour et désactive les comptes et les groupes. Les deux sont complémentaires. Sans SCIM, un utilisateur bloqué chez l'IdP ne peut plus se connecter par SSO, mais son compte reste dans l'application. En résumé : SCIM provisionne, SAML ou OIDC connecte.",
+    "keys": [
+     "connexion vs compte",
+     "complémentaires",
+     "compte reste sans SCIM"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Confondre SCIM (provisionnement des comptes) avec SAML ou OIDC (connexion) : SCIM ne connecte pas l'utilisateur.",
+   "Utiliser userName dans l'URL d'un PATCH ou DELETE : on utilise l'id SCIM attribué par le serveur (/Users/{id}).",
+   "Supprimer d'emblée un compte quand il faut garder les traces : on désactive d'abord (active=false), on supprime ensuite selon la politique.",
+   "Oublier de sécuriser le client SCIM : il peut créer et supprimer des comptes, donc son jeton doit avoir des privilèges limités et être protégé.",
+   "Ne pas prévoir de réconciliation : un échec ponctuel de provisionnement laisse un écart silencieux entre l'annuaire et l'application."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle requête SCIM crée un nouvel utilisateur ?",
+    "opts": [
+     "GET /Users",
+     "POST /Users",
+     "PATCH /Users/{id}",
+     "DELETE /Users/{id}"
+    ],
+    "ans": 1,
+    "why": "POST /Users crée la ressource. GET lit, PATCH modifie, DELETE supprime."
+   },
+   {
+    "q": "Comment désactiver un compte en conservant son historique ?",
+    "opts": [
+     "DELETE /Users/{id}",
+     "POST /Users avec un autre userName",
+     "PATCH avec active=false",
+     "GET /Users?filter=active eq false"
+    ],
+    "ans": 2,
+    "why": "PATCH avec active=false bloque la connexion et les sessions sans supprimer le compte. DELETE le retire."
+   },
+   {
+    "q": "Quelle est la bonne répartition des rôles entre SCIM et SAML/OIDC ?",
+    "opts": [
+     "SCIM connecte, SAML provisionne",
+     "SAML et OIDC connectent, SCIM provisionne",
+     "SCIM et SAML provisionnent tous les deux",
+     "OIDC provisionne, SCIM authentifie"
+    ],
+    "ans": 1,
+    "why": "SAML et OIDC gèrent la connexion ; SCIM gère le provisionnement des comptes et des groupes."
+   },
+   {
+    "q": "Quels sont les endpoints standard d'un serveur SCIM ?",
+    "opts": [
+     "/Accounts et /Teams",
+     "/Users et /Groups",
+     "/Login et /Logout",
+     "/Tokens et /Keys"
+    ],
+    "ans": 1,
+    "why": "SCIM définit /Users et /Groups. Le schéma est décrit par la RFC 7643 et le protocole par la RFC 7644."
+   },
+   {
+    "q": "Dans l'architecture SCIM, qui compare l'état cible avec l'état des applications et génère les requêtes ?",
+    "opts": [
+     "Le SIRH",
+     "Le navigateur",
+     "Le client SCIM",
+     "Le serveur SCIM de l'application"
+    ],
+    "ans": 2,
+    "why": "Le client SCIM (service de provisionnement) compare, génère les requêtes et gère les erreurs. Le serveur SCIM applique l'opération côté application."
+   }
+  ],
+  "recap": [
+   "SCIM 2.0 = provisionnement automatique des comptes et groupes via REST + JSON (RFC 7643 pour le schéma, RFC 7644 pour le protocole).",
+   "Architecture : SIRH, annuaire/IdP, client SCIM, serveurs SCIM des applications (/Users, /Groups).",
+   "Schéma User : userName (unique), name, emails, active, extensions (par exemple Enterprise pour department) ; l'id stable est attribué par le serveur.",
+   "Opérations : POST (créer), GET filter (chercher), PATCH (modifier), active=false (désactiver), DELETE (supprimer).",
+   "Joiner : POST /Users + PATCH /Groups ; Mover : PATCH ; Leaver : active=false puis DELETE selon la politique.",
+   "SCIM provisionne, SAML ou OIDC connecte."
+  ]
+ }
+]

@@ -1,0 +1,1640 @@
+[
+ {
+  "id": "ch2b-08",
+  "services": [
+   "iam",
+   "sts",
+   "saml",
+   "role",
+   "tempcred"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   7
+  ],
+  "shorten": {
+   "0": "Fi AWS, IAM User ya3ni compte jdid. Ama el employé 3andou déjà compte fi société (login, email, MFA). Ken na3mlou compte thani: 2 mots de passe, 2 listes lel admin, w ki yokhrej men société yenssa yfas5ou men AWS. La fédération t9oul: 'ma n3awedch nasna3 el 7sebet, nthi9 fi société elli ya3ref el nass'."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Pourquoi un IAM User par employé est un mauvais choix",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "users",
+       "t": "Identifiants séparés",
+       "d": "Chaque employé gère des identifiants AWS distincts de ceux de l'entreprise.",
+       "tone": "warn"
+      },
+      {
+       "icon": "gear",
+       "t": "Identité en double",
+       "d": "Deux annuaires à maintenir alors que l'entreprise en possède déjà un.",
+       "tone": "warn"
+      },
+      {
+       "icon": "user",
+       "t": "Compte fantôme au départ",
+       "d": "Si on oublie de révoquer l'accès AWS d'un ancien employé, il reste actif.",
+       "tone": "bad"
+      },
+      {
+       "icon": "orgs",
+       "t": "Copies multi-comptes",
+       "d": "Avec plusieurs comptes AWS, il faut recréer ou synchroniser les users dans chacun.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "pipeline",
+     "title": "La solution : faire confiance à un IdP externe",
+     "stages": [
+      {
+       "label": "1. Authenticate",
+       "sub": "auprès de l'IdP",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "2. Assume Role",
+       "sub": "preuve présentée à AWS",
+       "icon": "role",
+       "tone": "info"
+      },
+      {
+       "label": "3. Temporary creds",
+       "sub": "STS : clé ASIA + token",
+       "icon": "tempcred",
+       "tone": "good"
+      },
+      {
+       "label": "4. Access AWS",
+       "sub": "selon les policies du Role",
+       "icon": "s3",
+       "tone": "good"
+      }
+     ],
+     "caption": "L'IdP répond à « qui es-tu ? » (authentification), AWS à « que peux-tu faire ? » (autorisation). Aucun mot de passe d'entreprise ne transite par AWS."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "matrix",
+     "title": "Qui fait quoi dans la fédération ?",
+     "rows": [
+      "Qui est cette personne ?",
+      "L'IdP est-il de confiance ?",
+      "Que peut-elle faire ?",
+      "Qui délivre les credentials ?"
+     ],
+     "cols": [
+      "IdP entreprise",
+      "AWS IAM",
+      "AWS STS"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Responsable",
+      "na": "Pas concerné"
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "decision",
+     "title": "SAML ou OIDC ? Qui se connecte ?",
+     "root": {
+      "q": "Un employé de l'entreprise (workforce) ?",
+      "yes": {
+       "a": "SAML 2.0",
+       "icon": "saml",
+       "tone": "good",
+       "why": "Assertion XML, AssumeRoleWithSAML"
+      },
+      "no": {
+       "q": "Une application web / mobile (Google, Facebook...) ?",
+       "yes": {
+        "a": "OIDC",
+        "icon": "client",
+        "tone": "good",
+        "why": "ID token JWT, AssumeRoleWithWebIdentity"
+       },
+       "no": {
+        "a": "IAM Role",
+        "icon": "role",
+        "tone": "neutral",
+        "why": "Workload AWS : pas d'utilisateur à fédérer"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Déclare l'IdP de confiance et porte les policies du Role : décide ce que la personne peut faire."
+      },
+      {
+       "k": "sts",
+       "ctx": "Vérifie la preuve de l'IdP et délivre les credentials temporaires (AssumeRoleWithSAML / WebIdentity)."
+      },
+      {
+       "k": "saml",
+       "ctx": "Premier protocole de fédération : assertion XML, pensé pour les employés (workforce)."
+      },
+      {
+       "k": "role",
+       "ctx": "Role assumé par la personne fédérée : il remplace l'IAM User dupliqué."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Clé ASIA + SessionToken + expiration : rien de permanent à voler."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-09",
+  "services": [
+   "iam",
+   "saml",
+   "sts",
+   "role",
+   "directory",
+   "console"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   10,
+   11,
+   12
+  ],
+  "shorten": {
+   "0": "SAML ya3ni: 'el société tkteb w temdhi, AWS te9ra w te3ref'. El chahada esmha assertion w hiya XML: tgoul chkoun inti w anehou role tod5el bih. AWS ma yes2alch Alice 3la mot de passe: yethi9 fi tamdha mta3 TechCorpIdP. El mot de passe yb9a 3and el société."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "SAML 2.0 en 4 idées",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "saml",
+       "t": "Standard ouvert",
+       "d": "Utilisé par de nombreux IdP : Microsoft ADFS, Entra ID et tout IdP compatible SAML 2.0.",
+       "tone": "info"
+      },
+      {
+       "icon": "console",
+       "t": "Console, CLI, API",
+       "d": "Accès avec des identifiants temporaires, sans IAM User par employé.",
+       "tone": "good"
+      },
+      {
+       "icon": "iam",
+       "t": "Relation de confiance",
+       "d": "Trust entre AWS IAM et l'IdP : le SAML provider est déclaré dans IAM.",
+       "tone": "info"
+      },
+      {
+       "icon": "sts",
+       "t": "AssumeRoleWithSAML",
+       "d": "Opération STS qui échange l'assertion signée contre des credentials temporaires.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "Scénario fil rouge : TechCorp",
+     "items": [
+      {
+       "icon": "saml",
+       "big": "Entra ID",
+       "label": "IdP de TechCorp",
+       "sub": "authentifie les employés"
+      },
+      {
+       "icon": "iam",
+       "big": "123456789012",
+       "label": "Compte AWS"
+      },
+      {
+       "icon": "role",
+       "big": "DeveloperRole",
+       "label": "IAM Role",
+       "sub": "assumé via SAML"
+      },
+      {
+       "icon": "users",
+       "big": "Developers",
+       "label": "Groupe de l'IdP",
+       "sub": "mappé à DeveloperRole"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "pipeline",
+     "title": "Mise en place côté admin (une seule fois)",
+     "stages": [
+      {
+       "label": "AWS = Service Provider",
+       "sub": "métadonnées SAML d'AWS",
+       "icon": "saml",
+       "tone": "info"
+      },
+      {
+       "label": "Métadonnées de l'IdP",
+       "sub": "Issuer, expiration, clés",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "SAML provider dans IAM",
+       "sub": "saml-provider/TechCorpIdP",
+       "icon": "iam",
+       "tone": "good"
+      },
+      {
+       "label": "Role + trust policy",
+       "sub": "Principal = le SAML provider",
+       "icon": "role",
+       "tone": "good"
+      },
+      {
+       "label": "Mapper groupe vers Role",
+       "sub": "Role + provider dans l'assertion",
+       "icon": "users",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Métadonnées d'AWS à donner à l'IdP : https://signin.aws.amazon.com/static/saml-metadata.xml. Ensuite : étape 0 (confiance), 1 (login), 2 (assertion), 3 (assomption)."
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "compare",
+     "title": "API / CLI vs Console : qui appelle STS ?",
+     "cols": [
+      {
+       "name": "API / CLI",
+       "tag": "Alice appelle STS",
+       "icon": "cli",
+       "points": [
+        "Alice (app ou script) appelle AssumeRoleWithSAML",
+        "L'assertion va directement à STS",
+        "Elle reçoit des credentials temporaires et les utilise elle-même"
+       ],
+       "use": "Base commune : IdP + assertion SAML + Role + trust policy."
+      },
+      {
+       "name": "Console",
+       "tag": "AWS Sign-in appelle STS",
+       "icon": "console",
+       "points": [
+        "Le navigateur poste l'assertion vers https://signin.aws.amazon.com/saml",
+        "L'endpoint SAML appelle STS à sa place",
+        "Alice reçoit une URL de connexion et est redirigée vers la console"
+       ],
+       "use": "Base commune : IdP + assertion SAML + Role + trust policy."
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "decision",
+     "title": "Dépannage : pourquoi STS refuse l'assertion ?",
+     "root": {
+      "q": "Erreur « Response signature invalid » (InvalidIdentityToken) ?",
+      "yes": {
+       "a": "Métadonnées IdP périmées",
+       "icon": "saml",
+       "tone": "warn",
+       "why": "Réimporter : aws iam update-saml-provider"
+      },
+      "no": {
+       "q": "La trust policy n'a pas le Principal Federated + AssumeRoleWithSAML ?",
+       "yes": {
+        "a": "Corriger la trust policy",
+        "icon": "role",
+        "tone": "bad",
+        "why": "Principal = saml-provider, Action = sts:AssumeRoleWithSAML"
+       },
+       "no": {
+        "q": "Audience différente de https://signin.aws.amazon.com/saml ?",
+        "yes": {
+         "a": "Corriger SAML:aud",
+         "icon": "padlock",
+         "tone": "warn",
+         "why": "La condition de la trust policy échoue"
+        },
+        "no": {
+         "a": "Vérifier l'attribut Role",
+         "icon": "document",
+         "tone": "neutral",
+         "why": "ARN du Role + ARN du provider présents ?"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Héberge le SAML provider (relation de confiance) et le Role avec sa trust policy."
+      },
+      {
+       "k": "saml",
+       "ctx": "Protocole : l'IdP signe une assertion XML qui nomme le Role à assumer."
+      },
+      {
+       "k": "sts",
+       "ctx": "Valide l'assertion (signature, audience, trust policy) via AssumeRoleWithSAML et émet les credentials."
+      },
+      {
+       "k": "role",
+       "ctx": "DeveloperRole : permissions obtenues par Alice après assomption."
+      },
+      {
+       "k": "directory",
+       "ctx": "Active Directory / ADFS : annuaire et IdP SAML 2.0 Microsoft ; même flux que la console, seul l'identity store change."
+      },
+      {
+       "k": "console",
+       "ctx": "AWS Sign-in reçoit l'assertion par POST et redirige l'utilisateur vers la console."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-10",
+  "services": [
+   "iam",
+   "sts",
+   "role",
+   "tempcred",
+   "cognito"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   9
+  ],
+  "shorten": {
+   "0": "SAML lel employés w XML, OIDC lel applications w JWT. El JWT 3andou 3 parties mfarqin b noqta: header, payload (chkoun inti), signature (tamdha mta3 Google). El payload mouch mkhabba: ay wa7ed ye9rah, ama ma ynajjemch ybaddlou khater el tamdha tetkassar. Signé mouch ya3ni secret."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "OIDC en 4 idées",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Bâti sur OAuth 2.0",
+       "d": "Standard ouvert d'authentification d'identité : Google, Microsoft et autres IdP compatibles.",
+       "tone": "info"
+      },
+      {
+       "icon": "mobile",
+       "t": "Apps web et mobiles",
+       "d": "Authentifie les utilisateurs d'une application, sans IAM User pour chacun.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "ID token (JWT)",
+       "d": "Preuve émise par l'IdP après authentification : header.payload.signature.",
+       "tone": "good"
+      },
+      {
+       "icon": "sts",
+       "t": "AssumeRoleWithWebIdentity",
+       "d": "STS échange le token contre des credentials AWS temporaires.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "facts",
+     "title": "Scénario fil rouge : MyApp et Google",
+     "items": [
+      {
+       "icon": "internet",
+       "big": "Google",
+       "label": "IdP OIDC"
+      },
+      {
+       "icon": "mobile",
+       "big": "MyApp",
+       "label": "application web / mobile"
+      },
+      {
+       "icon": "role",
+       "big": "MyAppRole",
+       "label": "IAM Role"
+      },
+      {
+       "icon": "iam",
+       "big": "123456789012",
+       "label": "Compte AWS"
+      },
+      {
+       "icon": "padlock",
+       "big": "client ID",
+       "label": "vraie valeur de aud",
+       "sub": "la slide écrit MyApp"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Les étapes 0 à 3",
+     "stages": [
+      {
+       "label": "0. Confiance",
+       "sub": "oidc-provider + trust policy",
+       "icon": "iam",
+       "tone": "info"
+      },
+      {
+       "label": "1. Login Google",
+       "sub": "MyApp redirige vers l'IdP",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "2. ID token",
+       "sub": "Google émet un JWT",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "3. AssumeRole",
+       "sub": "WebIdentity : STS vérifie",
+       "icon": "sts",
+       "tone": "warn"
+      },
+      {
+       "label": "Credentials",
+       "sub": "temporaires pour MyApp",
+       "icon": "tempcred",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "stack",
+     "title": "Ce que vérifie STS avant de donner des credentials",
+     "layers": [
+      {
+       "label": "Signature",
+       "sub": "signé par l'IdP, non modifié",
+       "icon": "padlock",
+       "tone": "info"
+      },
+      {
+       "label": "Issuer (iss)",
+       "sub": "provider déclaré dans IAM",
+       "icon": "iam",
+       "tone": "info"
+      },
+      {
+       "label": "Audience (aud)",
+       "sub": "condition de la trust policy",
+       "icon": "document",
+       "tone": "warn"
+      },
+      {
+       "label": "Expiration (exp)",
+       "sub": "le token n'est pas expiré",
+       "icon": "gear",
+       "tone": "warn"
+      },
+      {
+       "label": "Trust policy du Role",
+       "sub": "Principal, Action, conditions",
+       "icon": "role",
+       "tone": "good"
+      }
+     ],
+     "side": "toutes les vérifications doivent passer"
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Déclare l'oidc-provider et porte la trust policy du Role (Principal Federated, condition aud)."
+      },
+      {
+       "k": "sts",
+       "ctx": "Vérifie le JWT puis délivre des credentials via AssumeRoleWithWebIdentity, sans clé AWS."
+      },
+      {
+       "k": "role",
+       "ctx": "MyAppRole : permissions que l'application obtient une fois le token accepté."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Credentials temporaires renvoyés à l'application : jamais de clés permanentes dans une app."
+      },
+      {
+       "k": "cognito",
+       "ctx": "Alternative recommandée : son Identity Pool gère le mapping de Role, les invités et le renouvellement."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-11",
+  "services": [
+   "sso",
+   "orgs",
+   "permissions",
+   "role",
+   "saml",
+   "directory"
+  ],
+  "drop": [
+   1,
+   2,
+   4,
+   6,
+   10,
+   11
+  ],
+  "shorten": {
+   "0": "Fil SAML 'normale', lkol compte AWS lazem provider w role w trust: 15 compte, 15 khedma. Identity Center ykhalliha b click: tkhtar Group, Permission Set (FullAccess wela ReadOnly) w Compte. Houwa yasna3 el roles, w el employé yodkhol men portail wa7ed w yekhtar bark."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Un seul login pour plusieurs cibles",
+     "center": {
+      "label": "IAM Identity Center",
+      "sub": "SSO de la workforce",
+      "icon": "sso"
+     },
+     "spokes": [
+      {
+       "label": "Comptes AWS",
+       "sub": "AWS Organizations",
+       "icon": "orgs",
+       "note": "Un login donne accès à plusieurs comptes du même Organizations.",
+       "tone": "info"
+      },
+      {
+       "label": "Applications métier",
+       "sub": "Salesforce, Box, M365",
+       "icon": "client",
+       "note": "SSO vers des applications SaaS depuis le même portail.",
+       "tone": "info"
+      },
+      {
+       "label": "Apps SAML 2.0",
+       "sub": "applications compatibles",
+       "icon": "saml",
+       "note": "Toute application compatible SAML 2.0 peut être branchée.",
+       "tone": "info"
+      },
+      {
+       "label": "EC2 Windows",
+       "sub": "cité dans le PDF",
+       "icon": "ec2",
+       "note": "Le PDF cite aussi les instances EC2 Windows comme cible supportée.",
+       "tone": "neutral"
+      },
+      {
+       "label": "Compte de gestion",
+       "sub": "activé par défaut ici",
+       "icon": "gear",
+       "note": "Identity Center est activé dans le Management account ; l'administration peut être déléguée à un compte membre.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Identity sources : qui authentifie, qui autorise ?",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "sso",
+       "t": "Store intégré",
+       "d": "Users et groups créés dans Identity Center : il authentifie ET autorise.",
+       "tone": "info"
+      },
+      {
+       "icon": "directory",
+       "t": "Active Directory",
+       "d": "Microsoft AD (on-premises ou cloud) authentifie ; Identity Center autorise.",
+       "tone": "good"
+      },
+      {
+       "icon": "saml",
+       "t": "IdP externe",
+       "d": "Okta, OneLogin... authentifient ; Identity Center autorise via les assignations.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "pipeline",
+     "title": "Configuration côté administrateur",
+     "stages": [
+      {
+       "label": "1. Users & Groups",
+       "sub": "ex. Developers = Alice, Bob",
+       "icon": "users",
+       "tone": "info"
+      },
+      {
+       "label": "2. Permission Sets",
+       "sub": "ensembles d'IAM policies",
+       "icon": "permissions",
+       "tone": "info"
+      },
+      {
+       "label": "3. Assignation",
+       "sub": "Group + PS vers Compte",
+       "icon": "orgs",
+       "tone": "good"
+      }
+     ],
+     "caption": "Une assignation relie toujours qui (user/group), quel niveau (Permission Set) et où (compte). Pas d'assignation, pas d'accès."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "matrix",
+     "title": "Assignations du group Developers",
+     "rows": [
+      "FullAccess",
+      "ReadOnlyAccess"
+     ],
+     "cols": [
+      "Dev A",
+      "Dev B",
+      "Prod A",
+      "Prod B"
+     ],
+     "cells": [
+      [
+       "no",
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Assigné au group Developers",
+      "no": "Pas d'assignation"
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "cards",
+     "title": "Aller plus loin (PDF)",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "ABAC",
+       "d": "Permissions fines selon des attributs utilisateur : centre de coût, titre.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Mappings d'attributs",
+       "d": "Ex. l'email vient de l'attribut mail d'Active Directory.",
+       "tone": "info"
+      },
+      {
+       "icon": "orgs",
+       "t": "Administration déléguée",
+       "d": "Gérable depuis un compte membre plutôt que le compte de gestion.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "directory",
+       "t": "Mots de passe",
+       "d": "Avec Active Directory fédéré, la politique reste appliquée dans AD, pas dans AWS.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "compare",
+     "title": "Identity Center vs fédération SAML « à la main »",
+     "cols": [
+      {
+       "name": "SAML direct avec IAM",
+       "tag": "compte par compte",
+       "icon": "saml",
+       "points": [
+        "SAML provider, Roles et trust à créer dans chaque compte",
+        "Accès : portail de l'IdP vers la console AWS",
+        "Ne couvre que AWS"
+       ],
+       "use": "Un IdP SAML qui parle directement à IAM."
+      },
+      {
+       "name": "IAM Identity Center",
+       "tag": "multi-comptes",
+       "icon": "sso",
+       "points": [
+        "Configuration centrale ; Roles générés par les Permission Sets",
+        "AWS Access Portal : liste des comptes et Permission Sets",
+        "Applications SAML (Salesforce, Box) dans le même portail"
+       ],
+       "use": "Workforce multi-comptes dans AWS Organizations."
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "sso",
+       "ctx": "Fournit le login unique, le portail et l'autorisation : qui accède à quel compte, avec quel niveau."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Structure les comptes (OU) ; Identity Center s'appuie dessus pour assigner l'accès."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Permission Set : ensemble d'IAM policies assigné à un compte ; devient un Role IAM."
+      },
+      {
+       "k": "role",
+       "ctx": "Role AWSReservedSSO_... créé automatiquement dans chaque compte assigné."
+      },
+      {
+       "k": "saml",
+       "ctx": "Protocole sous-jacent : Identity Center joue l'IdP et émet l'assertion vers AWS Sign-in."
+      },
+      {
+       "k": "directory",
+       "ctx": "Identity source possible : Active Directory authentifie, Identity Center autorise."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-12",
+  "services": [
+   "cognito",
+   "apigw",
+   "elb",
+   "lambda",
+   "mfa",
+   "saml"
+  ],
+  "drop": [
+   4,
+   5,
+   7,
+   9,
+   10
+  ],
+  "shorten": {
+   "0": "IAM User w Identity Center lel employés. Cognito lel clients mta3 application mte3ek: million wa7ed ynajjem yasna3 compte b email wela Google. User Pool yekhzen el nass w yatik JWT ba3d login. JWT ya3ni 'inti Alice', mouch 'tod5ol l S3': lel clés AWS lazem Identity Pool.",
+   "1": "Un **Cognito User Pool** est une **base d'utilisateurs** couplée à un service d'authentification **managé et serverless**, conçu pour les **utilisateurs de tes applications web et mobiles**. Après connexion réussie, il délivre des **JWT**. L'application l'appelle via les **User Pool APIs** (AWS SDK) ou la **Hosted UI**."
+  },
+  "insert": [
+   {
+    "after": 3,
+    "block": {
+     "type": "cards",
+     "title": "Fonctionnalités du User Pool",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "user",
+       "t": "Sign-up / sign-in",
+       "d": "Inscription et connexion par username ou email + mot de passe ; reset du mot de passe.",
+       "tone": "info"
+      },
+      {
+       "icon": "email",
+       "t": "Vérif. email / tél.",
+       "d": "Confirme que l'utilisateur possède bien son email ou son numéro.",
+       "tone": "info"
+      },
+      {
+       "icon": "mfa",
+       "t": "MFA",
+       "d": "Second facteur à la connexion ; option de blocage des identifiants compromis (PDF).",
+       "tone": "good"
+      },
+      {
+       "icon": "saml",
+       "t": "Fédération",
+       "d": "Google, Facebook, Apple, ou IdP externe SAML / OIDC.",
+       "tone": "info"
+      },
+      {
+       "icon": "client",
+       "t": "Hosted UI",
+       "d": "Pages de connexion fournies, personnalisables (logo, CSS), avec social login, OIDC, SAML.",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Lambda triggers",
+       "d": "Code perso pendant le parcours : Pre sign-up, Post confirmation, Pre token generation, Migrate user...",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "compare",
+     "title": "Les trois tokens du User Pool",
+     "cols": [
+      {
+       "name": "ID token",
+       "tag": "qui ?",
+       "icon": "user",
+       "points": [
+        "Dit qui est l'utilisateur (identité)",
+        "Claims : sub, email, cognito:username, aud (client ID)",
+        "token_use = id"
+       ],
+       "use": "Prouver l'identité au backend."
+      },
+      {
+       "name": "Access token",
+       "tag": "appeler l'API",
+       "icon": "apigw",
+       "points": [
+        "Sert à appeler une API protégée (autorisation, scopes)",
+        "Claims : sub, client_id, scope",
+        "token_use = access"
+       ],
+       "use": "Envoyé à l'API avec la requête."
+      },
+      {
+       "name": "Refresh token",
+       "tag": "renouveler",
+       "icon": "longcred",
+       "points": [
+        "Obtient de nouveaux ID / access tokens sans redemander le mot de passe",
+        "Longue durée de vie",
+        "Envoyé seulement à Cognito, jamais à l'API"
+       ],
+       "use": "Durées configurables : retiens courte / longue."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "arch",
+     "title": "Intégrations : API Gateway et Application Load Balancer",
+     "groups": [
+      {
+       "id": "G1",
+       "label": "Application",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "app",
+         "label": "Application",
+         "sub": "web / mobile",
+         "icon": "client"
+        }
+       ]
+      },
+      {
+       "id": "G2",
+       "label": "Amazon Cognito",
+       "kind": "account",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "cup",
+         "label": "User Pool",
+         "sub": "annuaire + JWT",
+         "icon": "cognito"
+        }
+       ]
+      },
+      {
+       "id": "G3",
+       "label": "Points d'entrée",
+       "kind": "account",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "apigw",
+         "label": "API Gateway",
+         "sub": "Cognito authorizer",
+         "icon": "apigw"
+        },
+        {
+         "id": "alb",
+         "label": "Application LB",
+         "sub": "règle de listener",
+         "icon": "elb"
+        }
+       ]
+      },
+      {
+       "id": "G4",
+       "label": "Backends",
+       "kind": "account",
+       "col": 3,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "lam",
+         "label": "Lambda",
+         "sub": "backend d'API",
+         "icon": "lambda"
+        },
+        {
+         "id": "tg",
+         "label": "Target group",
+         "sub": "EC2, Lambda, conteneurs",
+         "icon": "ec2"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "app",
+       "to": "cup",
+       "label": "1. Sign-in",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "app",
+       "to": "apigw",
+       "label": "2. REST API + token",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "apigw",
+       "to": "cup",
+       "label": "3. Évalue le token",
+       "style": "dashed"
+      },
+      {
+       "id": "e4",
+       "from": "apigw",
+       "to": "lam",
+       "label": "4. Appelle le backend",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "app",
+       "to": "alb",
+       "label": "A. Requête",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "alb",
+       "to": "cup",
+       "label": "B. Authentifie l'user",
+       "style": "dashed"
+      },
+      {
+       "id": "e7",
+       "from": "alb",
+       "to": "tg",
+       "label": "C. Transfère",
+       "style": "solid"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "app",
+        "cup"
+       ],
+       "caption": "L'application s'authentifie auprès du User Pool et reçoit ses JWT."
+      },
+      {
+       "edges": [
+        "e2",
+        "e3",
+        "e4"
+       ],
+       "nodes": [
+        "apigw",
+        "lam"
+       ],
+       "caption": "API Gateway : l'application envoie le token, l'authorizer Cognito l'évalue, puis le backend est appelé."
+      },
+      {
+       "edges": [
+        "e5",
+        "e6",
+        "e7"
+       ],
+       "nodes": [
+        "alb",
+        "tg"
+       ],
+       "caption": "ALB : une règle de listener fait authentifier l'utilisateur auprès du User Pool avant de transférer la requête au target group."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Groupes de User Pool (PDF)",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "users",
+       "t": "Groupe logique",
+       "d": "Regroupe des utilisateurs du pool ; un user peut appartenir à plusieurs groupes.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "IAM Role associé",
+       "d": "On associe un Role (par son ARN) pour définir les permissions des membres.",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "Precedence",
+       "d": "Si plusieurs groupes : la valeur de précédence la plus basse l'emporte.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "Pas de groupes imbriqués",
+       "d": "Les groupes imbriqués n'existent pas dans un User Pool.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "matrix",
+     "title": "Ce que le User Pool fait... et ne fait PAS",
+     "rows": [
+      "Inscription, login, MFA",
+      "Émet des JWT",
+      "Donne des credentials AWS",
+      "Accès direct à S3 / DynamoDB"
+     ],
+     "cols": [
+      "User Pool",
+      "Identity Pool"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non"
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cognito",
+       "ctx": "User Pool : annuaire managé des utilisateurs de l'app ; authentifie et émet ID, access et refresh tokens."
+      },
+      {
+       "k": "apigw",
+       "ctx": "Valide le token Cognito (authorizer) avant d'appeler le backend."
+      },
+      {
+       "k": "elb",
+       "ctx": "Application Load Balancer : fait authentifier l'utilisateur auprès du User Pool avant de transférer."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Backend derrière API Gateway ; peut aussi servir de trigger pendant le parcours Cognito."
+      },
+      {
+       "k": "mfa",
+       "ctx": "Second facteur configurable à la connexion du User Pool."
+      },
+      {
+       "k": "saml",
+       "ctx": "Fédération : le User Pool accepte aussi des IdP SAML, OIDC et sociaux."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-13",
+  "services": [
+   "cognito",
+   "sts",
+   "role",
+   "tempcred",
+   "s3",
+   "sso",
+   "saml"
+  ],
+  "drop": [
+   1,
+   7,
+   8,
+   10,
+   11,
+   12,
+   13,
+   18
+  ],
+  "shorten": {
+   "0": "User Pool ya3tik carte d'identité (JWT), ama carte hedhi ma tfet7ch bab S3. Identity Pool ya9ra el carte, ykhayer el role (connecté wela invité) w yjib clés temporaires men STS. User Pool = 'chkoun inti', Identity Pool = 'chnoua t9der ta3mel'. Invité sans login yod5ol l S3? Unauthenticated role."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "Identity Pool : l'essentiel",
+     "items": [
+      {
+       "icon": "tempcred",
+       "big": "3",
+       "label": "credentials temporaires",
+       "sub": "Key ID + Secret + SessionToken"
+      },
+      {
+       "icon": "role",
+       "big": "2",
+       "label": "IAM Roles par défaut",
+       "sub": "authenticated / unauthenticated"
+      },
+      {
+       "icon": "users",
+       "big": "Invités",
+       "label": "accès sans login",
+       "sub": "via le Role unauthenticated"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Policy variables : identifier l'utilisateur dans une policy",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "cognito",
+       "t": "Cognito Identity Pools",
+       "d": "cognito-identity.amazonaws.com:sub",
+       "tone": "info"
+      },
+      {
+       "icon": "internet",
+       "t": "Google",
+       "d": "accounts.google.com:sub",
+       "tone": "info"
+      },
+      {
+       "icon": "users",
+       "t": "Facebook",
+       "d": "graph.facebook.com:id",
+       "tone": "info"
+      },
+      {
+       "icon": "client",
+       "t": "Login with Amazon",
+       "d": "www.amazon.com:user_id",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "Pourquoi ?",
+       "d": "Définir les permissions une seule fois, appliquées par utilisateur à l'évaluation.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "compare",
+     "title": "Cognito User Pool vs Identity Pool",
+     "cols": [
+      {
+       "name": "User Pool",
+       "tag": "JWT",
+       "icon": "cognito",
+       "points": [
+        "Rôle : base d'utilisateurs de ton app, authentification",
+        "Sortie : JWT tokens",
+        "Login : credentials locaux, social, OIDC, SAML",
+        "Autorisation : groupes, scopes"
+       ],
+       "use": "Prouver l'identité à ton backend, API Gateway ou ALB."
+      },
+      {
+       "name": "Identity Pool",
+       "tag": "credentials AWS",
+       "icon": "sts",
+       "points": [
+        "Rôle : obtenir des credentials AWS pour tes utilisateurs",
+        "Sortie : credentials temporaires via STS",
+        "Login : User Pool, social, OIDC, SAML, invités",
+        "Autorisation : Roles authenticated / unauthenticated"
+       ],
+       "use": "Accès direct à S3, DynamoDB. User Pool + Identity Pool = utilisateurs + accès AWS."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Quel service choisir ? Qui est l'utilisateur ?",
+     "root": {
+      "q": "Un service AWS (EC2, Lambda) ?",
+      "yes": {
+       "a": "IAM Role",
+       "icon": "role",
+       "tone": "good",
+       "why": "Credentials temporaires, aucune clé à stocker"
+      },
+      "no": {
+       "q": "Un employé de l'entreprise ?",
+       "yes": {
+        "q": "Plusieurs comptes AWS + un portail unique ?",
+        "yes": {
+         "a": "IAM Identity Center",
+         "icon": "sso",
+         "tone": "good",
+         "why": "Permission Sets assignés aux comptes"
+        },
+        "no": {
+         "a": "Fédération SAML 2.0",
+         "icon": "saml",
+         "tone": "good",
+         "why": "AssumeRoleWithSAML : console, CLI, API"
+        }
+       },
+       "no": {
+        "q": "Doit appeler AWS directement (S3, DynamoDB) ?",
+        "yes": {
+         "a": "User + Identity Pool",
+         "icon": "cognito",
+         "tone": "good",
+         "why": "JWT puis credentials ; invités possibles"
+        },
+        "no": {
+         "a": "Cognito User Pool",
+         "icon": "cognito",
+         "tone": "info",
+         "why": "JWT pour ton backend / API Gateway"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "matrix",
+     "title": "Table de décision : service, public, sortie",
+     "rows": [
+      "IAM User",
+      "IAM Role",
+      "Fédération SAML 2.0",
+      "Fédération OIDC directe",
+      "IAM Identity Center",
+      "Cognito User Pool",
+      "Cognito Identity Pool"
+     ],
+     "cols": [
+      "Employés",
+      "Clients de l'app",
+      "Workloads AWS",
+      "Ce que tu obtiens"
+     ],
+     "cells": [
+      [
+       "warn",
+       "no",
+       "no",
+       "Clés AKIA"
+      ],
+      [
+       "no",
+       "no",
+       "ok",
+       "Creds temp."
+      ],
+      [
+       "ok",
+       "no",
+       "no",
+       "Creds temp."
+      ],
+      [
+       "no",
+       "warn",
+       "no",
+       "Creds temp."
+      ],
+      [
+       "ok",
+       "no",
+       "no",
+       "Creds temp."
+      ],
+      [
+       "no",
+       "ok",
+       "no",
+       "JWT"
+      ],
+      [
+       "no",
+       "ok",
+       "no",
+       "Creds temp."
+      ]
+     ],
+     "legend": {
+      "ok": "Cible naturelle",
+      "warn": "Déconseillé",
+      "no": "Hors cible"
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "cards",
+     "title": "Si l'énoncé dit... pense à...",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "sso",
+       "t": "IAM Identity Center",
+       "d": "Employés, Active Directory, plusieurs comptes AWS, un seul login.",
+       "tone": "good"
+      },
+      {
+       "icon": "saml",
+       "t": "Fédération SAML 2.0",
+       "d": "Employés, ADFS ou Entra ID, accès console ou CLI.",
+       "tone": "good"
+      },
+      {
+       "icon": "cognito",
+       "t": "User Pool",
+       "d": "Clients d'une app mobile : inscription, mot de passe oublié, MFA.",
+       "tone": "info"
+      },
+      {
+       "icon": "sts",
+       "t": "User + Identity Pool",
+       "d": "Login Google ou Facebook + accès direct à S3 depuis l'application.",
+       "tone": "info"
+      },
+      {
+       "icon": "users",
+       "t": "Identity Pool invité",
+       "d": "Visiteurs non authentifiés qui accèdent à une ressource limitée.",
+       "tone": "warn"
+      },
+      {
+       "icon": "role",
+       "t": "IAM Role",
+       "d": "Instance EC2 ou Lambda qui accède à un service AWS : pas d'IAM User.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "pipeline",
+     "title": "Canevas de réponse à l'oral : « quel service ? »",
+     "stages": [
+      {
+       "label": "1. Qui est l'user ?",
+       "sub": "employé, client, service AWS",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "2. Quelle famille ?",
+       "sub": "Role, fédération/IdC, Cognito",
+       "icon": "orgs",
+       "tone": "info"
+      },
+      {
+       "label": "3. Quelle sortie ?",
+       "sub": "JWT ou credentials temporaires",
+       "icon": "tempcred",
+       "tone": "warn"
+      },
+      {
+       "label": "4. Justifier",
+       "sub": "mécanisme, creds temporaires",
+       "icon": "padlock",
+       "tone": "good"
+      }
+     ],
+     "caption": "Exemple : « IAM Identity Center, car l'IdP authentifie et Identity Center autorise via des Permission Sets assignés aux comptes. » Termine en rappelant : credentials temporaires, pas d'IAM User."
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cognito",
+       "ctx": "Identity Pool : valide l'identité, choisit le Role (authenticated ou unauthenticated) ; User Pool l'authentifie."
+      },
+      {
+       "k": "sts",
+       "ctx": "Émet les credentials temporaires pour le Role choisi (AssumeRoleWithWebIdentity)."
+      },
+      {
+       "k": "role",
+       "ctx": "Deux Roles par défaut : authenticated (connectés) et unauthenticated (invités, droits minimaux)."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Ce que l'application reçoit : Key ID, Secret et SessionToken, avec expiration."
+      },
+      {
+       "k": "s3",
+       "ctx": "Ressource accédée directement ; chaque utilisateur dans son dossier via la policy variable."
+      },
+      {
+       "k": "sso",
+       "ctx": "Choix pour les employés multi-comptes : IAM Identity Center, pas Cognito."
+      },
+      {
+       "k": "saml",
+       "ctx": "Choix pour les employés avec IdP SAML direct : AssumeRoleWithSAML."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

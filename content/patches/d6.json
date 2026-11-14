@@ -1,0 +1,3561 @@
+[
+ {
+  "id": "d6-01",
+  "services": [
+   "orgs",
+   "iam",
+   "s3",
+   "cloudtrail",
+   "eventbridge"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   10,
+   11,
+   14
+  ],
+  "shorten": {
+   "0": "Compte AWS = jidar solide: 7aja f compte A ma tchoufha compte B. Ken kol chay f compte wa7ed, clé volée t5arbek kol chay. Organizations = el 7ay elli yjma3 el comptes: facture wa7da w règles (SCP) mel directeur.",
+   "2": "**AWS Organizations** (service global) gère plusieurs comptes comme un ensemble : un **management account** pilote, les autres sont des **member accounts** (une seule organisation chacun). Arborescence **Root > OU > comptes**, **consolidated billing**, API de création de comptes. L'outil sécurité : la **SCP**.",
+   "12": "Lister 40 comptes dans une bucket policy est fragile. La clé **`aws:PrincipalOrgID`** compare l'organisation de l'appelant à ton ID `o-...` : tout nouveau compte membre passe, un compte sorti perd l'accès."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Pourquoi plusieurs comptes ?",
+     "center": {
+      "label": "Multi-compte",
+      "sub": "Le compte = frontière la plus forte",
+      "icon": "orgs"
+     },
+     "spokes": [
+      {
+       "label": "Blast radius",
+       "sub": "clé volée",
+       "icon": "padlock",
+       "note": "Une clé volée ou une erreur IAM n'expose qu'un compte, pas toute l'entreprise.",
+       "tone": "bad"
+      },
+      {
+       "label": "Règles par OU",
+       "sub": "SCP",
+       "icon": "orgs",
+       "note": "Sandbox et Finance reçoivent des garde-fous différents, posés au niveau OU.",
+       "tone": "info"
+      },
+      {
+       "label": "Facture unique",
+       "sub": "consolidated billing",
+       "icon": "budgets",
+       "note": "Un seul moyen de paiement ; remises de volume, Reserved Instances et Savings Plans partagés (partage activable des deux côtés).",
+       "tone": "good"
+      },
+      {
+       "label": "Logs centralisés",
+       "sub": "compte dédié",
+       "icon": "cloudtrail",
+       "note": "CloudTrail et CloudWatch Logs envoyés vers un compte de logging protégé des équipes applicatives.",
+       "tone": "info"
+      },
+      {
+       "label": "Admin par rôles",
+       "sub": "cross-account",
+       "icon": "role",
+       "note": "Rôles cross-account plutôt qu'un IAM user dans chaque compte.",
+       "tone": "good"
+      },
+      {
+       "label": "Tags standards",
+       "sub": "tag policies",
+       "icon": "document",
+       "note": "Mêmes clés et valeurs de tags partout : facturation, inventaire, ABAC.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "tree",
+     "title": "Hiérarchie : Root, OU, comptes",
+     "root": {
+      "label": "Root",
+      "icon": "orgs",
+      "children": [
+       {
+        "label": "Management account",
+        "icon": "building",
+        "tone": "warn"
+       },
+       {
+        "label": "OU Sandbox",
+        "icon": "building",
+        "children": [
+         {
+          "label": "Account A",
+          "icon": "cloud"
+         },
+         {
+          "label": "Accounts B, C",
+          "icon": "cloud"
+         }
+        ]
+       },
+       {
+        "label": "OU Workloads",
+        "icon": "building",
+        "children": [
+         {
+          "label": "OU Test",
+          "icon": "building",
+          "children": [
+           {
+            "label": "Account D",
+            "icon": "cloud"
+           }
+          ]
+         },
+         {
+          "label": "OU Prod",
+          "icon": "building",
+          "children": [
+           {
+            "label": "Accounts E, F",
+            "icon": "cloud"
+           }
+          ]
+         }
+        ]
+       },
+       {
+        "label": "OU Security",
+        "icon": "building",
+        "children": [
+         {
+          "label": "Logging account",
+          "icon": "cloud"
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Trois façons de dessiner les OU",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "building",
+       "t": "Par unité métier",
+       "d": "Sales, Retail, Finance : chaque département a ses comptes ; grandes entreprises.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Par environnement",
+       "d": "Prod, Dev, Test : règles strictes en Prod, souples en Dev.",
+       "tone": "good"
+      },
+      {
+       "icon": "document",
+       "t": "Par projet",
+       "d": "Un groupe de comptes par projet ; cabinets, ESN, projets limités dans le temps.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Une action passe-t-elle ?",
+     "rows": [
+      "SCP Allow + IAM Allow",
+      "SCP sans Allow + IAM Allow",
+      "SCP Deny + IAM Allow",
+      "SCP Allow + IAM sans Allow"
+     ],
+     "cols": [
+      "Compte membre",
+      "Management account"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé",
+      "no": "Refusé"
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "stack",
+     "title": "Les 4 niveaux qu'une requête traverse",
+     "layers": [
+      {
+       "label": "SCP du Root",
+       "sub": "FullAWSAccess par défaut",
+       "icon": "orgs",
+       "tone": "info",
+       "tags": [
+        "Allow requis"
+       ]
+      },
+      {
+       "label": "SCP de l'OU",
+       "sub": "Allow à chaque niveau",
+       "icon": "building",
+       "tone": "info",
+       "tags": [
+        "Deny gagne"
+       ]
+      },
+      {
+       "label": "SCP du compte",
+       "sub": "dernier plafond",
+       "icon": "cloud",
+       "tone": "warn",
+       "tags": [
+        "plafond"
+       ]
+      },
+      {
+       "label": "Policy IAM",
+       "sub": "accorde réellement",
+       "icon": "iam",
+       "tone": "good",
+       "tags": [
+        "Allow requis"
+       ]
+      }
+     ],
+     "side": "du plus externe au plus interne"
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "SCP : règles à connaître par coeur",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Plafond, pas de droit",
+       "d": "Une SCP n'accorde jamais rien : elle limite ce qu'IAM peut accorder.",
+       "tone": "warn"
+      },
+      {
+       "icon": "user",
+       "t": "Root membre concerné",
+       "d": "S'applique à tous les users et rôles des comptes membres, root compris.",
+       "tone": "info"
+      },
+      {
+       "icon": "building",
+       "t": "Management exclu",
+       "d": "Aucune SCP n'affecte le management account.",
+       "tone": "bad"
+      },
+      {
+       "icon": "role",
+       "t": "Service-linked roles",
+       "d": "Non affectés par les SCP.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "padlock",
+       "t": "Deny explicite gagne",
+       "d": "Un Deny à n'importe quel niveau l'emporte sur tout Allow.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "facts",
+     "title": "Chiffres et mots-clés",
+     "items": [
+      {
+       "icon": "orgs",
+       "big": "1",
+       "label": "organisation maximum par compte membre"
+      },
+      {
+       "icon": "orgs",
+       "big": "o-...",
+       "label": "format de l'ID d'organisation",
+       "sub": "aws:PrincipalOrgID"
+      },
+      {
+       "icon": "document",
+       "big": "@@assign",
+       "label": "opérateur d'une tag policy",
+       "sub": "clé, valeurs, enforced_for"
+      },
+      {
+       "icon": "budgets",
+       "big": "1",
+       "label": "facture consolidée"
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "orgs",
+       "ctx": "Regroupe les comptes en OU, porte les SCP et les tag policies, consolide la facture."
+      },
+      {
+       "k": "iam",
+       "ctx": "Accorde les droits réels dans chaque compte, sous le plafond des SCP."
+      },
+      {
+       "k": "s3",
+       "ctx": "Bucket partagé à toute l'organisation via aws:PrincipalOrgID."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Organization trail : journal d'audit de tous les comptes vers un compte central."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Surveille les non-conformités des tag policies et déclenche des alertes."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-02",
+  "services": [
+   "controltower",
+   "orgs",
+   "servicecatalog",
+   "config",
+   "cloudtrail",
+   "sso",
+   "lambda"
+  ],
+  "drop": [
+   2,
+   4,
+   6,
+   8,
+   10,
+   11
+  ],
+  "shorten": {
+   "0": "Tebni dar b yedik, brique brique, w tensa 7aja? Wala tekhdh dar jehza mel architecte? Control Tower = el dar jehza: base sa7i7a men awel nhar, w inti tzid ghir les chambres (comptes).",
+   "1": "Une **landing zone** est un environnement multi-compte de départ, sécurisé et conforme aux bonnes pratiques. La monter à la main est long et source d'erreurs. **AWS Control Tower** la met en place et la gouverne en quelques clics, **au-dessus d'AWS Organizations**."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "pipeline",
+     "title": "Lancer une landing zone",
+     "stages": [
+      {
+       "label": "Activer Control Tower",
+       "sub": "quelques clics",
+       "icon": "controltower",
+       "tone": "info"
+      },
+      {
+       "label": "Organizations",
+       "sub": "racine + OU Security",
+       "icon": "orgs",
+       "tone": "info"
+      },
+      {
+       "label": "Comptes dédiés",
+       "sub": "Log Archive + Audit",
+       "icon": "building",
+       "tone": "info"
+      },
+      {
+       "label": "Baseline",
+       "sub": "CloudTrail, Config, SSO",
+       "icon": "cloudtrail",
+       "tone": "good"
+      },
+      {
+       "label": "Guardrails",
+       "sub": "obligatoires activés",
+       "icon": "padlock",
+       "tone": "good"
+      },
+      {
+       "label": "Account Factory",
+       "sub": "comptes en self-service",
+       "icon": "servicecatalog",
+       "tone": "good"
+      }
+     ],
+     "caption": "Control Tower orchestre, il ne remplace pas les services du dessous."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "stack",
+     "title": "Control Tower s'appuie sur d'autres services",
+     "layers": [
+      {
+       "label": "Tableau de bord",
+       "sub": "conformité de tous les comptes",
+       "icon": "controltower",
+       "tone": "info",
+       "tags": [
+        "dashboard"
+       ]
+      },
+      {
+       "label": "Account Factory",
+       "sub": "comptes pré-approuvés",
+       "icon": "servicecatalog",
+       "tone": "info",
+       "tags": [
+        "Service Catalog"
+       ]
+      },
+      {
+       "label": "Guardrails",
+       "sub": "préventifs + détectifs",
+       "icon": "padlock",
+       "tone": "warn",
+       "tags": [
+        "SCP",
+        "Config"
+       ]
+      },
+      {
+       "label": "Fondations",
+       "sub": "structure et journaux",
+       "icon": "orgs",
+       "tone": "good",
+       "tags": [
+        "Organizations",
+        "CloudTrail",
+        "Identity Center"
+       ]
+      }
+     ],
+     "side": "du plus visible au plus technique"
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Ce que Control Tower apporte",
+     "center": {
+      "label": "Control Tower",
+      "sub": "landing zone gouvernée",
+      "icon": "controltower"
+     },
+     "spokes": [
+      {
+       "label": "Mise en place",
+       "sub": "en quelques clics",
+       "icon": "gear",
+       "note": "Environnement multi-compte automatisé selon les bonnes pratiques AWS.",
+       "tone": "info"
+      },
+      {
+       "label": "Guardrails",
+       "sub": "gouvernance continue",
+       "icon": "padlock",
+       "note": "Règles préventives et détectives appliquées à une OU.",
+       "tone": "warn"
+      },
+      {
+       "label": "Détection",
+       "sub": "et remédiation",
+       "icon": "config",
+       "note": "Les violations sont repérées puis corrigées.",
+       "tone": "good"
+      },
+      {
+       "label": "Dashboard",
+       "sub": "conformité",
+       "icon": "document",
+       "note": "Vue interactive de la conformité de tous les comptes.",
+       "tone": "info"
+      },
+      {
+       "label": "Account Factory",
+       "sub": "self-service",
+       "icon": "servicecatalog",
+       "note": "Provisionnement de comptes pré-approuvés ; variante Terraform (AFT) possible.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "cards",
+     "title": "Account Factory : l'idée",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Baselines définies",
+       "d": "L'admin fixe VPC par défaut, sous-réseaux, régions autorisées.",
+       "tone": "info"
+      },
+      {
+       "icon": "servicecatalog",
+       "t": "Via Service Catalog",
+       "d": "Un compte est un produit provisionné, comme une ressource.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "building",
+       "t": "Compte déjà conforme",
+       "d": "L'équipe demande, reçoit un compte gouverné dès le premier jour.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Trois niveaux de guardrails",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Mandatory",
+       "d": "Imposé automatiquement, non désactivable. Ex : pas de lecture publique du Log Archive.",
+       "tone": "bad"
+      },
+      {
+       "icon": "shield",
+       "t": "Strongly recommended",
+       "d": "Optionnel, bonnes pratiques AWS. Ex : chiffrement des volumes EBS.",
+       "tone": "warn"
+      },
+      {
+       "icon": "mfa",
+       "t": "Elective",
+       "d": "Optionnel, courant en entreprise. Ex : suppression S3 interdite sans MFA.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "compare",
+     "title": "Préventif, détectif, proactif",
+     "cols": [
+      {
+       "name": "Préventif",
+       "tag": "bloque",
+       "icon": "orgs",
+       "points": [
+        "Implémenté par une SCP",
+        "L'action est refusée",
+        "Ex : pas d'access key pour le root"
+       ],
+       "use": "Empêcher à coup sûr"
+      },
+      {
+       "name": "Détectif",
+       "tag": "repère",
+       "icon": "config",
+       "points": [
+        "Implémenté par AWS Config",
+        "L'action a lieu, ressource NON_COMPLIANT",
+        "Ne bloque rien seul"
+       ],
+       "use": "Évaluer l'état après coup"
+      },
+      {
+       "name": "Proactif",
+       "tag": "refuse avant création",
+       "icon": "cloudformation",
+       "points": [
+        "Basé sur des hooks CloudFormation",
+        "Déploiement non conforme refusé",
+        "Moins central à l'examen"
+       ],
+       "use": "Contrôler avant déploiement"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Préventif ou détectif ?",
+     "root": {
+      "q": "Faut-il évaluer l'état d'une ressource existante (chiffrement, tag) ?",
+      "yes": {
+       "a": "Détectif (Config)",
+       "icon": "config",
+       "tone": "info",
+       "why": "La SCP ne voit pas l'état d'une ressource existante"
+      },
+      "no": {
+       "q": "Empêcher l'action d'un utilisateur (ex : désactiver CloudTrail) ?",
+       "yes": {
+        "a": "Préventif (SCP)",
+        "icon": "orgs",
+        "tone": "good",
+        "why": "Bloque à coup sûr"
+       },
+       "no": {
+        "a": "Proactif (hooks CFN)",
+        "icon": "cloudformation",
+        "tone": "neutral",
+        "why": "Refuse un déploiement non conforme"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "matrix",
+     "title": "Qui fait quoi ?",
+     "rows": [
+      "Organizations",
+      "Control Tower",
+      "Config"
+     ],
+     "cols": [
+      "Structure comptes",
+      "Landing zone",
+      "Conformité"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "orchestre",
+       "ok",
+       "via Config"
+      ],
+      [
+       "na",
+       "na",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Fait lui-même",
+      "na": "Hors rôle"
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "controltower",
+       "ctx": "Orchestre la landing zone, active les guardrails et affiche le tableau de bord de conformité."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Fournit les OU, les comptes et les SCP sur lesquels Control Tower s'appuie."
+      },
+      {
+       "k": "servicecatalog",
+       "ctx": "Provisionne les comptes de Account Factory comme des produits approuvés."
+      },
+      {
+       "k": "config",
+       "ctx": "Évalue les guardrails détectifs : ressource COMPLIANT ou NON_COMPLIANT."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise tous les comptes vers le compte Log Archive."
+      },
+      {
+       "k": "sso",
+       "ctx": "Connexion unique des humains aux comptes via IAM Identity Center."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Corrige automatiquement une ressource non conforme (ajout de tags)."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-03",
+  "services": [
+   "config",
+   "cloudtrail",
+   "s3",
+   "eventbridge",
+   "sns",
+   "ssm",
+   "lambda",
+   "iam"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   7,
+   8,
+   9,
+   10,
+   13,
+   14,
+   16
+  ],
+  "shorten": {
+   "0": "Config = inspecteur mta3 sécurité: y3emmer fiche l kol ressource, y9ayem 3la les règles (extincteur expiré = NON_COMPLIANT). Ma ymna3ch 7aja, yebleghek bark w ynajjem yssalla7 b robot.",
+   "2": "**AWS Config** enregistre les **configurations et leurs changements** (chaque état = *configuration item*) et évalue la conformité. Service **régional**, agrégeable entre régions et comptes ; historique dans **S3** (analysable avec **Athena**), notifications **SNS**. Il **détecte, il ne bloque rien**."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "Trois regards sur une ressource",
+     "cols": [
+      {
+       "name": "CloudTrail",
+       "tag": "qui ?",
+       "icon": "cloudtrail",
+       "points": [
+        "Qui a appelé quelle API, quand",
+        "Ex : Alice a appelé AuthorizeSecurityGroupIngress à 14h02"
+       ],
+       "use": "Audit des actions"
+      },
+      {
+       "name": "AWS Config",
+       "tag": "quel état ?",
+       "icon": "config",
+       "points": [
+        "Configuration actuelle et passée, conforme ou non",
+        "Ex : sg-0abc ouvre le port 22 au monde depuis mardi"
+       ],
+       "use": "Conformité et historique"
+      },
+      {
+       "name": "CloudWatch",
+       "tag": "quelle santé ?",
+       "icon": "cloudwatch",
+       "points": [
+        "Métriques, logs, alarmes",
+        "Ex : CPU à 95 % depuis 10 minutes"
+       ],
+       "use": "Performance et alarmes"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cycle",
+     "title": "Boucle de conformité Config",
+     "center": "Config",
+     "items": [
+      {
+       "label": "Enregistrer",
+       "sub": "configuration items",
+       "icon": "config"
+      },
+      {
+       "label": "Évaluer",
+       "sub": "Config rules",
+       "icon": "shield"
+      },
+      {
+       "label": "Notifier",
+       "sub": "EventBridge / SNS",
+       "icon": "eventbridge"
+      },
+      {
+       "label": "Remédier",
+       "sub": "SSM Automation",
+       "icon": "ssm"
+      },
+      {
+       "label": "Réévaluer",
+       "sub": "COMPLIANT ?",
+       "icon": "document"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Config Rules : types et déclenchement",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "managedrule",
+       "t": "Règles gérées AWS",
+       "d": "Ex : s3-bucket-public-read-prohibited, access-keys-rotated, restricted-ssh.",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "Règles personnalisées",
+       "d": "Logique écrite dans Lambda (ou langage déclaratif Guard).",
+       "tone": "neutral"
+      },
+      {
+       "icon": "gear",
+       "t": "Déclenchement",
+       "d": "À chaque changement de configuration et/ou à intervalle régulier.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "facts",
+     "title": "Tarification (d'après le cours)",
+     "items": [
+      {
+       "icon": "config",
+       "big": "0",
+       "label": "free tier"
+      },
+      {
+       "icon": "document",
+       "big": "0,003 USD",
+       "label": "par configuration item",
+       "sub": "par région"
+      },
+      {
+       "icon": "shield",
+       "big": "0,001 USD",
+       "label": "par évaluation de règle",
+       "sub": "par région"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Resource timeline : l'outil de forensique",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "shield",
+       "t": "Conformité dans le temps",
+       "d": "Quand la ressource est-elle devenue NON_COMPLIANT ?",
+       "tone": "warn"
+      },
+      {
+       "icon": "config",
+       "t": "Configuration dans le temps",
+       "d": "Compare deux versions et repère ce qui a changé.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Appels CloudTrail liés",
+       "d": "Qui a fait le changement, via les appels d'API.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Règle + remédiation SSM Automation",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "firewall",
+       "t": "SSH ouvert au monde",
+       "d": "AWS-DisableIncomingSSHOnPort22 ferme le trafic SSH entrant.",
+       "tone": "bad"
+      },
+      {
+       "icon": "s3",
+       "t": "Bucket sans logging",
+       "d": "AWS-ConfigureS3BucketLogging active le logging du bucket.",
+       "tone": "warn"
+      },
+      {
+       "icon": "iam",
+       "t": "Identifiants inutilisés",
+       "d": "AWSConfigRemediation-RevokeUnusedIAMUserCredentials désactive clé ou mot de passe.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "compare",
+     "title": "EventBridge ou SNS ?",
+     "cols": [
+      {
+       "name": "EventBridge",
+       "tag": "filtre fin",
+       "icon": "eventbridge",
+       "points": [
+        "Règle filtrant les changements de conformité",
+        "Ex : seulement NON_COMPLIANT",
+        "Route vers Lambda, SNS, SQS"
+       ],
+       "use": "Approche la plus fine"
+      },
+      {
+       "name": "SNS",
+       "tag": "tout reçoit",
+       "icon": "sns",
+       "points": [
+        "Tous les événements Config vers un topic",
+        "Filtrage SNS ou tri côté client"
+       ],
+       "use": "Notification simple"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "hub",
+     "title": "Ce que Config permet de détecter",
+     "center": {
+      "label": "Config",
+      "sub": "détecte, ne bloque pas",
+      "icon": "config"
+     },
+     "spokes": [
+      {
+       "label": "IAM trop large",
+       "sub": "policies",
+       "icon": "iam",
+       "note": "Auditer les policies IAM trop permissives.",
+       "tone": "warn"
+      },
+      {
+       "label": "Traçabilité coupée",
+       "sub": "CloudTrail",
+       "icon": "cloudtrail",
+       "note": "CloudTrail désactivé.",
+       "tone": "bad"
+      },
+      {
+       "label": "AMI non approuvées",
+       "sub": "parc EC2",
+       "icon": "ec2",
+       "note": "Instances lancées avec des AMI non approuvées.",
+       "tone": "warn"
+      },
+      {
+       "label": "Exposition réseau",
+       "sub": "SG, IGW",
+       "icon": "vpc",
+       "note": "Security groups ouverts à Internet ; Internet Gateway ajoutée à un VPC non autorisé.",
+       "tone": "bad"
+      },
+      {
+       "label": "Données non protégées",
+       "sub": "EBS, RDS",
+       "icon": "ebs",
+       "note": "Volumes EBS non chiffrés ; bases RDS publiques.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "compare",
+     "title": "Organizational rule ou Conformance pack ?",
+     "cols": [
+      {
+       "name": "Organizational rule",
+       "tag": "une règle",
+       "icon": "orgs",
+       "points": [
+        "Une seule règle Config",
+        "Évaluée dans toute l'organisation",
+        "Géré au niveau de l'organisation"
+       ],
+       "use": "Même règle partout"
+      },
+      {
+       "name": "Conformance pack",
+       "tag": "un paquet",
+       "icon": "config",
+       "points": [
+        "Plusieurs règles et remédiations",
+        "Comptes individuels ET organisation",
+        "Géré au niveau du compte"
+       ],
+       "use": "Ensemble de règles prêt à déployer"
+      }
+     ]
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "decision",
+     "title": "Quelle réponse à l'examen ?",
+     "root": {
+      "q": "Faut-il bloquer l'action ?",
+      "yes": {
+       "a": "SCP / IAM",
+       "icon": "orgs",
+       "tone": "good",
+       "why": "Préventif : Config ne bloque rien"
+      },
+      "no": {
+       "q": "Vue de conformité multi-comptes ?",
+       "yes": {
+        "a": "Aggregator",
+        "icon": "config",
+        "tone": "info",
+        "why": "Vue unique multi-comptes et multi-régions"
+       },
+       "no": {
+        "q": "Déployer un ensemble de règles ?",
+        "yes": {
+         "a": "Conformance pack",
+         "icon": "config",
+         "tone": "info",
+         "why": "Règles + remédiations en un paquet"
+        },
+        "no": {
+         "a": "Config rule + SSM",
+         "icon": "ssm",
+         "tone": "good",
+         "why": "Détecter et corriger automatiquement"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 15,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "config",
+       "ctx": "Enregistre les configurations, évalue les règles et conserve l'historique des ressources."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Complète Config : indique qui a fait le changement, via les appels d'API."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stocke l'historique des configuration items ; analysable avec Athena."
+      },
+      {
+       "k": "eventbridge",
+       "ctx": "Filtre les changements de conformité et route vers les cibles de remédiation."
+      },
+      {
+       "k": "sns",
+       "ctx": "Notifie les équipes de chaque changement de configuration ou de conformité."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Exécute les documents Automation qui corrigent la ressource non conforme."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Porte les règles personnalisées et peut servir de remédiation."
+      },
+      {
+       "k": "iam",
+       "ctx": "Rôle que SSM assume pour agir sur la ressource à corriger."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-04",
+  "services": [
+   "trustedadvisor",
+   "costexplorer",
+   "budgets",
+   "guardduty",
+   "cloudtrail",
+   "sns",
+   "orgs"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   7,
+   10,
+   12
+  ],
+  "shorten": {
+   "0": "El flous houma capteur: ken el facture tla3t 10 marrat, ya3ni 7ad yesra9 el courant. Trusted Advisor y9olek chnowa mouch behi, Cost Explorer win 5allast flousek, Anomaly Detection yebleghek ki yetla3 ghareb.",
+   "11": "L'**AUP** interdit d'utiliser AWS pour nuire (liste ci-dessus) ; AWS peut **retirer ou désactiver** le contenu fautif. Si tes ressources compromises servent à attaquer ou spammer, tu reçois un **abuse report** : ne pas réagir peut mener à la suspension. Pentests : suivre la politique de test AWS."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Deux angles morts, trois outils sans agent",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "shield",
+       "t": "La posture",
+       "d": "Port ouvert, MFA absent, snapshot public, quota proche : impossible à vérifier à la main.",
+       "tone": "warn"
+      },
+      {
+       "icon": "budgets",
+       "t": "Le coût",
+       "d": "Une facture qui grimpe : erreur d'architecture ou attaquant avec tes identifiants.",
+       "tone": "bad"
+      },
+      {
+       "icon": "trustedadvisor",
+       "t": "Les outils",
+       "d": "Trusted Advisor, Cost Explorer, Cost Anomaly Detection : rien à installer.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Trusted Advisor : 6 catégories",
+     "center": {
+      "label": "Trusted Advisor",
+      "sub": "recommandations sans agent",
+      "icon": "trustedadvisor"
+     },
+     "spokes": [
+      {
+       "label": "Cost optimization",
+       "sub": "je gaspille ?",
+       "icon": "costexplorer",
+       "note": "Instances EC2 peu utilisées, volumes EBS non attachés.",
+       "tone": "info"
+      },
+      {
+       "label": "Performance",
+       "sub": "bien dimensionné ?",
+       "icon": "autoscaling",
+       "note": "Instances très utilisées, configuration sous-optimale.",
+       "tone": "info"
+      },
+      {
+       "label": "Security",
+       "sub": "mon compte exposé ?",
+       "icon": "shield",
+       "note": "Buckets S3, ports ouverts, MFA du root, snapshots publics, clés d'accès exposées.",
+       "tone": "bad"
+      },
+      {
+       "label": "Fault tolerance",
+       "sub": "survivre à une panne ?",
+       "icon": "backup",
+       "note": "Absence de Multi-AZ, sauvegardes insuffisantes.",
+       "tone": "warn"
+      },
+      {
+       "label": "Service limits",
+       "sub": "quota proche ?",
+       "icon": "gear",
+       "note": "Usage proche de la limite d'un service.",
+       "tone": "warn"
+      },
+      {
+       "label": "Operational excellence",
+       "sub": "bonnes pratiques ?",
+       "icon": "ssm",
+       "note": "Recommandations de bonnes pratiques d'exploitation.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "À retenir",
+     "items": [
+      {
+       "icon": "trustedadvisor",
+       "big": "6",
+       "label": "catégories de checks"
+      },
+      {
+       "icon": "support",
+       "big": "Business",
+       "label": "ou Enterprise : tous les checks",
+       "sub": "+ AWS Support API"
+      },
+      {
+       "icon": "costexplorer",
+       "big": "18 mois",
+       "label": "de prévision d'usage",
+       "sub": "d'après le cours"
+      },
+      {
+       "icon": "budgets",
+       "big": "0 seuil",
+       "label": "pour Cost Anomaly Detection",
+       "sub": "apprend tes habitudes"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "Du vol de clé à la réponse",
+     "stages": [
+      {
+       "label": "Clé IAM qui fuit",
+       "sub": "Git public, poste compromis",
+       "icon": "longcred",
+       "tone": "bad"
+      },
+      {
+       "label": "RunInstances",
+       "sub": "instances GPU, région inutilisée",
+       "icon": "ec2",
+       "tone": "bad"
+      },
+      {
+       "label": "Minage",
+       "sub": "cryptojacking",
+       "icon": "bot",
+       "tone": "bad"
+      },
+      {
+       "label": "Coût anormal",
+       "sub": "Cost Anomaly Detection",
+       "icon": "costexplorer",
+       "tone": "warn"
+      },
+      {
+       "label": "Corrélation",
+       "sub": "CloudTrail + GuardDuty",
+       "icon": "cloudtrail",
+       "tone": "info"
+      },
+      {
+       "label": "Contenir",
+       "sub": "désactiver la clé",
+       "icon": "iam",
+       "tone": "good"
+      }
+     ],
+     "caption": "GuardDuty signale par ex. CryptoCurrency:EC2/BitcoinTool.B."
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "decision",
+     "title": "Quel outil pour quelle question ?",
+     "root": {
+      "q": "L'énoncé parle de coût ?",
+      "yes": {
+       "q": "Alerte sans seuil, par apprentissage ?",
+       "yes": {
+        "a": "Cost Anomaly Detection",
+        "icon": "costexplorer",
+        "tone": "good",
+        "why": "ML, alerte + cause racine"
+       },
+       "no": {
+        "q": "Alerte à un montant fixé ?",
+        "yes": {
+         "a": "AWS Budgets",
+         "icon": "budgets",
+         "tone": "info",
+         "why": "Alerte à X % du budget"
+        },
+        "no": {
+         "a": "Cost Explorer",
+         "icon": "costexplorer",
+         "tone": "neutral",
+         "why": "Analyser, prévoir, Savings Plan"
+        }
+       }
+      },
+      "no": {
+       "q": "Revue des 6 catégories sans agent ?",
+       "yes": {
+        "a": "Trusted Advisor",
+        "icon": "trustedadvisor",
+        "tone": "good",
+        "why": "Recommandations de haut niveau"
+       },
+       "no": {
+        "a": "Config / GuardDuty",
+        "icon": "guardduty",
+        "tone": "info",
+        "why": "Config : état ; GuardDuty : minage, exfiltration"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "cards",
+     "title": "AUP : usages interdits",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "document",
+       "t": "Illégal ou frauduleux",
+       "d": "Toute activité illégale ou frauduleuse.",
+       "tone": "bad"
+      },
+      {
+       "icon": "padlock",
+       "t": "Violer les droits d'autrui",
+       "d": "Atteinte aux droits d'autres personnes.",
+       "tone": "bad"
+      },
+      {
+       "icon": "bot",
+       "t": "Menaces et violence",
+       "d": "Menaces, apologie du terrorisme ou de la violence.",
+       "tone": "bad"
+      },
+      {
+       "icon": "user",
+       "t": "Abus sur mineurs",
+       "d": "Contenu ou activités d'abus sexuel sur mineurs.",
+       "tone": "bad"
+      },
+      {
+       "icon": "firewall",
+       "t": "Attaquer d'autres réseaux",
+       "d": "Intrusion, déni de service : atteinte à la sécurité ou disponibilité.",
+       "tone": "bad"
+      },
+      {
+       "icon": "email",
+       "t": "Spam",
+       "d": "Courriels de masse non sollicités.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "trustedadvisor",
+       "ctx": "Recommandations sécurité, coût et limites en 6 catégories, sans agent."
+      },
+      {
+       "k": "costexplorer",
+       "ctx": "Analyse après coup où part l'argent ; Cost Anomaly Detection repère le pic sans seuil."
+      },
+      {
+       "k": "budgets",
+       "ctx": "Alerte quand un montant ou un usage fixé est atteint."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détecte l'activité de minage ou d'exfiltration, en complément du signal de coût."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Montre qui a appelé RunInstances, avec quelle clé et depuis quelle IP."
+      },
+      {
+       "k": "sns",
+       "ctx": "Transporte l'alerte d'anomalie vers l'équipe sécurité."
+      },
+      {
+       "k": "orgs",
+       "ctx": "SCP qui interdit les régions inutilisées, parade au cryptojacking."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-05",
+  "services": [
+   "wellarch",
+   "auditmgr",
+   "artifact",
+   "config",
+   "securityhub",
+   "cloudtrail",
+   "orgs"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   10,
+   11
+  ],
+  "shorten": {
+   "0": "Well-Architected = contrôle technique mta3 el karhba: y9olek win el mochkla f architecture. Audit Manager = secrétaire elli yjma3 el wra9 lel auditeur. Well-Architected y3tik conseils, Audit Manager y3tik preuves.",
+   "8": "**Audit Manager** audite en continu l'usage d'AWS et prépare les audits : rapports de conformité avec dossiers de preuves (*evidence folders*), recherche des causes avec **Evidence Finder**, multi-comptes via **Organizations**, intégré à **Control Tower**."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Well-Architected : les 6 piliers",
+     "center": {
+      "label": "Well-Architected",
+      "sub": "grille de revue d'architecture",
+      "icon": "wellarch"
+     },
+     "spokes": [
+      {
+       "label": "Operational Excellence",
+       "sub": "exploiter, améliorer",
+       "icon": "ssm",
+       "note": "Exploiter, surveiller, améliorer en continu : runbooks, automatisation, gestion des incidents.",
+       "tone": "info"
+      },
+      {
+       "label": "Security",
+       "sub": "protéger",
+       "icon": "shield",
+       "note": "Protéger données, systèmes et actifs : identité, détection, protection, réponse.",
+       "tone": "bad"
+      },
+      {
+       "label": "Reliability",
+       "sub": "résister aux pannes",
+       "icon": "backup",
+       "note": "Résister aux pannes et récupérer ; la disponibilité est le volet A de la triade CIA.",
+       "tone": "info"
+      },
+      {
+       "label": "Performance Efficiency",
+       "sub": "bien utiliser",
+       "icon": "autoscaling",
+       "note": "Utiliser efficacement les ressources, sans sacrifier le chiffrement pour la vitesse sans mesurer.",
+       "tone": "info"
+      },
+      {
+       "label": "Cost Optimization",
+       "sub": "éviter le gaspillage",
+       "icon": "costexplorer",
+       "note": "Éviter les dépenses inutiles ; les anomalies de coût révèlent des abus.",
+       "tone": "warn"
+      },
+      {
+       "label": "Sustainability",
+       "sub": "impact environnemental",
+       "icon": "cloud",
+       "note": "Réduire l'impact environnemental, y compris les ressources fantômes.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Principes directeurs du cadre",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Arrêter de deviner",
+       "d": "Ne plus deviner la capacité : on ajuste à la demande.",
+       "tone": "info"
+      },
+      {
+       "icon": "fis",
+       "t": "Tester comme en production",
+       "d": "Possible car on paie à l'usage.",
+       "tone": "info"
+      },
+      {
+       "icon": "ssm",
+       "t": "Automatiser",
+       "d": "Automatiser facilite l'expérimentation.",
+       "tone": "good"
+      },
+      {
+       "icon": "autoscaling",
+       "t": "Architectures évolutives",
+       "d": "Concevoir pour des besoins changeants.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudwatch",
+       "t": "Piloter par les données",
+       "d": "Décider avec des métriques.",
+       "tone": "good"
+      },
+      {
+       "icon": "fis",
+       "t": "Game days",
+       "d": "Simuler un pic (jour de soldes) pour s'entraîner.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Pilier Sécurité : principes de conception",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "iam",
+       "t": "Identité solide",
+       "d": "Fondation d'identité, moindre privilège.",
+       "tone": "good"
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Traçabilité",
+       "d": "Journaliser et alerter.",
+       "tone": "info"
+      },
+      {
+       "icon": "vpc",
+       "t": "Toutes les couches",
+       "d": "Sécurité à chaque couche de l'architecture.",
+       "tone": "info"
+      },
+      {
+       "icon": "ssm",
+       "t": "Automatiser",
+       "d": "Automatiser les bonnes pratiques de sécurité.",
+       "tone": "good"
+      },
+      {
+       "icon": "kms",
+       "t": "Protéger les données",
+       "d": "En transit et au repos ; éloigner les personnes des données.",
+       "tone": "warn"
+      },
+      {
+       "icon": "incidentmgr",
+       "t": "Préparer les incidents",
+       "d": "Se préparer avant que l'incident arrive.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "stack",
+     "title": "Pilier Sécurité et domaines du cours",
+     "layers": [
+      {
+       "label": "Security foundations",
+       "sub": "Domaine 6 : gouvernance",
+       "icon": "orgs",
+       "tone": "info",
+       "tags": [
+        "Organizations",
+        "Control Tower",
+        "Config",
+        "Audit Manager"
+       ]
+      },
+      {
+       "label": "Identity and access",
+       "sub": "Domaine 4",
+       "icon": "iam",
+       "tone": "info",
+       "tags": [
+        "IAM",
+        "STS",
+        "Identity Center",
+        "Cognito"
+       ]
+      },
+      {
+       "label": "Detection",
+       "sub": "Domaine 1",
+       "icon": "guardduty",
+       "tone": "good",
+       "tags": [
+        "GuardDuty",
+        "Security Hub",
+        "CloudTrail",
+        "CloudWatch"
+       ]
+      },
+      {
+       "label": "Infrastructure protection",
+       "sub": "Domaine 3",
+       "icon": "vpc",
+       "tone": "warn",
+       "tags": [
+        "VPC",
+        "WAF",
+        "Shield",
+        "Network Firewall"
+       ]
+      },
+      {
+       "label": "Data protection",
+       "sub": "Domaine 5",
+       "icon": "kms",
+       "tone": "warn",
+       "tags": [
+        "KMS",
+        "Secrets Manager",
+        "ACM"
+       ]
+      },
+      {
+       "label": "Incident response",
+       "sub": "Domaine 2",
+       "icon": "ssm",
+       "tone": "bad",
+       "tags": [
+        "Systems Manager"
+       ]
+      }
+     ],
+     "side": "les 6 zones de bonnes pratiques"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Well-Architected Tool : comment ça marche",
+     "stages": [
+      {
+       "label": "Définir le workload",
+       "sub": "nom, comptes, régions",
+       "icon": "wellarch",
+       "tone": "info"
+      },
+      {
+       "label": "Répondre",
+       "sub": "questions par pilier",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Voir les risques",
+       "sub": "HRI / MRI par pilier",
+       "icon": "shield",
+       "tone": "warn"
+      },
+      {
+       "label": "Conseils",
+       "sub": "docs et recommandations",
+       "icon": "support",
+       "tone": "good"
+      },
+      {
+       "label": "Rapport",
+       "sub": "plan + milestones",
+       "icon": "auditmgr",
+       "tone": "good"
+      }
+     ],
+     "caption": "Outil gratuit, autodéclaratif : il ne scanne pas ton compte. Les lenses ajoutent des questions spécialisées."
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "Frameworks prédéfinis Audit Manager",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "securityhub",
+       "t": "CIS AWS Foundations",
+       "d": "Benchmark CIS (v1.2.0 et v1.3.0).",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "GDPR (RGPD)",
+       "d": "Protection des données personnelles.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "HIPAA",
+       "d": "Données de santé.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "PCI DSS v4.0",
+       "d": "Données de cartes de paiement.",
+       "tone": "warn"
+      },
+      {
+       "icon": "securityhub",
+       "t": "CIS Controls v7.1",
+       "d": "Contrôles de sécurité CIS.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "compare",
+     "title": "Deux sources de preuves",
+     "cols": [
+      {
+       "name": "Preuves automatiques",
+       "tag": "continues",
+       "icon": "auditmgr",
+       "points": [
+        "CloudTrail",
+        "AWS Config",
+        "Security Hub",
+        "License Manager"
+       ],
+       "use": "Collectées sans effort"
+      },
+      {
+       "name": "Preuves manuelles",
+       "tag": "téléversées",
+       "icon": "document",
+       "points": [
+        "Documents de politique",
+        "Relevés de formation",
+        "Captures d'écran",
+        "Schémas d'architecture"
+       ],
+       "use": "Ajoutées par les propriétaires"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Quel service répond à l'énoncé ?",
+     "root": {
+      "q": "Prouver MA conformité (HIPAA, PCI DSS) à un auditeur ?",
+      "yes": {
+       "a": "Audit Manager",
+       "icon": "auditmgr",
+       "tone": "good",
+       "why": "Preuves + assessment report par framework"
+      },
+      "no": {
+       "q": "Rapports de conformité d'AWS lui-même ?",
+       "yes": {
+        "a": "AWS Artifact",
+        "icon": "artifact",
+        "tone": "info",
+        "why": "SOC, ISO, accords"
+       },
+       "no": {
+        "q": "Revue d'architecture par les 6 piliers ?",
+        "yes": {
+         "a": "Well-Architected Tool",
+         "icon": "wellarch",
+         "tone": "good",
+         "why": "Revue guidée et déclarative"
+        },
+        "no": {
+         "a": "Config / Security Hub",
+         "icon": "config",
+         "tone": "neutral",
+         "why": "Config : ressource ; Security Hub : alertes"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "wellarch",
+       "ctx": "Grille des 6 piliers et outil gratuit de revue déclarative d'architecture."
+      },
+      {
+       "k": "auditmgr",
+       "ctx": "Collecte des preuves en continu et produit les rapports d'audit par framework."
+      },
+      {
+       "k": "artifact",
+       "ctx": "Fournit les rapports de conformité d'AWS lui-même, pas ceux de tes ressources."
+      },
+      {
+       "k": "config",
+       "ctx": "Source de preuves automatiques : conformité de la configuration des ressources."
+      },
+      {
+       "k": "securityhub",
+       "ctx": "Source de preuves : findings de sécurité et vérification de standards."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Source de preuves : historique des appels d'API pour l'auditeur."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Permet d'évaluer plusieurs comptes de l'organisation dans une seule évaluation."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-06",
+  "services": [
+   "cloudformation",
+   "iam",
+   "secrets",
+   "ssm",
+   "config",
+   "cloudtrail",
+   "codepipeline"
+  ],
+  "drop": [
+   2,
+   6,
+   8,
+   11,
+   13,
+   16,
+   19,
+   20
+  ],
+  "shorten": {
+   "0": "CloudFormation = recette: tektebha merra w houwa ybni. Mais el template houwa code: chkoun ynajjem ydeployi, kifech ma nbaddlouch el prod bel ghalta, win n7ot el mot de passe, w chkoun badel 7aja b yedou. Hedhom 6 outils sécurité.",
+   "1": "**CloudFormation** décrit l'infrastructure de façon **déclarative** (infrastructure as code) : changements relus comme du code, ressources taguées par stack, environnements recréés à la demande. Côté sécurité, six questions se posent : voir le schéma ci-dessous."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Un problème, une fonctionnalité",
+     "center": {
+      "label": "CloudFormation",
+      "sub": "IaC : qui contrôle le code ?",
+      "icon": "cloudformation"
+     },
+     "spokes": [
+      {
+       "label": "Service role",
+       "sub": "+ iam:PassRole",
+       "icon": "role",
+       "note": "Déployer sans donner au développeur les droits sur les ressources créées.",
+       "tone": "good"
+      },
+      {
+       "label": "Stack policy",
+       "sub": "protège les MAJ",
+       "icon": "padlock",
+       "note": "Protège certaines ressources d'une mise à jour.",
+       "tone": "warn"
+      },
+      {
+       "label": "Dynamic references",
+       "sub": "secrets hors template",
+       "icon": "secrets",
+       "note": "Valeurs lues dans SSM Parameter Store ou Secrets Manager.",
+       "tone": "good"
+      },
+      {
+       "label": "Termination protection",
+       "sub": "anti-suppression",
+       "icon": "gear",
+       "note": "Empêche la suppression accidentelle de la stack.",
+       "tone": "warn"
+      },
+      {
+       "label": "Drift detection",
+       "sub": "modifs manuelles",
+       "icon": "config",
+       "note": "Détecte les changements faits hors CloudFormation (aussi à l'échelle des StackSets).",
+       "tone": "info"
+      },
+      {
+       "label": "cfn-guard",
+       "sub": "valider avant",
+       "icon": "codepipeline",
+       "note": "Valide les templates contre la politique de l'entreprise.",
+       "tone": "good"
+      },
+      {
+       "label": "Infrastructure Composer",
+       "sub": "visualiser",
+       "icon": "console",
+       "note": "Concepteur visuel : relire une stack, voir qui parle à qui, avant de déployer.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Stack policy : les règles",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Défaut ouvert",
+       "d": "Sans stack policy, toutes les mises à jour sont permises sur toutes les ressources.",
+       "tone": "warn"
+      },
+      {
+       "icon": "permissions",
+       "t": "Dès qu'on la définit",
+       "d": "Tout est protégé par défaut : un Allow explicite est requis pour modifier.",
+       "tone": "good"
+      },
+      {
+       "icon": "document",
+       "t": "Deny explicite gagne",
+       "d": "Un Deny l'emporte sur un Allow.",
+       "tone": "bad"
+      },
+      {
+       "icon": "user",
+       "t": "Principal toujours *",
+       "d": "La stack policy s'applique à tous.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "gear",
+       "t": "Actions Update:*",
+       "d": "Update:Modify, Update:Replace, Update:Delete, ou Update:*.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudformation",
+       "t": "Limite",
+       "d": "Ne protège que les mises à jour, pas la suppression de la stack.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "cards",
+     "title": "Dynamic references : trois services",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ssm",
+       "t": "ssm",
+       "d": "Valeurs en clair du Parameter Store.",
+       "tone": "info"
+      },
+      {
+       "icon": "ssm",
+       "t": "ssm-secure",
+       "d": "Chaînes sécurisées (SecureString) du Parameter Store.",
+       "tone": "good"
+      },
+      {
+       "icon": "secrets",
+       "t": "secretsmanager",
+       "d": "Valeurs de secrets de Secrets Manager.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "compare",
+     "title": "Protéger contre la suppression",
+     "cols": [
+      {
+       "name": "Termination protection",
+       "tag": "stack",
+       "icon": "cloudformation",
+       "points": [
+        "EnableTerminationProtection",
+        "La suppression échoue tant que non désactivée",
+        "Ne protège pas qui peut la désactiver"
+       ],
+       "use": "Garde-fou contre l'erreur humaine"
+      },
+      {
+       "name": "DeletionPolicy",
+       "tag": "ressource",
+       "icon": "document",
+       "points": [
+        "Propriété de ressource : Retain ou Snapshot",
+        "Conserve la ressource ou en fait un instantané",
+        "Même si la stack est supprimée"
+       ],
+       "use": "Garder les données critiques"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "cards",
+     "title": "Statuts de drift d'une ressource",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "config",
+       "t": "IN_SYNC",
+       "d": "Conforme au template.",
+       "tone": "good"
+      },
+      {
+       "icon": "shield",
+       "t": "MODIFIED",
+       "d": "Valeur réelle différente de la valeur attendue.",
+       "tone": "bad"
+      },
+      {
+       "icon": "document",
+       "t": "DELETED",
+       "d": "Ressource supprimée hors CloudFormation.",
+       "tone": "bad"
+      },
+      {
+       "icon": "question",
+       "t": "NOT_CHECKED",
+       "d": "Pas encore vérifiée.",
+       "tone": "neutral"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "compare",
+     "title": "Drift ou Config ?",
+     "cols": [
+      {
+       "name": "Drift detection",
+       "tag": "vs template",
+       "icon": "cloudformation",
+       "points": [
+        "Compare l'état réel au template",
+        "Stack entière ou ressources individuelles",
+        "Montre valeur attendue et réelle"
+       ],
+       "use": "Une stack a-t-elle dérivé ?"
+      },
+      {
+       "name": "AWS Config",
+       "tag": "vs règles",
+       "icon": "config",
+       "points": [
+        "Évalue des règles de conformité",
+        "Historique de configuration",
+        "Indépendant de CloudFormation"
+       ],
+       "use": "Ressource conforme à la règle ?"
+      }
+     ]
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "pipeline",
+     "title": "cfn-guard dans un pipeline CI/CD",
+     "stages": [
+      {
+       "label": "Template modifié",
+       "sub": "commit Git",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "cfn-guard validate",
+       "sub": "règles en DSL",
+       "icon": "codepipeline",
+       "tone": "warn"
+      },
+      {
+       "label": "Violation ?",
+       "sub": "le build échoue",
+       "icon": "firewall",
+       "tone": "bad"
+      },
+      {
+       "label": "Déploiement",
+       "sub": "CloudFormation",
+       "icon": "cloudformation",
+       "tone": "good"
+      },
+      {
+       "label": "Config",
+       "sub": "évalue après coup",
+       "icon": "config",
+       "tone": "info"
+      }
+     ],
+     "caption": "Préventif au niveau du code ; ne vérifie pas la syntaxe (rôle d'un linter)."
+    }
+   },
+   {
+    "after": 20,
+    "block": {
+     "type": "matrix",
+     "title": "Qui protège de quoi ?",
+     "rows": [
+      "Stack policy",
+      "Termination protection",
+      "DeletionPolicy",
+      "Drift detection",
+      "cfn-guard"
+     ],
+     "cols": [
+      "MAJ non voulue",
+      "Suppression stack",
+      "Modif. manuelle",
+      "Template non conforme"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "Retain",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "détecte",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Protège",
+      "no": "Non concerné"
+     }
+    }
+   },
+   {
+    "after": 20,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cloudformation",
+       "ctx": "Crée l'infrastructure depuis le template et porte stack policy, drift et termination protection."
+      },
+      {
+       "k": "iam",
+       "ctx": "Service role et iam:PassRole : le développeur déploie sans droits directs sur les ressources."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Source des mots de passe résolus par dynamic reference, hors du template."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Parameter Store : ssm et ssm-secure pour les valeurs référencées."
+      },
+      {
+       "k": "config",
+       "ctx": "Évalue la conformité après coup, complément du drift."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Identifie qui a modifié une ressource hors CloudFormation."
+      },
+      {
+       "k": "codepipeline",
+       "ctx": "Exécute cfn-guard avant le déploiement : le build échoue si violation."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-07",
+  "services": [
+   "ecr",
+   "ecs",
+   "eks",
+   "lambda",
+   "signer",
+   "kms",
+   "secrets",
+   "sso"
+  ],
+  "drop": [
+   1,
+   4,
+   6,
+   10,
+   11,
+   12,
+   13,
+   14
+  ],
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Les 3 questions sécurité de chaque service",
+     "center": {
+      "label": "Un service AWS",
+      "sub": "fiche de révision",
+      "icon": "gear"
+     },
+     "spokes": [
+      {
+       "label": "Qui accède ?",
+       "sub": "IAM / resource policy",
+       "icon": "iam",
+       "note": "Identity policy, resource-based policy, rôle de service : qui peut appeler le service.",
+       "tone": "info"
+      },
+      {
+       "label": "Données chiffrées ?",
+       "sub": "KMS",
+       "icon": "kms",
+       "note": "Chiffrement au repos (KMS) et en transit (TLS).",
+       "tone": "good"
+      },
+      {
+       "label": "Où sont les logs ?",
+       "sub": "CloudTrail / CloudWatch",
+       "icon": "cloudwatch",
+       "note": "Journaux d'audit et d'exécution à activer et centraliser.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Amazon ECR : les points de sécurité",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "iam",
+       "t": "Accès par IAM",
+       "d": "Une erreur de permission est un problème de policy IAM.",
+       "tone": "info"
+      },
+      {
+       "icon": "kms",
+       "t": "Chiffrement KMS",
+       "d": "Envelope encryption ; choisi uniquement à la création du dépôt ; KMS grant créé par ECR.",
+       "tone": "good"
+      },
+      {
+       "icon": "inspector",
+       "t": "Scan de vulnérabilités",
+       "d": "Basic (base CVE, au push) ou enhanced (Inspector, continu) ; résultats vers EventBridge.",
+       "tone": "warn"
+      },
+      {
+       "icon": "role",
+       "t": "Cross-account",
+       "d": "Une repository policy autorise pull/push ; le client s'authentifie avec un token.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "facts",
+     "title": "Chiffres à retenir",
+     "items": [
+      {
+       "icon": "ecr",
+       "big": "12 h",
+       "label": "validité du token ECR",
+       "sub": "get-login-password"
+      },
+      {
+       "icon": "eks",
+       "big": "60 min",
+       "label": "rétention des événements EKS",
+       "sub": "non modifiable"
+      },
+      {
+       "icon": "cloudshell",
+       "big": "1 Go",
+       "label": "stockage persistant CloudShell",
+       "sub": "par région"
+      },
+      {
+       "icon": "lambda",
+       "big": "1 rôle",
+       "label": "par fonction Lambda",
+       "sub": "bonne pratique"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "pipeline",
+     "title": "ECS : un secret sans le mettre dans l'image",
+     "stages": [
+      {
+       "label": "Stocker",
+       "sub": "SSM ou Secrets Manager",
+       "icon": "secrets",
+       "tone": "info"
+      },
+      {
+       "label": "Référencer",
+       "sub": "secrets / valueFrom",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Task execution role",
+       "sub": "droit de lire (+ KMS)",
+       "icon": "role",
+       "tone": "warn"
+      },
+      {
+       "label": "Injection",
+       "sub": "variable d'environnement",
+       "icon": "ecs",
+       "tone": "good"
+      }
+     ],
+     "caption": "EKS : envoyer les journaux du control plane vers CloudWatch Logs pour garder l'historique."
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Lambda : trois piliers de sécurité",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "role",
+       "t": "Execution role",
+       "d": "Permissions de la fonction vers les autres services ; un rôle par fonction.",
+       "tone": "good"
+      },
+      {
+       "icon": "lambda",
+       "t": "Resource-based policy",
+       "d": "Qui peut invoquer la fonction : autre compte ou service comme S3.",
+       "tone": "info"
+      },
+      {
+       "icon": "vpc",
+       "t": "Réseau",
+       "d": "Par défaut hors de ton VPC : pas d'accès à RDS ou ElastiCache privés.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Function URL : à savoir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "HTTPS dédié",
+       "d": "URL stable, appelable depuis navigateur, curl, Postman.",
+       "tone": "info"
+      },
+      {
+       "icon": "firewall",
+       "t": "Internet public seulement",
+       "d": "Pas de PrivateLink pour l'URL elle-même.",
+       "tone": "warn"
+      },
+      {
+       "icon": "lambda",
+       "t": "Alias ou $LATEST",
+       "d": "Pas les autres versions ; limitée par la concurrence réservée.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "padlock",
+       "t": "Trois verrous",
+       "d": "AuthType, resource policy et CORS.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "pipeline",
+     "title": "AWS Signer : n'exécuter que du code signé",
+     "stages": [
+      {
+       "label": "Signing profile",
+       "sub": "clés et certificats gérés",
+       "icon": "signer",
+       "tone": "info"
+      },
+      {
+       "label": "Signature du package",
+       "sub": "déploiement Lambda",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Contrôle imposé",
+       "sub": "code signé seulement",
+       "icon": "padlock",
+       "tone": "good"
+      },
+      {
+       "label": "Révocation",
+       "sub": "RevokeSignature, irréversible",
+       "icon": "bot",
+       "tone": "bad"
+      }
+     ],
+     "caption": "Non supporté pour les fonctions Lambda en image de conteneur."
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "arch",
+     "title": "Verified Access : zero trust sans VPN",
+     "groups": [
+      {
+       "id": "U",
+       "label": "Utilisateur (n'importe quel réseau)",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "usr",
+         "label": "Utilisateur",
+         "sub": "navigateur",
+         "icon": "user"
+        },
+        {
+         "id": "dev",
+         "label": "Appareil",
+         "sub": "état de sécurité",
+         "icon": "device"
+        }
+       ]
+      },
+      {
+       "id": "VA",
+       "label": "AWS Verified Access",
+       "kind": "account",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "ep",
+         "label": "Endpoint",
+         "sub": "policy à chaque requête",
+         "icon": "padlock"
+        },
+        {
+         "id": "idc",
+         "label": "IAM Identity Center",
+         "sub": "ou IdP OIDC",
+         "icon": "sso"
+        },
+        {
+         "id": "waf",
+         "label": "AWS WAF",
+         "sub": "SQLi, XSS",
+         "icon": "waf"
+        }
+       ]
+      },
+      {
+       "id": "V",
+       "label": "Ton VPC",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "alb",
+         "label": "ALB interne",
+         "sub": "ou ENI",
+         "icon": "elb"
+        },
+        {
+         "id": "app",
+         "label": "Application",
+         "sub": "d'entreprise",
+         "icon": "ec2"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "usr",
+       "to": "ep",
+       "label": "requête HTTPS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "ep",
+       "to": "idc",
+       "label": "identité",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "dev",
+       "to": "ep",
+       "label": "posture appareil",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "ep",
+       "to": "waf",
+       "label": "inspection",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "ep",
+       "to": "alb",
+       "label": "si policy OK",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "alb",
+       "to": "app",
+       "label": "trafic privé",
+       "style": "solid"
+      },
+      {
+       "id": "e7",
+       "from": "usr",
+       "to": "app",
+       "label": "pas d'accès direct",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "usr",
+        "ep"
+       ],
+       "caption": "Chaque requête arrive à l'endpoint Verified Access, sans VPN."
+      },
+      {
+       "edges": [
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "idc",
+        "dev"
+       ],
+       "caption": "Identité de l'utilisateur (Identity Center ou OIDC) et état de sécurité de l'appareil sont vérifiés."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5",
+        "e6"
+       ],
+       "nodes": [
+        "waf",
+        "alb",
+        "app"
+       ],
+       "caption": "Si la policy d'accès est satisfaite, le trafic passe vers l'ALB interne ou l'ENI, avec inspection WAF."
+      },
+      {
+       "edges": [
+        "e7"
+       ],
+       "nodes": [
+        "usr",
+        "app"
+       ],
+       "caption": "L'application n'est jamais exposée directement. Les journaux partent vers S3, CloudWatch Logs ou Kinesis Data Firehose."
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "hub",
+     "title": "Le reste en un coup d'oeil",
+     "center": {
+      "label": "Autres services",
+      "sub": "un point de sécurité chacun",
+      "icon": "gear"
+     },
+     "spokes": [
+      {
+       "label": "AWS Glue",
+       "sub": "ETL serverless",
+       "icon": "glue",
+       "note": "Chiffrement KMS (bases, tables, job bookmarks), TLS, identity policies, resource policy sur le Data Catalog pour le cross-account.",
+       "tone": "info"
+      },
+      {
+       "label": "WorkSpaces",
+       "sub": "DaaS",
+       "icon": "workspaces",
+       "note": "Chiffrement KMS, IP Access Control Groups (si VPN/NAT, autoriser l'IP publique), certificat pour appareils de confiance.",
+       "tone": "info"
+      },
+      {
+       "label": "Instance Refresh",
+       "sub": "Auto Scaling",
+       "icon": "autoscaling",
+       "note": "Remplace toutes les instances après changement du launch template (AMI patchée), avec santé minimale et warm-up.",
+       "tone": "info"
+      },
+      {
+       "label": "EBS : suppression",
+       "sub": "blocs écrasés",
+       "icon": "ebs",
+       "note": "Les blocs d'un volume supprimé sont écrasés par des zéros avant réattribution.",
+       "tone": "good"
+      },
+      {
+       "label": "CloudShell",
+       "sub": "shell navigateur",
+       "icon": "cloudshell",
+       "note": "Utilise les identifiants de l'utilisateur connecté ; 1 Go persistant par région ; accès VPC possible.",
+       "tone": "info"
+      },
+      {
+       "label": "Image Builder",
+       "sub": "AMI",
+       "icon": "imagebuilder",
+       "note": "Crée, teste et distribue des AMI ; 403 = rôle du profil d'instance sans les bonnes policies.",
+       "tone": "info"
+      },
+      {
+       "label": "Redshift",
+       "sub": "entrepôt",
+       "icon": "redshift",
+       "note": "Hiérarchie superuser/users/groups > database > schema > table ; GetClusterCredentials génère des identifiants DB temporaires.",
+       "tone": "info"
+      },
+      {
+       "label": "DynamoDB TTL",
+       "sub": "expiration",
+       "icon": "dynamodb",
+       "note": "Supprime les items après un horodatage epoch (attribut Number), sans coût ; suppression différée de quelques jours au plus.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "cards",
+     "title": "Mot-clé de l'énoncé, réponse attendue",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ecr",
+       "t": "Token ECR expiré, No Basic Auth",
+       "d": "Token de 12 h, mauvaise région ou dépôt non autorisé.",
+       "tone": "bad"
+      },
+      {
+       "icon": "lambda",
+       "t": "Lambda ne joint pas RDS",
+       "d": "Mettre la fonction dans le VPC.",
+       "tone": "info"
+      },
+      {
+       "icon": "vpc",
+       "t": "Lambda dans VPC sans Internet",
+       "d": "Sous-réseau privé + NAT Gateway.",
+       "tone": "info"
+      },
+      {
+       "icon": "signer",
+       "t": "Seul du code signé",
+       "d": "AWS Signer.",
+       "tone": "good"
+      },
+      {
+       "icon": "sso",
+       "t": "Accès app sans VPN, zero trust",
+       "d": "Verified Access.",
+       "tone": "good"
+      },
+      {
+       "icon": "redshift",
+       "t": "Identifiants temporaires Redshift",
+       "d": "GetClusterCredentials.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "ecr",
+       "ctx": "Registre d'images de conteneurs : IAM, chiffrement KMS, scan et repository policy."
+      },
+      {
+       "k": "ecs",
+       "ctx": "Injecte les secrets en variables d'environnement via le task execution role."
+      },
+      {
+       "k": "eks",
+       "ctx": "Événements K8s conservés 60 min : envoyer les journaux vers CloudWatch Logs."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Execution role, resource policy et mode réseau décident qui fait quoi."
+      },
+      {
+       "k": "signer",
+       "ctx": "Signature de code : n'exécuter que des packages de confiance, révocables."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffre les images ECR au repos via un grant et les secrets référencés."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Stocke les secrets référencés par ECS, hors de l'image."
+      },
+      {
+       "k": "sso",
+       "ctx": "Authentifie les utilisateurs de Verified Access, avec un IdP OIDC possible."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-08",
+  "services": [
+   "servicecatalog",
+   "ram",
+   "fis",
+   "resiliencehub",
+   "cloudformation",
+   "iam",
+   "cloudwatch",
+   "vpc"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   7,
+   8,
+   9
+  ],
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Quatre services, trois problèmes",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "servicecatalog",
+       "t": "Service Catalog",
+       "d": "Menu de produits approuvés : le novice ne lance que du conforme.",
+       "tone": "good"
+      },
+      {
+       "icon": "ram",
+       "t": "RAM",
+       "d": "Partager une ressource au lieu de la dupliquer dans chaque compte.",
+       "tone": "info"
+      },
+      {
+       "icon": "fis",
+       "t": "FIS",
+       "d": "Casser volontairement pour voir comment le système réagit.",
+       "tone": "warn"
+      },
+      {
+       "icon": "resiliencehub",
+       "t": "Resilience Hub",
+       "d": "Piloter la posture de résilience : RTO, RPO, dérive.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Service Catalog : le vocabulaire",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "cloudformation",
+       "t": "Produit",
+       "d": "Un modèle CloudFormation pré-défini par les administrateurs.",
+       "tone": "info"
+      },
+      {
+       "icon": "servicecatalog",
+       "t": "Portfolio",
+       "d": "Collection de produits, avec permissions IAM pour y accéder.",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "Launch constraint",
+       "d": "Rôle de lancement : l'utilisateur n'a pas besoin de droits directs.",
+       "tone": "good"
+      },
+      {
+       "icon": "user",
+       "t": "Utilisateur",
+       "d": "Parcourt les produits autorisés et les lance : prêts, conformes, bien taggés.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "matrix",
+     "title": "Partageable avec RAM ?",
+     "rows": [
+      "Sous-réseaux VPC",
+      "Transit Gateway",
+      "Règles Route 53 Resolver",
+      "Configurations License Manager",
+      "Security groups",
+      "VPC par défaut"
+     ],
+     "cols": [
+      "Partageable",
+      "Même organisation"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "no",
+       "na"
+      ],
+      [
+       "no",
+       "na"
+      ]
+     ],
+     "legend": {
+      "ok": "Oui",
+      "no": "Non",
+      "na": "Non précisé"
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "cycle",
+     "title": "Chaos engineering avec FIS",
+     "center": "FIS",
+     "items": [
+      {
+       "label": "Définir",
+       "sub": "actions, cibles",
+       "icon": "fis"
+      },
+      {
+       "label": "Stresser",
+       "sub": "CPU, arrêt d'instances",
+       "icon": "ec2"
+      },
+      {
+       "label": "Observer",
+       "sub": "CloudWatch, EventBridge",
+       "icon": "cloudwatch"
+      },
+      {
+       "label": "Corriger",
+       "sub": "bugs, goulots",
+       "icon": "gear"
+      },
+      {
+       "label": "Rejouer",
+       "sub": "condition d'arrêt",
+       "icon": "document"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "pipeline",
+     "title": "Resilience Hub : de l'objectif à la preuve",
+     "stages": [
+      {
+       "label": "Définir l'application",
+       "sub": "CFN, Terraform, EKS",
+       "icon": "cloudformation",
+       "tone": "info"
+      },
+      {
+       "label": "Fixer RTO / RPO",
+       "sub": "politique de résilience",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Évaluer",
+       "sub": "vs Well-Architected",
+       "icon": "wellarch",
+       "tone": "warn"
+      },
+      {
+       "label": "Recommandations",
+       "sub": "dont SOP",
+       "icon": "resiliencehub",
+       "tone": "good"
+      },
+      {
+       "label": "Valider avec FIS",
+       "sub": "la reprise tient-elle ?",
+       "icon": "fis",
+       "tone": "good"
+      }
+     ],
+     "caption": "Détecte aussi la dérive de résilience ; multi-comptes via Organizations."
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "decision",
+     "title": "Quel service pour quel besoin ?",
+     "root": {
+      "q": "Laisser les débutants lancer uniquement des stacks approuvées ?",
+      "yes": {
+       "a": "Service Catalog",
+       "icon": "servicecatalog",
+       "tone": "good",
+       "why": "Portfolio + launch constraint"
+      },
+      "no": {
+       "q": "Partager une ressource entre comptes sans dupliquer ?",
+       "yes": {
+        "a": "AWS RAM",
+        "icon": "ram",
+        "tone": "good",
+        "why": "Sous-réseaux, TGW, règles Resolver"
+       },
+       "no": {
+        "q": "Casser volontairement pour observer ?",
+        "yes": {
+         "a": "FIS",
+         "icon": "fis",
+         "tone": "warn",
+         "why": "Expériences avec conditions d'arrêt"
+        },
+        "no": {
+         "a": "Resilience Hub",
+         "icon": "resiliencehub",
+         "tone": "info",
+         "why": "RTO/RPO, SOP, dérive"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "servicecatalog",
+       "ctx": "Portail self-service : produits CloudFormation approuvés, lancés via un rôle de lancement."
+      },
+      {
+       "k": "ram",
+       "ctx": "Partage sous-réseaux et autres ressources entre comptes de l'organisation, sans duplication."
+      },
+      {
+       "k": "fis",
+       "ctx": "Injecte des pannes contrôlées avec conditions d'arrêt pour tester la résilience."
+      },
+      {
+       "k": "resiliencehub",
+       "ctx": "Évalue la résilience face aux objectifs RTO/RPO et propose des SOP."
+      },
+      {
+       "k": "cloudformation",
+       "ctx": "Chaque produit Service Catalog est un template CloudFormation."
+      },
+      {
+       "k": "iam",
+       "ctx": "Contrôle l'accès aux portfolios et fournit le rôle de lancement."
+      },
+      {
+       "k": "cloudwatch",
+       "ctx": "Alarmes qui servent de condition d'arrêt d'une expérience FIS."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Sous-réseau partagé via RAM : plusieurs comptes, un seul VPC et un seul NAT."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "d6-09",
+  "services": [
+   "orgs",
+   "config",
+   "guardduty",
+   "securityhub",
+   "kms",
+   "iam",
+   "cloudtrail",
+   "ssm"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "1": "Chiffres issus du support de cours : **vérifie-les sur la page officielle SCS-C03 avant de réserver**. Ni notes, ni stylo ; résultat quelques jours plus tard, sans détail des bonnes réponses ; choix unique ou « choisir deux »."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "facts",
+     "title": "L'examen en chiffres (d'après le cours)",
+     "items": [
+      {
+       "icon": "document",
+       "big": "65",
+       "label": "questions",
+       "sub": "environ 2,6 min chacune"
+      },
+      {
+       "icon": "gear",
+       "big": "170 min",
+       "label": "durée totale",
+       "sub": "relecture possible à la fin"
+      },
+      {
+       "icon": "padlock",
+       "big": "750 / 1000",
+       "label": "seuil de réussite",
+       "sub": "score mis à l'échelle"
+      },
+      {
+       "icon": "budgets",
+       "big": "300 USD",
+       "label": "frais d'inscription"
+      },
+      {
+       "icon": "user",
+       "big": "14 jours",
+       "label": "avant une nouvelle tentative",
+       "sub": "en cas d'échec"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "pipeline",
+     "title": "Parcours de certifications AWS",
+     "stages": [
+      {
+       "label": "Foundational",
+       "sub": "bases du cloud, sans prérequis",
+       "icon": "user",
+       "tone": "info"
+      },
+      {
+       "label": "Associate",
+       "sub": "compétences par rôle",
+       "icon": "users",
+       "tone": "info"
+      },
+      {
+       "label": "Professional",
+       "sub": "avancé, ~2 ans AWS",
+       "icon": "building",
+       "tone": "warn"
+      },
+      {
+       "label": "Specialty",
+       "sub": "domaine précis (SCS-C03)",
+       "icon": "shield",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Couverture du cours et distracteurs",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "question",
+       "t": "200+ services",
+       "d": "Aucun cours ne les couvre tous : il cible ceux des questions rapportées.",
+       "tone": "info"
+      },
+      {
+       "icon": "firewall",
+       "t": "Service inconnu",
+       "d": "Peut être un distracteur : retiens son rôle général pour l'éliminer.",
+       "tone": "warn"
+      },
+      {
+       "icon": "support",
+       "t": "Bonne réponse non couverte",
+       "d": "Signal à remonter à ton formateur.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cycle",
+     "title": "Stratégie de révision",
+     "center": "SCS-C03",
+     "items": [
+      {
+       "label": "Guide officiel",
+       "sub": "domaines, pondérations",
+       "icon": "document"
+      },
+      {
+       "label": "Réviser par domaine",
+       "sub": "les 6 domaines",
+       "icon": "orgs"
+      },
+      {
+       "label": "Pratiquer",
+       "sub": "console : SCP, KMS, Config",
+       "icon": "console"
+      },
+      {
+       "label": "Examens blancs",
+       "sub": "65 q en 170 min",
+       "icon": "gear"
+      },
+      {
+       "label": "Analyser",
+       "sub": "pourquoi chaque distracteur est faux",
+       "icon": "detective"
+      },
+      {
+       "label": "Fiches",
+       "sub": "SCP vs boundary, KMS vs CloudHSM",
+       "icon": "document"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "decision",
+     "title": "Quel type de contrôle l'énoncé demande-t-il ?",
+     "root": {
+      "q": "Empêcher, interdire, bloquer ?",
+      "yes": {
+       "a": "Préventif",
+       "icon": "orgs",
+       "tone": "good",
+       "why": "SCP, IAM, permission boundary, resource policy, SG, WAF"
+      },
+      "no": {
+       "q": "Détecter, alerter, auditer ?",
+       "yes": {
+        "a": "Détectif",
+        "icon": "guardduty",
+        "tone": "info",
+        "why": "GuardDuty, Config, CloudTrail, Security Hub, Macie, Inspector"
+       },
+       "no": {
+        "q": "Corriger automatiquement ?",
+        "yes": {
+         "a": "Remédiation",
+         "icon": "ssm",
+         "tone": "good",
+         "why": "EventBridge + Lambda, SSM Automation, remédiation Config"
+        },
+        "no": {
+         "a": "Autres mots-clés",
+         "icon": "document",
+         "tone": "neutral",
+         "why": "Voir les cartes ci-dessous"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Autres mots-clés de l'énoncé",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "orgs",
+       "t": "Multi-comptes, organisation",
+       "d": "Organizations, SCP, aggregator, delegated admin, org trail, RAM.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudformation",
+       "t": "Moins d'administration",
+       "d": "Service managé AWS plutôt que solution maison sur EC2.",
+       "tone": "good"
+      },
+      {
+       "icon": "sts",
+       "t": "Sans clé longue durée",
+       "d": "Rôles IAM, STS, Identity Center, instance profile.",
+       "tone": "good"
+      },
+      {
+       "icon": "kms",
+       "t": "Chiffrer, contrôler les clés",
+       "d": "KMS (key policy, grants), CloudHSM si dédié, Secrets Manager.",
+       "tone": "warn"
+      },
+      {
+       "icon": "privatelink",
+       "t": "Privé, sans Internet",
+       "d": "VPC endpoints, PrivateLink, subnets privés, Verified Access.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "hub",
+     "title": "Les 6 domaines et leurs services-clés",
+     "center": {
+      "label": "SCS-C03",
+      "sub": "6 domaines du cours",
+      "icon": "securityhub"
+     },
+     "spokes": [
+      {
+       "label": "1. Detection",
+       "sub": "",
+       "icon": "guardduty",
+       "note": "GuardDuty, Security Hub, Detective, Inspector, Macie, CloudTrail, CloudWatch, EventBridge, Athena, VPC Flow Logs, Traffic Mirroring, journaux Route 53, OpenSearch.",
+       "tone": "info"
+      },
+      {
+       "label": "2. Incident Response",
+       "sub": "",
+       "icon": "incidentmgr",
+       "note": "Playbooks de compromission, politique de pentest, abuse report, clés EC2, Instance Connect, Serial Console, Systems Manager.",
+       "tone": "bad"
+      },
+      {
+       "label": "3. Infrastructure",
+       "sub": "",
+       "icon": "vpc",
+       "note": "VPC (NAT, VPN, peering, endpoints, PrivateLink, TGW), SG et NACL, Direct Connect, CloudFront, WAF, Shield, Firewall Manager, API Gateway, DNSSEC, Network Firewall.",
+       "tone": "warn"
+      },
+      {
+       "label": "4. IAM",
+       "sub": "",
+       "icon": "iam",
+       "note": "Policies, conditions, boundaries, ABAC, MFA, STS, IMDSv2, Cognito, SAML/OIDC, Identity Center, Directory Services, Access Analyzer.",
+       "tone": "info"
+      },
+      {
+       "label": "5. Data Protection",
+       "sub": "",
+       "icon": "kms",
+       "note": "KMS, CloudHSM, envelope encryption, Secrets Manager, SSE, Object Lock, Vault Lock, ACM, Private CA, Backup, Nitro Enclaves.",
+       "tone": "good"
+      },
+      {
+       "label": "6. Governance",
+       "sub": "",
+       "icon": "orgs",
+       "note": "Organizations (SCP, tag policies), Control Tower, Config, Trusted Advisor, Cost Anomaly Detection, Well-Architected, Audit Manager, CloudFormation, Service Catalog, RAM, FIS, Resilience Hub.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "cards",
+     "title": "Gestion du temps",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Maximum 3 minutes",
+       "d": "Ne bloque pas plus de 3 minutes sur une question.",
+       "tone": "warn"
+      },
+      {
+       "icon": "document",
+       "t": "Marquer et avancer",
+       "d": "Utilise la revue finale pour les questions marquées.",
+       "tone": "info"
+      },
+      {
+       "icon": "user",
+       "t": "Regard neuf",
+       "d": "Le mot clé manqué saute souvent aux yeux la seconde fois.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "orgs",
+       "ctx": "Domaine 6 : SCP et tag policies, exemple type de contrôle préventif multi-comptes."
+      },
+      {
+       "k": "config",
+       "ctx": "Domaine 6 : détecte les ressources non conformes, comme les volumes EBS non chiffrés."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Domaine 1 : détection de menaces, réponse type pour « détecter ou alerter »."
+      },
+      {
+       "k": "securityhub",
+       "ctx": "Domaine 1 : agrège les findings ; vue unique des alertes."
+      },
+      {
+       "k": "kms",
+       "ctx": "Domaine 5 : réponse type pour « chiffrer ou contrôler les clés »."
+      },
+      {
+       "k": "iam",
+       "ctx": "Domaine 4 : policies et rôles, base des contrôles préventifs."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Domaine 1 : audit des appels d'API, réponse type pour « auditer »."
+      },
+      {
+       "k": "ssm",
+       "ctx": "Domaine 2 : remédiation automatique avec SSM Automation."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

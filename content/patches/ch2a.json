@@ -1,0 +1,2988 @@
+[
+ {
+  "id": "ch2a-01",
+  "services": [
+   "iam",
+   "sso",
+   "role",
+   "sts",
+   "cloudtrail",
+   "mfa"
+  ],
+  "drop": [
+   1,
+   2,
+   4,
+   5,
+   8
+  ],
+  "shorten": {
+   "0": "Ya3ni IAM houwa el bawab mta3 el cloud: yotlob menek CIN (identifiant), yet2akked elli el wejh nafsou (authentification), ba3dha yochouf fin tnajjem tod5ol (autorisation), w yekteb fi carnet chkoun d5al w wa9tech (audit). Fil cloud el 3imara ma3andhech 7ouma, donc el bawab houwa kol chay.",
+   "3": "**IAM (Identity and Access Management)** : processus, règles et technologies qui garantissent que **la bonne identité** accède **aux bonnes ressources**, **dans le bon contexte**, avec chaque accès **tracé**. Trois questions enchaînées : **qui es-tu ?** (authentification), **que peux-tu faire ?** (autorisation), **que s'est-il passé ?** (audit)."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Pourquoi l'identité est le nouveau périmètre",
+     "center": {
+      "label": "Identité",
+      "sub": "nouveau périmètre",
+      "icon": "iam"
+     },
+     "spokes": [
+      {
+       "label": "Utilisateurs distants",
+       "sub": "bureau, maison, mobile",
+       "icon": "user",
+       "note": "Les accès viennent de partout : être dans le réseau ne prouve plus rien.",
+       "tone": "info"
+      },
+      {
+       "label": "Identités techniques",
+       "sub": "applis, rôles, serverless",
+       "icon": "role",
+       "note": "Une application ou un rôle agit sur les ressources exactement comme un employé.",
+       "tone": "info"
+      },
+      {
+       "label": "SaaS et cloud",
+       "sub": "confiance élargie",
+       "icon": "internet",
+       "note": "Les frontières de confiance englobent le fournisseur cloud et les applications SaaS.",
+       "tone": "info"
+      },
+      {
+       "label": "Compte compromis",
+       "sub": "agit à distance",
+       "icon": "bot",
+       "note": "Un compte volé agit sans franchir de réseau interne ; des droits excessifs amplifient l'impact.",
+       "tone": "bad"
+      },
+      {
+       "label": "Traçabilité",
+       "sub": "action liée à un principal",
+       "icon": "cloudtrail",
+       "note": "Chaque action doit pouvoir être reliée à un principal et à une session.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Ordre logique d'une requête",
+     "stages": [
+      {
+       "label": "Identité",
+       "sub": "Qui ou quoi ?",
+       "icon": "user"
+      },
+      {
+       "label": "Principal",
+       "sub": "Qui fait la requête ?",
+       "icon": "role"
+      },
+      {
+       "label": "Identifiant",
+       "sub": "Quelle preuve présentée ?",
+       "icon": "secrets"
+      },
+      {
+       "label": "Authentification",
+       "sub": "Identité valide ?",
+       "icon": "mfa",
+       "tone": "good"
+      },
+      {
+       "label": "Autorisation",
+       "sub": "Quelle action permise ?",
+       "icon": "permissions",
+       "tone": "info"
+      },
+      {
+       "label": "Audit",
+       "sub": "Que s'est-il passé ?",
+       "icon": "cloudtrail",
+       "tone": "neutral"
+      }
+     ],
+     "caption": "Analogie tunisienne : ton dossier à la mairie, la personne au guichet, la CIN montrée, le bawab compare le visage, la liste des étages permis, le carnet d'entrée/sortie."
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "compare",
+     "title": "Identité vs principal (confusion fréquente)",
+     "cols": [
+      {
+       "name": "Identité",
+       "tag": "Enregistrée dans l'annuaire",
+       "icon": "directory",
+       "points": [
+        "Employé, application, service, appareil",
+        "Existe même sans requête en cours"
+       ],
+       "use": "Exemple : Alice dans l'annuaire."
+      },
+      {
+       "name": "Principal",
+       "tag": "Celui qui fait la requête",
+       "icon": "role",
+       "points": [
+        "L'entité qui agit à cet instant",
+        "AWS : arn:aws:sts::111122223333:assumed-role/AuditRole/alice",
+        "Évalué par les policies, enregistré par les journaux"
+       ],
+       "use": "Alice assume AuditRole : la session de rôle est le principal."
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Même architecture côté AWS (équivalences conceptuelles)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "iam",
+       "t": "Annuaire",
+       "d": "Users et roles IAM, IAM Identity Center ou annuaire d'entreprise."
+      },
+      {
+       "icon": "saml",
+       "t": "IdP",
+       "d": "Okta, Entra ID, Google Workspace via SAML ou OIDC."
+      },
+      {
+       "icon": "permissions",
+       "t": "Moteur d'autorisation",
+       "d": "Moteur d'évaluation des policies IAM."
+      },
+      {
+       "icon": "s3",
+       "t": "PEP : service appelé",
+       "d": "S3, EC2, KMS... applique la décision d'accès."
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Journaux",
+       "d": "CloudTrail (appels d'API) et journaux d'accès des services."
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Annuaire de principals et moteur d'autorisation : décide qui peut faire quoi."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center : source d'identité fédérée pour les humains (SSO)."
+      },
+      {
+       "k": "role",
+       "ctx": "Identité technique assumée par Alice ou une application : le principal évalué."
+      },
+      {
+       "k": "sts",
+       "ctx": "Émet la session de rôle dont l'ARN apparaît dans les journaux."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise chaque appel d'API relié à un principal : l'audit."
+      },
+      {
+       "k": "mfa",
+       "ctx": "Renforce l'authentification quand un mot de passe est volé."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-02",
+  "services": [
+   "iam",
+   "sso",
+   "cloudtrail",
+   "accessanalyzer",
+   "longcred"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   7
+  ],
+  "shorten": {
+   "0": "Tsawwar 3imara: el jdid yet3mallou badge (Joiner), ki ybaddel étage yetbaddel el badge (Mover), w ki yokhrej yetfasakh el nhar nafsou (Leaver). Ken ma tosna3ch hedha, tel9a badges mta3 nes mchew: hedhom \"comptes orphelins\", w ay 7ad ykhatfhom."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Sans processus : trois dérives",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Droits sans validation",
+       "d": "On copie les droits d'un collègue, sans approbation.",
+       "tone": "bad"
+      },
+      {
+       "icon": "users",
+       "t": "Droits qui s'accumulent",
+       "d": "À chaque changement de poste, personne ne retire l'ancien.",
+       "tone": "warn"
+      },
+      {
+       "icon": "user",
+       "t": "Comptes orphelins",
+       "d": "Personnes parties, compte actif : cible préférée, personne ne regarde.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Les 5 processus IAM",
+     "stages": [
+      {
+       "label": "Gouvernance",
+       "sub": "Règles, propriétaires des droits",
+       "icon": "orgs"
+      },
+      {
+       "label": "Administration",
+       "sub": "Comptes via workflow tracé",
+       "icon": "gear"
+      },
+      {
+       "label": "Authentification",
+       "sub": "MFA selon le risque",
+       "icon": "mfa"
+      },
+      {
+       "label": "Autorisation",
+       "sub": "Politique explicite et minimale",
+       "icon": "permissions"
+      },
+      {
+       "label": "Audit",
+       "sub": "Journaux et revues périodiques",
+       "icon": "cloudtrail"
+      }
+     ],
+     "caption": "On décide les règles, on les met en place, on vérifie qui entre, on décide ce qu'il fait, on contrôle après coup."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cycle",
+     "title": "Cycle de vie d'une identité (JML : Joiner, Mover, Leaver)",
+     "center": "Identité",
+     "items": [
+      {
+       "label": "Entrée (Joiner)",
+       "sub": "Risque : droits sans validation",
+       "icon": "user"
+      },
+      {
+       "label": "Évolution (Mover)",
+       "sub": "Risque : accumulation",
+       "icon": "users"
+      },
+      {
+       "label": "Revue",
+       "sub": "Risque : droits inutiles",
+       "icon": "accessanalyzer"
+      },
+      {
+       "label": "Suspension",
+       "sub": "Risque : accès persistant",
+       "icon": "padlock"
+      },
+      {
+       "label": "Sortie (Leaver)",
+       "sub": "Risque : compte orphelin",
+       "icon": "longcred"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "matrix",
+     "title": "Responsabilités IAM : client ou fournisseur ?",
+     "rows": [
+      "Rôles métiers et propriétaires",
+      "Politiques et conditions d'accès",
+      "Cycle de vie et revue des comptes",
+      "Surveillance des usages, anomalies",
+      "Protéger le service IAM",
+      "Mécanismes de fédération et d'authentification",
+      "Appliquer les politiques de façon fiable",
+      "Journaux et preuves d'audit",
+      "MFA : activer et imposer"
+     ],
+     "cols": [
+      "Client",
+      "Fournisseur"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "ok"
+      ],
+      [
+       "na",
+       "ok"
+      ],
+      [
+       "na",
+       "ok"
+      ],
+      [
+       "na",
+       "ok"
+      ],
+      [
+       "Impose",
+       "Offre"
+      ]
+     ],
+     "legend": {
+      "ok": "Responsable",
+      "na": "Pas lui"
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Porte comptes, rôles et groupes dont on pilote entrée, évolution et sortie."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center : identités humaines synchronisées depuis l'annuaire."
+      },
+      {
+       "k": "accessanalyzer",
+       "ctx": "Repère droits inutilisés et accès externes pour les revues."
+      },
+      {
+       "k": "longcred",
+       "ctx": "Clé d'accès permanente d'un compte orphelin : risque à supprimer."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journaux : preuve de ce que fait un compte oublié."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-03",
+  "services": [
+   "mfa",
+   "iam",
+   "sso",
+   "saml",
+   "sts"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   6,
+   7,
+   10,
+   11
+  ],
+  "shorten": {
+   "0": "MFA = ATM: carte wa7dha wala code wa7dou ma ykafi, lazem el zouz. SSO = bracelet mta3 l'hôtel: bracelet wa7ed yfta7 el chambre, el restaurant w el piscine. Fédération = passeport: Fransa taqbel el passeport mta3 Tounes khater t'thi9 fil IdP elli sadarou."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Les 3 facteurs (MFA = au moins 2 catégories différentes)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Connaissance",
+       "d": "Ce que tu sais : mot de passe, code. Volable, devinable, réutilisable.",
+       "tone": "warn"
+      },
+      {
+       "icon": "mfa",
+       "t": "Possession",
+       "d": "Ce que tu as : clé de sécurité, appareil, appli d'authentification.",
+       "tone": "good"
+      },
+      {
+       "icon": "user",
+       "t": "Caractéristique",
+       "d": "Ce que tu es : biométrie vérifiée localement, non révocable.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Faux MFA",
+       "d": "Deux mots de passe = un seul facteur : il faut deux catégories.",
+       "tone": "bad"
+      },
+      {
+       "icon": "mfa",
+       "t": "SMS moins fiable",
+       "d": "Clé matérielle ou appli résistent mieux au phishing qu'un code SMS.",
+       "tone": "warn"
+      },
+      {
+       "icon": "secrets",
+       "t": "Récupération",
+       "d": "Codes de secours en lieu sûr, réinitialisation validée par un tiers.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "decision",
+     "title": "Quand exiger le MFA ?",
+     "root": {
+      "q": "Compte privilégié (admin, racine, production) ?",
+      "yes": {
+       "a": "MFA obligatoire",
+       "icon": "mfa",
+       "tone": "good",
+       "why": "Jamais de mot de passe seul"
+      },
+      "no": {
+       "q": "Action sensible (supprimer une clé, modifier une policy) ?",
+       "yes": {
+        "a": "Step-up : redemander un facteur",
+        "icon": "mfa",
+        "tone": "good",
+        "why": "AWS : condition aws:MultiFactorAuthPresent"
+       },
+       "no": {
+        "q": "Session à risque (nouvel appareil, pays inhabituel) ?",
+        "yes": {
+         "a": "Exigence relevée automatiquement",
+         "icon": "mfa",
+         "tone": "warn",
+         "why": "Décision adaptée au risque"
+        },
+        "no": {
+         "a": "Connexion normale",
+         "icon": "user",
+         "tone": "neutral"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "compare",
+     "title": "Quel standard répond à quelle question ?",
+     "cols": [
+      {
+       "name": "SAML 2.0",
+       "tag": "Qui est cet employé ?",
+       "icon": "saml",
+       "points": [
+        "Fédération et SSO par navigateur",
+        "Artefact : assertion XML signée",
+        "Standard historique des SaaS d'entreprise"
+       ],
+       "use": "Employé vers application SaaS."
+      },
+      {
+       "name": "OAuth 2.0",
+       "tag": "Que peut faire cette appli ?",
+       "icon": "padlock",
+       "points": [
+        "Délégation d'accès à une API",
+        "Artefact : access token (scopes, durée, audience)",
+        "Ne prouve pas seul l'identité"
+       ],
+       "use": "Application vers API."
+      },
+      {
+       "name": "OpenID Connect",
+       "tag": "Qui vient de se connecter ?",
+       "icon": "user",
+       "points": [
+        "Authentification au-dessus d'OAuth 2.0",
+        "Artefact : ID token signé (JSON)",
+        "Adapté au web et au mobile"
+       ],
+       "use": "Connexion web ou mobile."
+      },
+      {
+       "name": "SCIM 2.0",
+       "tag": "Quels comptes doivent exister ?",
+       "icon": "directory",
+       "points": [
+        "Provisionnement des comptes et groupes",
+        "Ressources JSON via API REST",
+        "Ne gère pas la connexion"
+       ],
+       "use": "Créer, modifier, désactiver les comptes."
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "mfa",
+       "ctx": "Second facteur indépendant, obligatoire pour les comptes privilégiés."
+      },
+      {
+       "k": "iam",
+       "ctx": "Impose le MFA dans une policy via aws:MultiFactorAuthPresent."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center : SSO fédéré depuis l'IdP d'entreprise."
+      },
+      {
+       "k": "saml",
+       "ctx": "Assertion signée qui fédère l'IdP vers AWS."
+      },
+      {
+       "k": "sts",
+       "ctx": "Émet des sessions temporaires après authentification fédérée."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-04",
+  "services": [
+   "saml",
+   "server",
+   "user",
+   "sso",
+   "sts"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5
+  ],
+  "shorten": {
+   "0": "SAML = wathika mokhtouma mel baladiya. Ma tsallemch el mot de passe lel banque: temchi lel baladiya (IdP), t'authentifi, ta5ou wathika mokhtouma bismek w esm el banque (audience), w el banque tchouf el khatm. El navigateur ykhdem facteur: yhezz el wathika bark.",
+   "1": "**SAML 2.0** : standard historique de **fédération et de SSO web**. L'**IdP** authentifie l'utilisateur et émet une **assertion XML signée** que l'application (**SP**) accepte comme preuve d'identité. Le SP ne voit jamais le mot de passe et ne gère plus de mots de passe propres."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Les 4 acteurs de SAML",
+     "center": {
+      "label": "SAML 2.0",
+      "sub": "4 acteurs",
+      "icon": "saml"
+     },
+     "spokes": [
+      {
+       "label": "Sujet",
+       "sub": "l'utilisateur (Sara)",
+       "icon": "user",
+       "note": "Demande l'accès à l'application.",
+       "tone": "info"
+      },
+      {
+       "label": "IdP",
+       "sub": "authentifie et signe",
+       "icon": "saml",
+       "note": "Identity Provider : authentifie le sujet et signe l'assertion.",
+       "tone": "info"
+      },
+      {
+       "label": "SP",
+       "sub": "fournit l'appli, valide",
+       "icon": "server",
+       "note": "Service Provider (ex. Google Workspace) : fournit l'application et valide la réponse.",
+       "tone": "info"
+      },
+      {
+       "label": "Navigateur",
+       "sub": "simple facteur",
+       "icon": "client",
+       "note": "Transporte les messages entre SP et IdP sans les lire ni les modifier.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Les 4 artefacts SAML",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "document",
+       "t": "AuthnRequest",
+       "d": "Émise par le SP : ID, émetteur, URL de retour attendue (ACS)."
+      },
+      {
+       "icon": "saml",
+       "t": "SAML Response",
+       "d": "Émise par l'IdP : statut, signature et assertion."
+      },
+      {
+       "icon": "padlock",
+       "t": "Assertion",
+       "d": "Émise par l'IdP : identité du sujet, attributs, contexte d'authentification."
+      },
+      {
+       "icon": "gear",
+       "t": "Metadata",
+       "d": "Échangées avant le login : certificats, URL, entityID qui fondent la confiance."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "pipeline",
+     "title": "Metadata : la confiance se prépare avant le premier login",
+     "stages": [
+      {
+       "label": "IdP publie",
+       "sub": "entityID, URL SSO, certificat",
+       "icon": "saml"
+      },
+      {
+       "label": "SP publie",
+       "sub": "entityID, ACS URL",
+       "icon": "server"
+      },
+      {
+       "label": "Admin échange",
+       "sub": "chacun importe l'autre",
+       "icon": "gear"
+      },
+      {
+       "label": "Au login : IdP signe",
+       "sub": "avec sa clé privée",
+       "icon": "padlock"
+      },
+      {
+       "label": "SP vérifie",
+       "sub": "avec le certificat public",
+       "icon": "document",
+       "tone": "good"
+      }
+     ],
+     "caption": "Si un de ces éléments est faux, la connexion échoue."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Comment les messages voyagent (bindings)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "HTTP-Redirect",
+       "d": "AuthnRequest : XML compressé, encodé en base64, passé dans l'URL."
+      },
+      {
+       "icon": "document",
+       "t": "HTTP-POST",
+       "d": "Réponse : XML en base64 dans le champ SAMLResponse, postée vers l'ACS."
+      },
+      {
+       "icon": "client",
+       "t": "Navigateur = facteur",
+       "d": "Il porte les messages sans les interpréter ni les modifier.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "stack",
+     "title": "Anatomie d'une assertion (ordre dans le XML)",
+     "layers": [
+      {
+       "label": "Assertion",
+       "sub": "ID, IssueInstant, Version",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Issuer",
+       "sub": "l'IdP émetteur",
+       "icon": "saml",
+       "tone": "info"
+      },
+      {
+       "label": "Signature",
+       "sub": "ds:Signature vérifiée par le SP",
+       "icon": "padlock",
+       "tone": "good"
+      },
+      {
+       "label": "Subject",
+       "sub": "NameID + confirmation",
+       "icon": "user",
+       "tone": "info",
+       "tags": [
+        "NameID",
+        "InResponseTo",
+        "Recipient"
+       ]
+      },
+      {
+       "label": "Conditions",
+       "sub": "validité et destinataire",
+       "icon": "permissions",
+       "tone": "warn",
+       "tags": [
+        "NotBefore",
+        "NotOnOrAfter",
+        "Audience"
+       ]
+      },
+      {
+       "label": "AuthnStatement",
+       "sub": "contexte d'authentification",
+       "icon": "mfa",
+       "tone": "info"
+      },
+      {
+       "label": "AttributeStatement",
+       "sub": "ex. Department = Sales",
+       "icon": "directory",
+       "tone": "info"
+      }
+     ],
+     "side": "du haut vers le bas du XML"
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "saml",
+       "ctx": "Protocole de fédération : assertion XML signée de l'IdP vers le SP."
+      },
+      {
+       "k": "server",
+       "ctx": "Le SP : l'application qui valide la réponse et ouvre la session."
+      },
+      {
+       "k": "user",
+       "ctx": "Le sujet : ne donne jamais son mot de passe au SP."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center peut jouer le SP SAML pour l'accès aux comptes AWS."
+      },
+      {
+       "k": "sts",
+       "ctx": "AssumeRoleWithSAML : échange l'assertion contre des identifiants temporaires."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-05",
+  "services": [
+   "saml",
+   "server",
+   "sso",
+   "sts",
+   "bot"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   5,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "SP-initiated: temchi lel banque w houa yb3athek lel baladiya. IdP-initiated: tbda mel portail mta3 el baladiya w houa yb3athek lel banque bel wathika. Houni el banque ma talabetch 7ata 7aja, donc lazem tkoun a7ras: khatm, destination, date, w matod5olch nafs el wathika marrten."
+  },
+  "insert": [
+   {
+    "after": 2,
+    "block": {
+     "type": "compare",
+     "title": "IdP-initiated vs SP-initiated",
+     "cols": [
+      {
+       "name": "IdP-initiated",
+       "tag": "Départ : portail de l'IdP",
+       "icon": "saml",
+       "points": [
+        "AuthnRequest généralement absente",
+        "L'IdP choisit l'application",
+        "Usage : portail d'entreprise (tuiles)",
+        "Réponse non sollicitée : contrôler la destination"
+       ],
+       "use": "Portail SSO avec tuiles d'applications."
+      },
+      {
+       "name": "SP-initiated",
+       "tag": "Départ : application cible",
+       "icon": "server",
+       "points": [
+        "AuthnRequest créée par le SP",
+        "Le SP conserve la demande initiale",
+        "Usage : lien direct, signet, e-mail",
+        "Lier la réponse à la requête (InResponseTo)"
+       ],
+       "use": "Lien direct vers une application."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "pipeline",
+     "title": "Les 7 contrôles du SP avant d'ouvrir une session",
+     "stages": [
+      {
+       "label": "1. Signature",
+       "sub": "certificat de l'IdP",
+       "icon": "padlock"
+      },
+      {
+       "label": "2. Émetteur",
+       "sub": "= l'IdP configuré",
+       "icon": "saml"
+      },
+      {
+       "label": "3. Audience",
+       "sub": "= entityID du SP",
+       "icon": "server"
+      },
+      {
+       "label": "4. Destination",
+       "sub": "= ACS exacte",
+       "icon": "internet"
+      },
+      {
+       "label": "5. Dates",
+       "sub": "NotBefore / NotOnOrAfter",
+       "icon": "tempcred"
+      },
+      {
+       "label": "6. InResponseTo",
+       "sub": "= ID de l'AuthnRequest",
+       "icon": "document"
+      },
+      {
+       "label": "7. Anti-rejeu",
+       "sub": "ID déjà vu = refus",
+       "icon": "database",
+       "tone": "good"
+      }
+     ],
+     "caption": "L'assertion transite par le navigateur : le SP ne la croit pas sur parole. Un seul contrôle qui échoue = rejet."
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "matrix",
+     "title": "Chaque contrôle bloque une attaque précise",
+     "rows": [
+      "Signature",
+      "Émetteur (Issuer)",
+      "Audience, Destination, Recipient",
+      "NotBefore / NotOnOrAfter",
+      "InResponseTo",
+      "Anti-rejeu (ID déjà vu)"
+     ],
+     "cols": [
+      "Falsification",
+      "IdP pirate",
+      "Autre SP",
+      "Vieux jeton volé",
+      "Non sollicitée",
+      "Rejeu"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "ok",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "na",
+       "na",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Bloque",
+      "na": "-"
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "pipeline",
+     "title": "Signature wrapping (expliqué simplement)",
+     "stages": [
+      {
+       "label": "Assertion d'origine",
+       "sub": "signée, déplacée",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Faux élément inséré",
+       "sub": "autre utilisateur",
+       "icon": "bot",
+       "tone": "bad"
+      },
+      {
+       "label": "Signature valide",
+       "sub": "le SP la vérifie : OK",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "Le SP lit le faux",
+       "sub": "données non signées",
+       "icon": "server",
+       "tone": "bad"
+      },
+      {
+       "label": "Accès usurpé",
+       "sub": "session pour un autre",
+       "icon": "user",
+       "tone": "bad"
+      }
+     ],
+     "caption": "Défense : la signature doit couvrir exactement l'élément consommé ; bibliothèque SAML maintenue, jamais d'analyseur XML maison."
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "Bonnes pratiques côté SP",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Refuser le non signé",
+       "d": "Toute réponse sans signature valide est rejetée."
+      },
+      {
+       "icon": "tempcred",
+       "t": "Assertions courtes",
+       "d": "Courte durée de vie : une assertion volée expire vite."
+      },
+      {
+       "icon": "database",
+       "t": "Stocker les ID",
+       "d": "Les ID consommés sont mémorisés pour bloquer le rejeu."
+      },
+      {
+       "icon": "document",
+       "t": "Comparaison exacte",
+       "d": "ACS et audience comparés exactement, pas « commence par »."
+      },
+      {
+       "icon": "internet",
+       "t": "HTTPS partout",
+       "d": "Le canal reste protégé contre l'écoute."
+      },
+      {
+       "icon": "saml",
+       "t": "Préférer SP-initiated",
+       "d": "Si possible : la réponse est liée à une requête."
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "saml",
+       "ctx": "Fédération : l'IdP signe l'assertion que le SP doit valider."
+      },
+      {
+       "k": "server",
+       "ctx": "Le SP : exécute les 7 contrôles avant d'ouvrir une session."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center, côté SP : valide signature, audience et destination."
+      },
+      {
+       "k": "sts",
+       "ctx": "AssumeRoleWithSAML : n'accepte l'assertion que si elle est valide et destinée à AWS."
+      },
+      {
+       "k": "bot",
+       "ctx": "L'attaquant : rejoue, falsifie ou détourne une assertion interceptée."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-06",
+  "services": [
+   "sso",
+   "saml",
+   "users",
+   "longcred",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   7
+  ],
+  "shorten": {
+   "0": "SCIM = secrétaire el 3ors: yekhdhelek el liste el principale (annuaire) w ybaddel el liste fi kol salle (SaaS) f nafs el wa9t: yzid, ybaddel, yfassakh, b'format JSON wa7ed. Ma3andouch 5edma bel bab: SAML/OIDC yedkhel el nes, SCIM ykhdem el liste bark."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Sans provisionnement automatique",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "user",
+       "t": "Arrivée manuelle",
+       "d": "Un compte à créer à la main, application par application.",
+       "tone": "warn"
+      },
+      {
+       "icon": "users",
+       "t": "Changements oubliés",
+       "d": "Équipe ou projet changent, les droits s'accumulent.",
+       "tone": "warn"
+      },
+      {
+       "icon": "longcred",
+       "t": "Départ oublié",
+       "d": "Comptes orphelins restant dans une ou plusieurs applications.",
+       "tone": "bad"
+      },
+      {
+       "icon": "saml",
+       "t": "SAML/OIDC ne suffit pas",
+       "d": "Ils règlent la connexion, pas la création ni la suppression du compte.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "SCIM 2.0 en 4 repères",
+     "items": [
+      {
+       "icon": "document",
+       "big": "RFC 7643",
+       "label": "Schéma",
+       "sub": "attributs et types de ressources"
+      },
+      {
+       "icon": "internet",
+       "big": "RFC 7644",
+       "label": "Protocole",
+       "sub": "requêtes HTTP, filtrage, PATCH"
+      },
+      {
+       "icon": "database",
+       "big": "JSON",
+       "label": "Format des ressources",
+       "sub": "userName, name, emails, active"
+      },
+      {
+       "icon": "directory",
+       "big": "/Users /Groups",
+       "label": "Endpoints REST",
+       "sub": "POST, GET, PATCH, DELETE"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Contrôles de l'architecture SCIM",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "TLS",
+       "d": "Protège les échanges entre client et serveur SCIM."
+      },
+      {
+       "icon": "secrets",
+       "t": "Jeton OAuth limité",
+       "d": "Le client SCIM ne fait que le nécessaire ; son jeton est une cible de choix.",
+       "tone": "warn"
+      },
+      {
+       "icon": "tempcred",
+       "t": "Rotation des secrets",
+       "d": "Remplacer régulièrement jetons et secrets du client SCIM."
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "Journalisation",
+       "d": "Tracer chaque création, modification et suppression."
+      },
+      {
+       "icon": "gear",
+       "t": "Gestion des erreurs",
+       "d": "Réponses et erreurs remontées au client SCIM."
+      },
+      {
+       "icon": "directory",
+       "t": "Réconciliation",
+       "d": "Comparer périodiquement annuaire et applications, corriger les écarts."
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Opérations SCIM et cycle de vie",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "user",
+       "t": "Créer",
+       "d": "POST /Users : compte provisionné ; userName unique."
+      },
+      {
+       "icon": "directory",
+       "t": "Rechercher",
+       "d": "GET /Users?filter=... ; pagination startIndex et count ; réponse ListResponse."
+      },
+      {
+       "icon": "gear",
+       "t": "Modifier",
+       "d": "PATCH /Users/{id} : attribut ou groupe mis à jour, opérations validées."
+      },
+      {
+       "icon": "padlock",
+       "t": "Désactiver",
+       "d": "PATCH active=false : connexion et sessions bloquées, propagation rapide.",
+       "tone": "warn"
+      },
+      {
+       "icon": "longcred",
+       "t": "Supprimer",
+       "d": "DELETE /Users/{id} : compte retiré selon la politique ; traces conservées.",
+       "tone": "bad"
+      },
+      {
+       "icon": "users",
+       "t": "Groupes",
+       "d": "POST /Groups, PATCH /Groups/{id} : membres ajoutés ou retirés."
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center expose un serveur SCIM : l'IdP y provisionne users et groupes."
+      },
+      {
+       "k": "saml",
+       "ctx": "L'IdP : joue le client SCIM et connecte l'utilisateur par SAML ou OIDC."
+      },
+      {
+       "k": "users",
+       "ctx": "Comptes et groupes synchronisés : cibles des POST et PATCH SCIM."
+      },
+      {
+       "k": "longcred",
+       "ctx": "Clés et jetons locaux qui survivent sans déprovisionnement."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Trace création, désactivation et suppression des comptes."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-07",
+  "services": [
+   "cognito",
+   "apigw",
+   "tempcred",
+   "secrets",
+   "client"
+  ],
+  "drop": [
+   1,
+   3,
+   4,
+   7,
+   9
+  ],
+  "shorten": {
+   "0": "Application « Impression photos » tolbek el mot de passe mta3 Google: ya3ni tsalemha el clé mta3 el dar kolha. OAuth y7el el mochkla: el application ta5ou ken jeton limité (« tnajjem tkra ken tsawer, 15 d9aye9 »), w el mot de passe ma yokhrejch men 3andek.",
+   "2": "**OAuth 2.0** (RFC 6749) : framework de **délégation d'autorisation**. Un propriétaire de ressource autorise un client à accéder à une API en son nom, via un **access token** émis par un serveur d'autorisation. Il répond à « que peut faire ce client ? », pas à « qui est connecté ? »."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "Avant OAuth, avec OAuth",
+     "cols": [
+      {
+       "name": "Avant : mot de passe donné",
+       "tag": "Dangereux",
+       "icon": "longcred",
+       "points": [
+        "L'appli obtient tous les droits du compte",
+        "Elle stocke ton mot de passe",
+        "Retirer l'accès = changer le mot de passe",
+        "Aucune trace claire de ses actions"
+       ],
+       "use": "À proscrire."
+      },
+      {
+       "name": "Avec OAuth : jeton délégué",
+       "tag": "Maîtrisé",
+       "icon": "tempcred",
+       "points": [
+        "Périmètre précis (scope)",
+        "Durée et audience limitées",
+        "Révocable sans toucher au mot de passe",
+        "L'appli ne voit jamais le mot de passe"
+       ],
+       "use": "Délégation d'autorisation."
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "hub",
+     "title": "Les 4 acteurs (exemple : une app Agenda lit mon calendrier)",
+     "center": {
+      "label": "OAuth 2.0",
+      "sub": "délégation",
+      "icon": "padlock"
+     },
+     "spokes": [
+      {
+       "label": "Resource Owner",
+       "sub": "moi, propriétaire du calendrier",
+       "icon": "user",
+       "note": "Autorise l'accès à ses données. Ce n'est pas le client.",
+       "tone": "info"
+      },
+      {
+       "label": "Client",
+       "sub": "Agenda Plus, client_id",
+       "icon": "client",
+       "note": "Application qui demande une délégation (client_id = agenda-app). Ce n'est pas l'utilisateur.",
+       "tone": "info"
+      },
+      {
+       "label": "Authorization Server",
+       "sub": "auth.example.com",
+       "icon": "saml",
+       "note": "Authentifie l'utilisateur, recueille le consentement et émet les jetons.",
+       "tone": "info"
+      },
+      {
+       "label": "Resource Server",
+       "sub": "API Calendar",
+       "icon": "server",
+       "note": "api.example.com : contrôle l'access token (scope, audience) avant de répondre.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Scope, consentement, jetons",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Scope",
+       "d": "Opérations demandées (calendar.readonly) : plus étroit, moins dangereux si volé."
+      },
+      {
+       "icon": "user",
+       "t": "Consentement",
+       "d": "Écran : qui demande quoi ; relie la demande à l'utilisateur."
+      },
+      {
+       "icon": "tempcred",
+       "t": "Access token",
+       "d": "Clé temporaire présentée à l'API : durée et audience limitées.",
+       "tone": "good"
+      },
+      {
+       "icon": "longcred",
+       "t": "Refresh token",
+       "d": "Obtient un nouvel access token ; plus sensible : rotation, stockage protégé.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "pipeline",
+     "title": "PKCE (RFC 7636) : un code volé devient inutile",
+     "stages": [
+      {
+       "label": "Crée code_verifier",
+       "sub": "secret aléatoire, usage unique",
+       "icon": "client"
+      },
+      {
+       "label": "Envoie code_challenge",
+       "sub": "empreinte S256 du verifier",
+       "icon": "padlock"
+      },
+      {
+       "label": "Reçoit le code",
+       "sub": "via redirection du navigateur",
+       "icon": "internet"
+      },
+      {
+       "label": "Token request",
+       "sub": "code + code_verifier",
+       "icon": "client"
+      },
+      {
+       "label": "Serveur recalcule S256",
+       "sub": "compare avec le challenge",
+       "icon": "saml"
+      },
+      {
+       "label": "Code volé = inutile",
+       "sub": "sans le verifier",
+       "icon": "padlock",
+       "tone": "good"
+      }
+     ],
+     "caption": "Indispensable aux clients publics (mobile, SPA : pas de client_secret) ; recommandé pour tous les clients (RFC 9700)."
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "matrix",
+     "title": "Chaque contrôle bloque une menace",
+     "rows": [
+      "redirect_uri exact (sans wildcard)",
+      "state aléatoire lié au navigateur",
+      "PKCE (S256)",
+      "Scope, audience, durée limités",
+      "Refresh token : rotation"
+     ],
+     "cols": [
+      "Code vers attaquant",
+      "CSRF",
+      "Code intercepté",
+      "Access token volé",
+      "Refresh volé"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "na",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Bloque",
+      "na": "-"
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "decision",
+     "title": "Quel flux OAuth utiliser ?",
+     "root": {
+      "q": "Un utilisateur délègue-t-il l'accès ?",
+      "yes": {
+       "a": "Authorization Code + PKCE",
+       "icon": "padlock",
+       "tone": "good",
+       "why": "Indispensable aux clients publics, recommandé pour tous"
+      },
+      "no": {
+       "a": "Client Credentials",
+       "icon": "server",
+       "tone": "info",
+       "why": "Service à service : aucun utilisateur impliqué"
+      }
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cognito",
+       "ctx": "User pool Cognito : serveur d'autorisation qui émet des jetons OAuth 2.0."
+      },
+      {
+       "k": "apigw",
+       "ctx": "API Gateway : resource server qui contrôle l'access token avant de répondre."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "L'access token : clé temporaire limitée en scope, durée et audience."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Stocke côté serveur les secrets et refresh tokens sensibles."
+      },
+      {
+       "k": "client",
+       "ctx": "Le client : application qui demande la délégation, jamais le mot de passe."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-08",
+  "services": [
+   "cognito",
+   "apigw",
+   "saml",
+   "client",
+   "tempcred"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   6,
+   7
+  ],
+  "shorten": {
+   "0": "OAuth = clé mta3 el voiture li t3atiha lel valet: ma ya3rafch inti chkoun. OIDC = el CIN: token signé men el IdP yo9ol « hedha flen, tconnecta tawa ». OAuth = chnoua ynajjem ya3mel el client, OIDC = chkoun dkhal."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "stack",
+     "title": "OIDC = OAuth 2.0 + identité",
+     "layers": [
+      {
+       "label": "OpenID Connect",
+       "sub": "qui vient de se connecter ?",
+       "icon": "user",
+       "tone": "good",
+       "tags": [
+        "ID token (JWT)",
+        "scope openid",
+        "UserInfo",
+        "Discovery + JWKS"
+       ]
+      },
+      {
+       "label": "OAuth 2.0",
+       "sub": "que peut faire le client ?",
+       "icon": "padlock",
+       "tone": "info",
+       "tags": [
+        "Authorization Code + PKCE",
+        "access token",
+        "refresh token"
+       ]
+      },
+      {
+       "label": "HTTPS / TLS",
+       "sub": "canal protégé",
+       "icon": "internet",
+       "tone": "neutral"
+      }
+     ],
+     "side": "OIDC se pose sur OAuth, il ne le remplace pas"
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Ce que change OIDC dans le flux Authorization Code",
+     "stages": [
+      {
+       "label": "Lit la configuration",
+       "sub": "discovery + jwks_uri",
+       "icon": "document"
+      },
+      {
+       "label": "Requête scope=openid",
+       "sub": "+ nonce, state, PKCE",
+       "icon": "client"
+      },
+      {
+       "label": "IdP authentifie",
+       "sub": "login, MFA, consentement",
+       "icon": "saml"
+      },
+      {
+       "label": "Token endpoint",
+       "sub": "id_token + access_token",
+       "icon": "tempcred"
+      },
+      {
+       "label": "Valide l'ID token",
+       "sub": "avant de créer la session",
+       "icon": "padlock",
+       "tone": "good"
+      }
+     ],
+     "caption": "Le client échange toujours code + code_verifier ; UserInfo (avec l'access token) donne les attributs autorisés."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "arch",
+     "title": "Qui reçoit quel jeton ?",
+     "groups": [
+      {
+       "id": "gu",
+       "label": "Utilisateur",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "user",
+         "label": "Utilisateur",
+         "sub": "navigateur ou mobile",
+         "icon": "user"
+        }
+       ]
+      },
+      {
+       "id": "gc",
+       "label": "Application cliente (RP)",
+       "kind": "generic",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "app",
+         "label": "Application",
+         "sub": "valide l'ID token",
+         "icon": "client"
+        }
+       ]
+      },
+      {
+       "id": "gi",
+       "label": "Fournisseur OIDC (IdP)",
+       "kind": "org",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "idp",
+         "label": "Serveur OIDC",
+         "sub": "login, MFA, jetons",
+         "icon": "saml"
+        },
+        {
+         "id": "jwks",
+         "label": "JWKS + UserInfo",
+         "sub": "clés publiques, attributs",
+         "icon": "directory"
+        }
+       ]
+      },
+      {
+       "id": "ga",
+       "label": "API protégée",
+       "kind": "zone",
+       "col": 3,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "api",
+         "label": "Resource Server",
+         "sub": "vérifie l'access token",
+         "icon": "server"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "user",
+       "to": "app",
+       "label": "1. Se connecte",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "app",
+       "to": "idp",
+       "label": "2. scope=openid + nonce",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "idp",
+       "to": "app",
+       "label": "3. id_token + access_token",
+       "style": "dashed"
+      },
+      {
+       "id": "e4",
+       "from": "app",
+       "to": "jwks",
+       "label": "4. Clés publiques (signature)",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "app",
+       "to": "api",
+       "label": "5. access_token (Bearer)",
+       "style": "solid"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "user",
+        "app"
+       ],
+       "caption": "L'utilisateur veut se connecter à l'application cliente."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "app",
+        "idp"
+       ],
+       "caption": "Requête d'authentification : scope openid et nonce en plus des paramètres OAuth."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "idp",
+        "app"
+       ],
+       "caption": "Le serveur renvoie un ID token (pour l'application) et un access token (pour l'API)."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "app",
+        "jwks"
+       ],
+       "caption": "L'application vérifie la signature avec les clés publiques du JWKS, puis iss, aud, exp et nonce."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "app",
+        "api"
+       ],
+       "caption": "L'access token sert uniquement à appeler l'API ; l'ID token reste pour l'application."
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Contrôles du client avant de faire confiance à l'ID token",
+     "rows": [
+      "Signature + algorithme (jamais none)",
+      "iss = l'issuer de l'IdP",
+      "aud contient MON client_id",
+      "exp (et iat) non dépassée",
+      "nonce identique à l'envoi"
+     ],
+     "cols": [
+      "Jeton forgé",
+      "Autre IdP",
+      "Autre application",
+      "Vieux jeton",
+      "Rejeu / injection"
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "na",
+       "na",
+       "na",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Bloque",
+      "na": "-"
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "compare",
+     "title": "Les 3 jetons à ne pas confondre",
+     "cols": [
+      {
+       "name": "ID token",
+       "tag": "Pour l'application",
+       "icon": "user",
+       "points": [
+        "Décrit l'authentification et l'identité",
+        "Valider issuer, audience, nonce, signature"
+       ],
+       "use": "Jamais une autorisation métier."
+      },
+      {
+       "name": "Access token",
+       "tag": "Pour l'API",
+       "icon": "tempcred",
+       "points": [
+        "Porte la délégation et les scopes",
+        "Limiter audience, portée et durée"
+       ],
+       "use": "Sert uniquement à appeler l'API."
+      },
+      {
+       "name": "Refresh token",
+       "tag": "Pour le serveur d'autorisation",
+       "icon": "longcred",
+       "points": [
+        "Obtient un nouvel access token",
+        "Rotation, stockage sécurisé, révocation"
+       ],
+       "use": "Le plus sensible des trois."
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "cognito",
+       "ctx": "User pool Cognito : IdP OIDC qui émet ID, access et refresh tokens."
+      },
+      {
+       "k": "saml",
+       "ctx": "L'IdP OIDC : garant de l'identité, publie discovery et JWKS."
+      },
+      {
+       "k": "client",
+       "ctx": "L'application cliente : valide iss, aud, exp, nonce et signature."
+      },
+      {
+       "k": "apigw",
+       "ctx": "Valide l'access token (JWT) avant d'appeler l'API."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "L'access token : destiné à l'API, jamais à prouver l'identité."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-09",
+  "services": [
+   "iam",
+   "role",
+   "sso",
+   "ec2",
+   "permissions"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "RBAC = badge « prof »: el fonction t7added el 7a9. ABAC = bawab ysael « classe mta3 el prof = classe mta3 el note? ». RBAC sahel w wadhe7, ama ki ykthrou el équipes w el projets tod5ol f 3ajka mta3 roles; ABAC bpolicy wa7da w tags y7el el mochkla."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "RBAC et ABAC côte à côte",
+     "cols": [
+      {
+       "name": "RBAC",
+       "tag": "Décider par le rôle",
+       "icon": "role",
+       "points": [
+        "Décision : rôle attribué au principal",
+        "Exemple : rôle Analyste lit les rapports",
+        "Atout : lisible, fonctions stables",
+        "Limite : explosion du nombre de rôles",
+        "AWS : rôles, groupes IAM, permission sets"
+       ],
+       "use": "Socle des responsabilités métiers."
+      },
+      {
+       "name": "ABAC",
+       "tag": "Décider par les attributs",
+       "icon": "permissions",
+       "points": [
+        "Décision : attributs du principal, de la ressource, du contexte",
+        "Exemple : équipe du principal = équipe de la ressource",
+        "Atout : flexible à grande échelle",
+        "Limite : dépend de la qualité des attributs",
+        "AWS : tags aws:PrincipalTag / aws:ResourceTag"
+       ],
+       "use": "Extension dynamique à grande échelle."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "L'explosion des rôles, chiffrée",
+     "items": [
+      {
+       "icon": "role",
+       "big": "5 x 3 x 4 = 60",
+       "label": "rôles en RBAC pur",
+       "sub": "5 équipes x 3 env. x 4 fonctions"
+      },
+      {
+       "icon": "users",
+       "big": "+12",
+       "label": "rôles / nouvelle équipe",
+       "sub": "3 env. x 4 fonctions"
+      },
+      {
+       "icon": "permissions",
+       "big": "4 rôles",
+       "label": "en ABAC",
+       "sub": "+ condition sur tags équipe/env"
+      },
+      {
+       "icon": "iam",
+       "big": "1 policy",
+       "label": "pour toutes les équipes",
+       "sub": "actuelles et futures"
+      }
+     ]
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "decision",
+     "title": "RBAC, ABAC ou les deux ?",
+     "root": {
+      "q": "Les droits dépendent-ils seulement de la fonction ?",
+      "yes": {
+       "a": "RBAC seul",
+       "icon": "role",
+       "tone": "good",
+       "why": "Fonctions stables et peu nombreuses"
+      },
+      "no": {
+       "q": "Beaucoup de ressources, équipes ou projets qui changent ?",
+       "yes": {
+        "a": "RBAC (socle) + ABAC",
+        "icon": "permissions",
+        "tone": "good",
+        "why": "Le rôle dit quoi ; les attributs disent sur quoi"
+       },
+       "no": {
+        "a": "RBAC suffit",
+        "icon": "role",
+        "tone": "neutral",
+        "why": "Quelques rôles de plus, sans attributs"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "ABAC = la qualité des attributs",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Tags modifiables",
+       "d": "Si un utilisateur change son tag team, il s'attribue des accès.",
+       "tone": "bad"
+      },
+      {
+       "icon": "padlock",
+       "t": "Contrôler les tags",
+       "d": "Limiter qui pose et modifie les tags ; les imposer à la création.",
+       "tone": "good"
+      },
+      {
+       "icon": "question",
+       "t": "Ressource sans tag",
+       "d": "Une ressource non taguée est simplement hors du modèle : surveiller.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Rôles et groupes IAM (RBAC) puis conditions de policy (ABAC)."
+      },
+      {
+       "k": "role",
+       "ctx": "Rôle IAM : catalogue de fonctions, socle du RBAC."
+      },
+      {
+       "k": "sso",
+       "ctx": "Permission sets d'IAM Identity Center : rôles de fonction."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Ressource taguée dont l'équipe est comparée au tag du principal."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Policy ABAC : aws:ResourceTag égal à aws:PrincipalTag."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-10",
+  "services": [
+   "iam",
+   "s3",
+   "permissions",
+   "orgs"
+  ],
+  "drop": [
+   1,
+   3,
+   5,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "Docteur y7eb ymodifi dossier f 02:00. El agent mta3 el bab (PEP) ma yfassarch weyel: ysaal el directeur (PDP) elli yfta7 el règlement (PAP) w ytlob men el secrétariat (PIP) el ma3loumet. El sa3a 02:00 ya3ni Deny. El décision tetaked mel contexte, mouch ken mel rôle.",
+   "2": "**XACML 3.0** (OASIS) : langage de politiques et modèle de traitement des décisions d'autorisation par **attributs**. Question unique : le **sujet** peut-il faire cette **action** sur cette **ressource** dans ce **contexte** ? C'est l'ABAC formalisé ; AWS IAM n'utilise pas sa syntaxe mais suit la même logique."
+  },
+  "insert": [
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Une requête XACML : 4 familles d'attributs",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "user",
+       "t": "Sujet",
+       "d": "Qui demande : rôle Médecin, département Cardiologie, habilitation."
+      },
+      {
+       "icon": "database",
+       "t": "Ressource",
+       "d": "Ce qui est visé : dossier patient, propriétaire, sensibilité élevée."
+      },
+      {
+       "icon": "gear",
+       "t": "Action",
+       "d": "Ce qu'on veut faire : lire, modifier, supprimer."
+      },
+      {
+       "icon": "internet",
+       "t": "Environnement",
+       "d": "Contexte : heure 02:00, réseau de l'hôpital, niveau de risque."
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "hub",
+     "title": "Les 4 composants : le PEP exécute, le PDP décide, le PIP informe, le PAP administre",
+     "center": {
+      "label": "Décision d'accès",
+      "sub": "XACML",
+      "icon": "permissions"
+     },
+     "spokes": [
+      {
+       "label": "PEP",
+       "sub": "Policy Enforcement Point",
+       "icon": "padlock",
+       "note": "Intercepte la demande et applique la décision.",
+       "tone": "info"
+      },
+      {
+       "label": "PDP",
+       "sub": "Policy Decision Point",
+       "icon": "iam",
+       "note": "Évalue la politique et décide.",
+       "tone": "info"
+      },
+      {
+       "label": "PIP",
+       "sub": "Policy Information Point",
+       "icon": "database",
+       "note": "Fournit les attributs manquants.",
+       "tone": "info"
+      },
+      {
+       "label": "PAP",
+       "sub": "Policy Administration Point",
+       "icon": "orgs",
+       "note": "Crée et administre les politiques.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "matrix",
+     "title": "Les 4 décisions possibles",
+     "rows": [
+      "Permit : une politique autorise",
+      "Deny : une politique refuse",
+      "NotApplicable : aucune politique",
+      "Indeterminate : calcul impossible"
+     ],
+     "cols": [
+      "Accès",
+      "Côté AWS IAM"
+     ],
+     "cells": [
+      [
+       "ok",
+       "Allow"
+      ],
+      [
+       "no",
+       "Deny"
+      ],
+      [
+       "no",
+       "Implicite"
+      ],
+      [
+       "warn",
+       "Allow ou Deny"
+      ]
+     ],
+     "legend": {
+      "ok": "Accordé",
+      "no": "Refusé",
+      "warn": "À traiter : fail closed"
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "cards",
+     "title": "Équivalences XACML / AWS IAM",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "PEP = service appelé",
+       "d": "S3, EC2, KMS... reçoit la requête et applique la décision."
+      },
+      {
+       "icon": "iam",
+       "t": "PDP",
+       "d": "Moteur d'évaluation des policies IAM."
+      },
+      {
+       "icon": "permissions",
+       "t": "PIP",
+       "d": "Contexte de requête, clés de condition et tags."
+      },
+      {
+       "icon": "orgs",
+       "t": "PAP",
+       "d": "IAM, AWS Organizations et outils de déploiement."
+      },
+      {
+       "icon": "document",
+       "t": "Politique",
+       "d": "Policies IAM JSON, SCP, resource policies et boundaries."
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "stack",
+     "title": "AWS : l'ordre de décision",
+     "layers": [
+      {
+       "label": "Deny explicite",
+       "sub": "l'emporte toujours",
+       "icon": "padlock",
+       "tone": "bad",
+       "tags": [
+        "dans n'importe quelle politique applicable"
+       ]
+      },
+      {
+       "label": "Allow explicite",
+       "sub": "autorise si aucun Deny",
+       "icon": "permissions",
+       "tone": "good"
+      },
+      {
+       "label": "Refus implicite",
+       "sub": "par défaut, tout est refusé",
+       "icon": "iam",
+       "tone": "neutral"
+      }
+     ],
+     "side": "du plus fort au plus faible"
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "callout",
+     "tone": "warn",
+     "title": "Attention au temps",
+     "text": "aws:CurrentTime compare une date et heure absolues (ex. jusqu'au 31 mars) : utile pour des accès temporaires, pas pour exprimer « chaque jour de 08:00 à 18:00 »."
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Moteur de décision (PDP) : évalue les policies, un Deny explicite l'emporte."
+      },
+      {
+       "k": "s3",
+       "ctx": "Service appelé = PEP : applique la décision d'IAM."
+      },
+      {
+       "k": "permissions",
+       "ctx": "Policies JSON : le langage de politique d'AWS, pas la syntaxe XACML."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Côté PAP : AWS Organizations distribue les SCP."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-11",
+  "services": [
+   "sts",
+   "iam",
+   "accessanalyzer",
+   "orgs",
+   "sso",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   2,
+   7,
+   8,
+   10
+  ],
+  "shorten": {
+   "0": "Moindre privilège: 3tih 9ad 9ad li y7taj, ken l wa9t li y7taj (femme de ménage: salon w cuisine, mouch bureau). Séparation: ma tdirch el virement w tvalidih rouhek. Échelle: el identité f blasa wa7da. Zero Trust: kol demande tet3awed, ma testanech el bab sa7i7.",
+   "4": "**Séparation des responsabilités** : dissocier **demande**, **validation** et **exécution** d'une opération critique. Aucun rôle ne crée puis approuve son propre changement ; double validation pour les privilèges sensibles ; élévations journalisées. **Break-glass** : rôle d'exception, utilisable seulement en incident, avec approbation, durée courte et journalisation renforcée."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Les 4 principes de gouvernance",
+     "center": {
+      "label": "Gouvernance IAM",
+      "sub": "limiter l'impact",
+      "icon": "iam"
+     },
+     "spokes": [
+      {
+       "label": "Moindre privilège",
+       "sub": "droits strictement nécessaires",
+       "icon": "permissions",
+       "note": "Limiter actions et ressources, préférer les sessions temporaires, réduire selon les usages, réévaluer après un changement de fonction.",
+       "tone": "info"
+      },
+      {
+       "label": "Séparation",
+       "sub": "demande, validation, exécution",
+       "icon": "users",
+       "note": "Aucune personne ne contrôle seule une opération critique.",
+       "tone": "info"
+      },
+      {
+       "label": "Échelle",
+       "sub": "centraliser + garde-fous",
+       "icon": "orgs",
+       "note": "Identité, SSO, rôles et SCIM centralisés ; administration distribuée avec SCP, ABAC et revues.",
+       "tone": "info"
+      },
+      {
+       "label": "Zero Trust",
+       "sub": "vérifier chaque accès",
+       "icon": "padlock",
+       "note": "Aucune confiance implicite du seul fait d'être dans le réseau.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Moindre privilège : quatre leviers",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "permissions",
+       "t": "Limiter",
+       "d": "Actions, ressources et conditions précises : pas de * par confort."
+      },
+      {
+       "icon": "sts",
+       "t": "Sessions temporaires",
+       "d": "Rôles assumés via STS plutôt que clés d'accès d'utilisateur IAM."
+      },
+      {
+       "icon": "accessanalyzer",
+       "t": "Réduire selon l'usage",
+       "d": "Analyser les dernières utilisations et Access Analyzer pour affiner."
+      },
+      {
+       "icon": "iam",
+       "t": "Réévaluer",
+       "d": "Revoir l'accès après chaque changement de fonction."
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "decision",
+     "title": "Quels identifiants choisir ?",
+     "root": {
+      "q": "Le demandeur est-il un humain ?",
+      "yes": {
+       "a": "SSO + session temporaire",
+       "icon": "sso",
+       "tone": "good",
+       "why": "Fédération, pas de mot de passe local"
+      },
+      "no": {
+       "q": "La charge de travail tourne-t-elle sur AWS ?",
+       "yes": {
+        "a": "Rôle IAM (STS)",
+        "icon": "role",
+        "tone": "good",
+        "why": "Identifiants ASIA... qui expirent"
+       },
+       "no": {
+        "a": "Clé d'accès permanente",
+        "icon": "longcred",
+        "tone": "warn",
+        "why": "Exception : rotation et surveillance strictes"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "stack",
+     "title": "Gestion à l'échelle : centraliser et distribuer",
+     "layers": [
+      {
+       "label": "Garde-fous : revues",
+       "sub": "droits inutilisés retirés",
+       "icon": "accessanalyzer",
+       "tone": "good",
+       "tags": [
+        "Revues d'accès",
+        "Access Analyzer"
+       ]
+      },
+      {
+       "label": "Garde-fous : ABAC",
+       "sub": "tags principal et ressource",
+       "icon": "permissions",
+       "tone": "good"
+      },
+      {
+       "label": "Garde-fous : plafonds",
+       "sub": "imposés par l'organisation",
+       "icon": "orgs",
+       "tone": "good",
+       "tags": [
+        "SCP",
+        "permission boundaries"
+       ]
+      },
+      {
+       "label": "Distribuer",
+       "sub": "administration déléguée",
+       "icon": "users",
+       "tone": "info",
+       "tags": [
+        "comptes par équipe",
+        "rôles d'admin délégués"
+       ]
+      },
+      {
+       "label": "Centraliser",
+       "sub": "identité, SSO, rôles, SCIM",
+       "icon": "sso",
+       "tone": "info",
+       "tags": [
+        "IdP",
+        "IAM Identity Center",
+        "permission sets"
+       ]
+      }
+     ],
+     "side": "des garde-fous (haut) à la centralisation (bas)"
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "facts",
+     "title": "Les indicateurs à suivre",
+     "items": [
+      {
+       "icon": "user",
+       "big": "Orphelins",
+       "label": "comptes sans propriétaire",
+       "sub": "échec du Leaver : désactiver"
+      },
+      {
+       "icon": "mfa",
+       "big": "Couverture MFA",
+       "label": "comptes protégés",
+       "sub": "surtout les privilégiés"
+      },
+      {
+       "icon": "accessanalyzer",
+       "big": "Inutilisés",
+       "label": "droits jamais exercés",
+       "sub": "retirer ou réduire"
+      },
+      {
+       "icon": "padlock",
+       "big": "Break-glass",
+       "label": "accès d'urgence utilisés",
+       "sub": "revue après chaque usage"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "sts",
+       "ctx": "Sessions temporaires (ASIA...) à la place des clés permanentes."
+      },
+      {
+       "k": "iam",
+       "ctx": "Rôles et policies : moindre privilège au quotidien."
+      },
+      {
+       "k": "accessanalyzer",
+       "ctx": "Réduit les droits d'après l'activité observée."
+      },
+      {
+       "k": "orgs",
+       "ctx": "SCP : plafond imposé à tous les comptes."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center : SSO centralisé et catalogue de permission sets."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journaux protégés pour auditer élévations et break-glass."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2a-12",
+  "services": [
+   "saml",
+   "sso",
+   "role",
+   "orgs",
+   "mfa",
+   "cloudtrail"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   6,
+   7,
+   14
+  ],
+  "shorten": {
+   "0": "Boite à outils: SAML/OIDC lel connexion, SCIM lel création w el départ, OAuth lel API, RBAC/ABAC lel 7o9ou9, MFA lel preuve, journaux ba3d. El mécanicien ykhtar el outil el mnaseb ll 3otb. Fi kol question: 9oul chnoua el besoin, ba3d akhtar w zid « 3lech ».",
+   "5": "**Énoncé : GreenTech accueille un développeur externe 3 mois en environnement de test.** À définir : source d'identité, fédération, provisionnement ; authentification, MFA, durée de session ; modèle RBAC ou ABAC justifié ; séparation déploiement / approbation / audit ; révocation ; journaux de preuve.",
+   "11": "« L'**IdP GreenTech** est la source de vérité : identité externe avec date de fin. **SSO SAML 2.0** (ou OIDC), **MFA** obligatoire, session courte, identifiants temporaires. **SCIM** crée et désactive le compte. **RBAC** : rôle limité au compte de test ; **ABAC** : tags du projet. **Séparation** : il propose, GreenTech approuve, un pipeline déploie, l'audit lit. Fin de contrat : **active=false**, sessions révoquées, revue, suppression. **Journaux** protégés dans un compte séparé. »"
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "decision",
+     "title": "Besoin → mécanisme IAM",
+     "root": {
+      "q": "Il s'agit d'authentifier ou de gérer l'identité ?",
+      "yes": {
+       "q": "Gérer le compte (créer, modifier, désactiver) ?",
+       "yes": {
+        "a": "SCIM 2.0",
+        "icon": "directory",
+        "tone": "good",
+        "why": "Provisionnement, /Users, active=false"
+       },
+       "no": {
+        "q": "Connecter un employé à une application ?",
+        "yes": {
+         "a": "SAML 2.0 ou OIDC",
+         "icon": "saml",
+         "tone": "good",
+         "why": "Fédération, SSO, assertion ou ID token"
+        },
+        "no": {
+         "a": "MFA",
+         "icon": "mfa",
+         "tone": "good",
+         "why": "Facteurs indépendants, obligatoire pour les privilégiés"
+        }
+       }
+      },
+      "no": {
+       "q": "Une application appelle-t-elle une API au nom de l'utilisateur ?",
+       "yes": {
+        "a": "OAuth 2.0",
+        "icon": "padlock",
+        "tone": "good",
+        "why": "Délégation, access token, scope"
+       },
+       "no": {
+        "q": "Les droits suivent-ils la fonction seule ?",
+        "yes": {
+         "a": "RBAC",
+         "icon": "role",
+         "tone": "good",
+         "why": "Rôle, socle des responsabilités"
+        },
+        "no": {
+         "a": "ABAC (+ RBAC)",
+         "icon": "permissions",
+         "tone": "good",
+         "why": "Attributs, tags, contexte"
+        }
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "Les 4 standards en un coup d'oeil",
+     "items": [
+      {
+       "icon": "saml",
+       "big": "SAML 2.0",
+       "label": "Fédération et SSO",
+       "sub": "assertion XML signée"
+      },
+      {
+       "icon": "padlock",
+       "big": "OAuth 2.0",
+       "label": "Délégation",
+       "sub": "access token vers une API"
+      },
+      {
+       "icon": "user",
+       "big": "OpenID Connect",
+       "label": "Authentification moderne",
+       "sub": "ID token, web et mobile"
+      },
+      {
+       "icon": "directory",
+       "big": "SCIM 2.0",
+       "label": "Provisionnement",
+       "sub": "JSON via REST, comptes"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "Les 4 questions réflexes",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "user",
+       "t": "1. Qui se connecte ?",
+       "d": "Comment est-ce prouvé ? SAML/OIDC + MFA."
+      },
+      {
+       "icon": "directory",
+       "t": "2. Comment naît le compte ?",
+       "d": "Créé, modifié, désactivé : SCIM."
+      },
+      {
+       "icon": "permissions",
+       "t": "3. Que peut-il faire ?",
+       "d": "Sur quoi, dans quel contexte ? RBAC + ABAC, moindre privilège."
+      },
+      {
+       "icon": "cloudtrail",
+       "t": "4. Comment le prouver ?",
+       "d": "Journaux : qui, quoi, quand, d'où."
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "pipeline",
+     "title": "Méthode en 6 étapes pour répondre à l'oral",
+     "stages": [
+      {
+       "label": "1. Reformuler",
+       "sub": "qui, combien de temps, où",
+       "icon": "document"
+      },
+      {
+       "label": "2. Lister les besoins",
+       "sub": "identité, droits, fin de vie",
+       "icon": "gear"
+      },
+      {
+       "label": "3. Un mécanisme / besoin",
+       "sub": "tableau besoin → mécanisme",
+       "icon": "permissions"
+      },
+      {
+       "label": "4. Justifier",
+       "sub": "une phrase avec « parce que »",
+       "icon": "saml"
+      },
+      {
+       "label": "5. Garde-fous",
+       "sub": "moindre privilège, séparation",
+       "icon": "padlock"
+      },
+      {
+       "label": "6. Révocation et preuves",
+       "sub": "sortie, journaux, résumé",
+       "icon": "cloudtrail",
+       "tone": "good"
+      }
+     ],
+     "caption": "La justification vaut plus que le nom du mécanisme."
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "hub",
+     "title": "Réponse modèle GreenTech : 8 décisions (clique chaque branche)",
+     "center": {
+      "label": "Solution GreenTech",
+      "sub": "prestataire 3 mois",
+      "icon": "building"
+     },
+     "spokes": [
+      {
+       "label": "1. Source d'identité",
+       "sub": "IdP GreenTech = vérité",
+       "icon": "directory",
+       "note": "Identité externe (contractor) : sponsor, projet, env = test, date de fin. GreenTech garde la main sur le cycle de vie, le MFA et la révocation.",
+       "tone": "info"
+      },
+      {
+       "label": "2. Fédération",
+       "sub": "SAML 2.0 (ou OIDC)",
+       "icon": "saml",
+       "note": "L'IdP envoie une assertion à IAM Identity Center ; AWS ne voit jamais le mot de passe. L'assertion est validée : signature, émetteur, audience, validité, anti-rejeu.",
+       "tone": "info"
+      },
+      {
+       "label": "3. Provisionnement",
+       "sub": "SCIM 2.0",
+       "icon": "users",
+       "note": "POST /Users crée le compte, PATCH /Groups l'ajoute à contractors-test. À la fin : PATCH active=false, puis DELETE selon la conservation. Pas de compte orphelin.",
+       "tone": "info"
+      },
+      {
+       "label": "4. Authentification",
+       "sub": "MFA + session courte",
+       "icon": "mfa",
+       "note": "MFA dès la première connexion (clé de sécurité), step-up avant action sensible, sessions courtes (ex. 4 h, à justifier), identifiants STS : aucune clé permanente.",
+       "tone": "info"
+      },
+      {
+       "label": "5. Autorisation",
+       "sub": "RBAC socle + ABAC tags",
+       "icon": "permissions",
+       "note": "Permission set ContractorDeveloper-Test dans le compte Test seulement ; SCP interdit production et actions IAM sensibles ; ABAC sur tags project et env, posés par l'admin et le pipeline.",
+       "tone": "info"
+      },
+      {
+       "label": "6. Séparation",
+       "sub": "propose, approuve, déploie",
+       "icon": "role",
+       "note": "Le prestataire propose (pull request), un référent GreenTech approuve, un pipeline avec rôle distinct déploie, l'audit lit en lecture seule dans un compte logs séparé.",
+       "tone": "info"
+      },
+      {
+       "label": "7. Révocation",
+       "sub": "fin de contrat",
+       "icon": "padlock",
+       "note": "IdP désactive, SCIM propage active=false, sessions et refresh tokens révoqués, absence de clé permanente vérifiée, ressources revues, revue de clôture, suppression selon la conservation.",
+       "tone": "info"
+      },
+      {
+       "label": "8. Journaux",
+       "sub": "qui, quoi, quand, d'où",
+       "icon": "cloudtrail",
+       "note": "Connexions et MFA de l'IdP, CloudTrail, SCIM, pipeline et approbations ; centralisés dans un compte séparé, protégés contre l'altération.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "saml",
+       "ctx": "Fédération SAML 2.0 : connexion SSO du prestataire."
+      },
+      {
+       "k": "sso",
+       "ctx": "IAM Identity Center : SSO, SCIM et sessions courtes pour l'externe."
+      },
+      {
+       "k": "role",
+       "ctx": "Permission set ContractorDeveloper-Test : RBAC limité au compte de test."
+      },
+      {
+       "k": "orgs",
+       "ctx": "SCP : interdit la production et les actions IAM sensibles."
+      },
+      {
+       "k": "mfa",
+       "ctx": "MFA obligatoire (clé de sécurité) dès la première connexion."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Prouve qui a fait quoi, centralisé dans un compte séparé."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

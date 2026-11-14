@@ -1,0 +1,5085 @@
+[
+ {
+  "id": "d2-01",
+  "part": "d2",
+  "title": "Tests d'intrusion & simulation DDoS sur AWS",
+  "emoji": "🎯",
+  "level": 1,
+  "minutes": 12,
+  "core": false,
+  "src": "PDF p.120-122",
+  "hook": {
+   "fr": "Avant de te défendre, tu dois savoir ce que tu as le droit de tester sur ton propre compte AWS sans que ton compte soit suspendu.",
+   "derja": "Ya3ni t7eb tchouf ken el bab mta3 darek yet7all be sehel? Mrigel, tnajjem tjarreb. Mais ma tnajjemch tkassar el chare3 lkol w tgoul 'kont net2akkad'. AWS hakka: tnajjem test el 7ajet eli 3andek (EC2, RDS...), walla el 7ajet eli y9asmouha m3a el nas lkol (DoS, zone walking) mamnou3a."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tkhayel inti tkri dar fi immeuble. Tnajjem tbaddel el serrure mta3 darek w tjarreb ken 7ad y7el el bab. Ama ma tnajjemch tjarreb 'n7ott 1000 camion fi el chare3 bch na3raf ken el immeuble yes7ab'. Zeda, AWS 3andha shared infrastructure: ken inti 3melt flooding, tkhasser el jar mta3ek (client AWS okhra). Lehne yji el rule: pentest 3al 7ajet mta3ek = ok. Flood / DoS = mamnou3, ken ma3andekch simulation approuvée."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : tester sans nuire aux autres",
+    "md": "Un **test d'intrusion (pentest)** simule un attaquant pour trouver des failles *avant* un vrai attaquant. Dans le cloud, ton instance EC2 tourne sur du matériel **partagé** avec d'autres clients. Un test mal calibré (trafic massif, DNS massif) peut donc impacter l'infrastructure d'AWS ou des tiers.\n\nAWS a donc défini une politique :\n- **Sans approbation préalable**, tu peux tester une liste de **8 services** (voir tableau).\n- Certaines activités restent **interdites** (flooding, DoS/DDoS, DNS zone walking).\n- Pour tout autre événement simulé, tu contactes l'équipe AWS dédiée (adresse `aws-security-simulated-event@amazon.com` donnée dans le cours)."
+   },
+   {
+    "type": "table",
+    "title": "Les 8 services testables sans approbation (selon le cours)",
+    "head": [
+     "Service",
+     "Remarque"
+    ],
+    "rows": [
+     [
+      "Amazon EC2, NAT Gateways, Elastic Load Balancers",
+      "Le plus classique : scan de ports, test de l'OS et de l'application"
+     ],
+     [
+      "Amazon RDS",
+      "Test de la configuration DB exposée / mots de passe faibles"
+     ],
+     [
+      "Amazon CloudFront",
+      "Distribution CDN en bordure"
+     ],
+     [
+      "Amazon Aurora",
+      "Famille RDS compatible MySQL/PostgreSQL"
+     ],
+     [
+      "Amazon API Gateway",
+      "APIs REST/HTTP exposées"
+     ],
+     [
+      "AWS Lambda et Lambda@Edge",
+      "Fonctions serverless et leurs entrées"
+     ],
+     [
+      "Amazon Lightsail",
+      "Serveurs privés simplifiés"
+     ],
+     [
+      "AWS Elastic Beanstalk",
+      "Environnements d'applications"
+     ]
+    ],
+    "note": "La liste peut évoluer dans le temps : le cours précise qu'il ne faut pas la réciter par coeur à l'examen. Retiens surtout le principe et les interdits."
+   },
+   {
+    "type": "compare",
+    "title": "Autorisé vs Interdit",
+    "cols": [
+     {
+      "name": "Autorisé",
+      "tag": "sans approbation",
+      "points": [
+       "Pentest sur les 8 services listés",
+       "Sur TES ressources, dans TON compte",
+       "Scan, test de vulnérabilités, test d'authentification",
+       "Tu gardes la trace (logs, dates, périmètre)"
+      ],
+      "use": "Audit de sécurité régulier d'une application que tu possèdes."
+     },
+     {
+      "name": "Interdit",
+      "tag": "prohibited",
+      "points": [
+       "DNS zone walking via les hosted zones Route 53",
+       "DoS / DDoS, y compris simulés",
+       "Port flooding, protocol flooding",
+       "Request flooding (login flooding, API request flooding)"
+      ],
+      "use": "Ne jamais le faire sans passer par le canal officiel AWS (simulation DDoS via un partenaire approuvé)."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Question classique : « Puis-je faire un test d'intrusion sur mon instance EC2 sans prévenir AWS ? » Oui (EC2 fait partie des 8 services). « Puis-je faire un test de charge DDoS sur mon ELB ? » Non, interdit, sauf simulation DDoS encadrée avec un partenaire approuvé."
+   },
+   {
+    "type": "text",
+    "title": "Simulation DDoS : le cas encadré",
+    "md": "Pourquoi s'entraîner ? Une attaque DDoS réelle arrive sans prévenir. Une **simulation DDoS** est une attaque *contrôlée* qui permet (1) de mesurer la **résilience** de ton application et (2) de **répéter ta réponse à incident** (qui alerte qui, quel dashboard regarder).\n\nConditions imposées par le cours :\n- Elle doit être réalisée par un **partenaire DDoS Test approuvé par AWS** (tu ne la lances pas toi-même).\n- La cible est une **ressource protégée** : soit une ressource couverte par **Shield Advanced**, soit une API Gateway *edge-optimized* abonnée à Shield Advanced.\n- L'attaque ne doit **pas partir de ressources AWS**.\n- Elle ne doit pas dépasser **20 Gbit/s**.\n- Elle ne doit pas dépasser **5 millions de paquets/s** pour CloudFront et **50 000 paquets/s** pour les autres services."
+   },
+   {
+    "type": "arch",
+    "title": "Ce qui est permis et ce qui est refusé",
+    "groups": [
+     {
+      "id": "T",
+      "label": "Toi (outil de pentest)",
+      "kind": "internet",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "tester",
+        "label": "Pentester",
+        "sub": "ton outil / ton équipe",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "P",
+      "label": "Partenaire DDoS approuvé",
+      "kind": "internet",
+      "col": 0,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "partner",
+        "label": "DDoS Test Partner",
+        "sub": "attaque contrôlée",
+        "icon": "device"
+       }
+      ]
+     },
+     {
+      "id": "A",
+      "label": "Ton compte AWS",
+      "kind": "account",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ec2",
+        "label": "EC2 / NAT / ELB",
+        "sub": "pentest OK",
+        "icon": "compute"
+       },
+       {
+        "id": "rds",
+        "label": "RDS / Aurora",
+        "sub": "pentest OK",
+        "icon": "db"
+       },
+       {
+        "id": "prot",
+        "label": "CloudFront / ELB",
+        "sub": "protégé par Shield Advanced",
+        "icon": "shield"
+       }
+      ]
+     },
+     {
+      "id": "Z",
+      "label": "Zone interdite",
+      "kind": "generic",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "r53",
+        "label": "Route 53 hosted zone",
+        "sub": "zone walking interdit",
+        "icon": "cloud"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "tester",
+      "to": "ec2",
+      "label": "1. pentest",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "tester",
+      "to": "rds",
+      "label": "2. pentest",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "tester",
+      "to": "r53",
+      "label": "3. zone walking",
+      "style": "deny"
+     },
+     {
+      "id": "e4",
+      "from": "tester",
+      "to": "prot",
+      "label": "4. DDoS maison",
+      "style": "deny"
+     },
+     {
+      "id": "e5",
+      "from": "partner",
+      "to": "prot",
+      "label": "5. simulation encadrée",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1",
+       "e2"
+      ],
+      "nodes": [
+       "tester",
+       "ec2",
+       "rds"
+      ],
+      "caption": "Tes tests d'intrusion sur EC2, RDS & co sont autorisés sans approbation préalable."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "r53"
+      ],
+      "caption": "Énumérer toute une zone DNS Route 53 (zone walking) est interdit."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "prot"
+      ],
+      "caption": "Lancer toi-même un DoS/DDoS, même pour tester, est interdit."
+     },
+     {
+      "edges": [
+       "e5"
+      ],
+      "nodes": [
+       "partner",
+       "prot"
+      ],
+      "caption": "Le seul chemin légal pour un DDoS de test : un partenaire approuvé qui vise une ressource sous Shield Advanced, sous 20 Gbit/s."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le client veut un stress test",
+    "situation": "Ton client demande de tester la résistance de son site (ALB + EC2) à une attaque DDoS avant le Black Friday. Un collègue propose de louer un botnet de test et de le lancer lui-même depuis des instances EC2 d'un autre compte.",
+    "q": "Quelle est la bonne approche ?",
+    "opts": [
+     {
+      "t": "Lancer le botnet depuis des EC2 d'un autre compte, c'est un test interne.",
+      "ok": false,
+      "why": "Doublement faux : un DDoS maison est interdit, et l'attaque ne doit pas partir de ressources AWS."
+     },
+     {
+      "t": "Passer par un partenaire DDoS Test approuvé, sur une ressource protégée par Shield Advanced, en respectant les limites de débit.",
+      "ok": true,
+      "why": "C'est le cadre officiel : attaque contrôlée, cible protégée, limites 20 Gbit/s et paquets/s."
+     },
+     {
+      "t": "Ne rien faire : le DDoS ne se teste jamais sur AWS.",
+      "ok": false,
+      "why": "Faux : AWS prévoit justement une simulation DDoS encadrée pour s'entraîner."
+     },
+     {
+      "t": "Faire un pentest de login flooding sur l'API, ce n'est pas un DDoS.",
+      "ok": false,
+      "why": "Le request flooding (login/API) fait partie des activités interdites."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Penetration test",
+    "d": "Test d'intrusion autorisé qui simule un attaquant pour trouver des failles.",
+    "derja": "Tjarreb tod5ol l'darek bch tchouf wein el 9fal d3if."
+   },
+   {
+    "t": "DDoS",
+    "d": "Attaque par déni de service distribué qui sature une cible avec du trafic provenant de nombreuses sources.",
+    "derja": "Alf wahed yedfa3 el bab fi nafs el wa9t bch ma ye7elch."
+   },
+   {
+    "t": "DNS zone walking",
+    "d": "Énumération de tous les enregistrements d'une zone DNS ; interdit sur les hosted zones Route 53.",
+    "derja": "Tkhrej el annuaire kamel mta3 el DNS."
+   },
+   {
+    "t": "AWS Shield Advanced",
+    "d": "Protection DDoS payante dont les ressources constituent des cibles autorisées pour une simulation DDoS."
+   },
+   {
+    "t": "DDoS Test Partner",
+    "d": "Prestataire approuvé par AWS, seul habilité à exécuter une simulation DDoS."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Puis-je faire un test d'intrusion sur mon infrastructure AWS ? Sous quelles conditions ?",
+    "a": "Oui, AWS autorise les tests d'intrusion sans approbation préalable sur une liste de services (EC2, NAT Gateway, ELB, RDS, Aurora, CloudFront, API Gateway, Lambda et Lambda@Edge, Lightsail, Elastic Beanstalk). Le test doit viser mes propres ressources. Certaines activités restent interdites : DoS/DDoS, port ou protocol flooding, request flooding et DNS zone walking sur Route 53. Pour les autres événements simulés, je contacte l'équipe AWS dédiée.",
+    "keys": [
+     "8 services",
+     "sans approbation",
+     "activités interdites",
+     "ressources propres"
+    ]
+   },
+   {
+    "q": "Comment simuler une attaque DDoS sur AWS ?",
+    "a": "Une simulation DDoS est une attaque contrôlée pour évaluer la résilience et s'entraîner à la réponse à incident. Elle doit être réalisée par un partenaire DDoS Test approuvé. La cible est une ressource protégée par Shield Advanced, ou une API Gateway edge-optimized abonnée. L'attaque ne doit pas venir de ressources AWS, ne pas dépasser 20 Gbit/s ni 5 millions de paquets/s pour CloudFront (50 000 pour les autres services).",
+    "keys": [
+     "partenaire approuvé",
+     "Shield Advanced",
+     "20 Gbit/s",
+     "pas depuis AWS"
+    ]
+   },
+   {
+    "q": "Pourquoi AWS interdit-il certains tests ?",
+    "a": "Parce que l'infrastructure est partagée entre de nombreux clients. Un flooding ou un DoS, même sur mon compte, peut dégrader des services mutualisés et impacter d'autres clients. AWS encadre donc ces tests avec un canal officiel pour limiter les risques.",
+    "keys": [
+     "infrastructure partagée",
+     "impact sur tiers"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'un DoS « de test » est un pentest : le DoS/DDoS, même simulé, est interdit hors cadre officiel.",
+   "Penser que la simulation DDoS peut être lancée depuis des instances EC2 : l'attaque ne doit pas provenir de ressources AWS.",
+   "Confondre pentest (autorisé sur 8 services sans approbation) et simulation DDoS (partenaire approuvé + Shield Advanced).",
+   "Oublier que le zone walking Route 53 est interdit, même s'il ne s'agit « que » de DNS."
+  ],
+  "quiz": [
+   {
+    "q": "Lequel de ces services peut être pentesté sans approbation préalable ?",
+    "opts": [
+     "Route 53 hosted zones (zone walking)",
+     "Amazon RDS",
+     "Un DDoS sur CloudFront",
+     "Un flooding de login sur API"
+    ],
+    "ans": 1,
+    "why": "RDS fait partie des services testables. Les autres options sont des activités prohibées."
+   },
+   {
+    "q": "Qui doit exécuter une simulation DDoS sur AWS ?",
+    "opts": [
+     "N'importe quel développeur avec un outil open source",
+     "AWS Support, à la demande, gratuitement",
+     "GuardDuty automatiquement",
+     "Un partenaire DDoS Test approuvé par AWS"
+    ],
+    "ans": 3,
+    "why": "Le cours impose un partenaire approuvé."
+   },
+   {
+    "q": "Quelle limite s'applique au débit d'une simulation DDoS ?",
+    "opts": [
+     "100 Gbit/s",
+     "20 Gbit/s",
+     "1 Gbit/s",
+     "Aucune limite si Shield Advanced est actif"
+    ],
+    "ans": 1,
+    "why": "Maximum 20 Gbit/s, avec des limites en paquets/s (5 M pour CloudFront, 50 000 pour les autres)."
+   },
+   {
+    "q": "Où l'attaque de simulation DDoS peut-elle être générée ?",
+    "opts": [
+     "Depuis EC2 dans une autre région",
+     "Depuis Lambda",
+     "Depuis CloudShell",
+     "Pas depuis des ressources AWS"
+    ],
+    "ans": 3,
+    "why": "L'attaque ne doit pas être originaire de ressources AWS."
+   },
+   {
+    "q": "Quelle cible est valide pour une simulation DDoS ?",
+    "opts": [
+     "Un bucket S3 sans protection",
+     "Une ressource protégée par Shield Advanced",
+     "Le service Route 53 de AWS lui-même",
+     "N'importe quelle instance"
+    ],
+    "ans": 1,
+    "why": "La cible doit être une ressource protégée (ou une API edge-optimized abonnée à Shield Advanced)."
+   }
+  ],
+  "recap": [
+   "Pentest autorisé sans approbation sur 8 services (EC2/NAT/ELB, RDS, CloudFront, Aurora, API Gateway, Lambda/Lambda@Edge, Lightsail, Beanstalk).",
+   "Interdits : DoS/DDoS (même simulés), port/protocol/request flooding, DNS zone walking Route 53.",
+   "Autres simulations : contacter l'équipe AWS dédiée à ces événements.",
+   "Simulation DDoS = partenaire approuvé + cible protégée Shield Advanced + pas depuis AWS.",
+   "Limites : 20 Gbit/s ; 5 M paquets/s CloudFront ; 50 000 paquets/s autres services."
+  ]
+ },
+ {
+  "id": "d2-02",
+  "part": "d2",
+  "title": "Playbooks : ressource compromise (EC2, S3, ECS, conteneur, RDS)",
+  "emoji": "🚨",
+  "level": 1,
+  "minutes": 18,
+  "core": false,
+  "src": "PDF p.123-127",
+  "hook": {
+   "fr": "Quand une ressource est compromise, il faut la contenir sans détruire les preuves : c'est tout l'art d'un playbook d'incident.",
+   "derja": "Kif yosra9ou 7anout, el police ma tghalleq el 7ay kollou w ma t7errekch kol chay. T3azzel el place, t7ott scotch, tjma3 el empreintes w ba3d tnadhhef. Nafs el 7aja m3a EC2 mcompromisée: n3azlouha, nsauvgardiw el preuves (snapshot), w ba3d nfahmou chkoun dkhal w kifech."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "El erreur el kbira: tsir t3ammel Terminate lel EC2 el mcompromisée 'bch nrta7'. Ya3ni ferrakht el preuves: el memory, el process, el connexions, kol chay yemchi. L'attaquant yokhrej, w inti ma t3arafch kifech dkhal, donc yarja3 yod5ol. El 7all: isoler (SG sans outbound), snapshot, tag, w ba3d investigation."
+   },
+   {
+    "type": "text",
+    "title": "Pourquoi un playbook ?",
+    "md": "Un **playbook** est une procédure écrite à l'avance qui dit *quoi faire, dans quel ordre*, quand un type de ressource est compromis. Pendant un incident le stress est élevé : sans procédure, on supprime des preuves ou on laisse l'attaquant en place.\n\nLes 4 objectifs communs :\n1. **Identifier** la ressource et la source de l'activité malveillante (GuardDuty, CloudTrail, Detective).\n2. **Isoler** (couper les communications) sans éteindre trop tôt.\n3. **Préserver les preuves** (snapshots, logs).\n4. **Sécuriser / restaurer** pour éviter que ça se reproduise."
+   },
+   {
+    "type": "arch",
+    "title": "Le schéma commun à tous les playbooks",
+    "groups": [
+     {
+      "id": "D",
+      "label": "Détection",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "gd",
+        "label": "GuardDuty",
+        "sub": "finding",
+        "icon": "shield"
+       }
+      ]
+     },
+     {
+      "id": "S",
+      "label": "Équipe sécurité",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "so",
+        "label": "Security Operator",
+        "sub": "analyste IR",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "I",
+      "label": "Investigation",
+      "kind": "account",
+      "col": 1,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "ct",
+        "label": "CloudTrail",
+        "sub": "qui a appelé quelle API",
+        "icon": "log"
+       },
+       {
+        "id": "det",
+        "label": "Detective",
+        "sub": "graphe de relations",
+        "icon": "log"
+       }
+      ]
+     },
+     {
+      "id": "R",
+      "label": "Ressource compromise",
+      "kind": "vpc",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "res",
+        "label": "EC2 / S3 / ECS / RDS",
+        "sub": "à isoler",
+        "icon": "compute"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "gd",
+      "to": "so",
+      "label": "1. identifie la ressource",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "so",
+      "to": "ct",
+      "label": "2. revoit les API calls",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "so",
+      "to": "det",
+      "label": "2b. source de l'activité",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "so",
+      "to": "res",
+      "label": "3. isole puis sécurise",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "gd",
+       "so"
+      ],
+      "caption": "GuardDuty remonte un finding qui désigne la ressource suspecte."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "ct",
+       "det"
+      ],
+      "caption": "CloudTrail et Detective répondent à : quelle identité a fait quoi, était-elle autorisée ?"
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "res"
+      ],
+      "caption": "On isole la ressource puis on applique les contre-mesures propres à son type."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Playbook EC2 compromise : pas à pas",
+    "intro": "Slides : capturer, protéger, isoler, détacher, snapshot, tagger. Chaque étape a une raison.",
+    "actors": [
+     {
+      "id": "gd",
+      "label": "GuardDuty",
+      "sub": "détection",
+      "kind": "service"
+     },
+     {
+      "id": "so",
+      "label": "SecOps",
+      "sub": "analyste",
+      "kind": "user"
+     },
+     {
+      "id": "ec2",
+      "label": "EC2 suspecte",
+      "sub": "i-0abc123example",
+      "kind": "aws"
+     },
+     {
+      "id": "lb",
+      "label": "ASG / ELB",
+      "sub": "trafic & remplacement",
+      "kind": "network"
+     },
+     {
+      "id": "ebs",
+      "label": "EBS / Snapshot",
+      "sub": "preuves disque",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "gd",
+      "to": "so",
+      "label": "1. Finding",
+      "detail": "GuardDuty signale un comportement anormal sur l'instance.",
+      "derja": "El alarme tdoq.",
+      "tone": "bad",
+      "payload": {
+       "title": "GuardDuty finding",
+       "fields": [
+        {
+         "k": "Type",
+         "v": "CryptoCurrency:EC2/BitcoinTool.B!DNS",
+         "note": "l'instance contacte un domaine de minage"
+        },
+        {
+         "k": "Resource",
+         "v": "i-0abc123example",
+         "note": "instance à traiter"
+        },
+        {
+         "k": "Severity",
+         "v": "High",
+         "note": "priorité haute"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "ec2",
+      "label": "2. Capture metadata + Termination Protection",
+      "detail": "On note l'état de l'instance (SG, rôle IAM, AMI, tags) puis on empêche la suppression accidentelle ou malveillante.",
+      "derja": "Nektbou el 7alet qbal ma nbaddlou chay.",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ec2 modify-instance-attribute --instance-id i-0abc123example --disable-api-termination",
+         "note": "active la Termination Protection"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "ec2",
+      "label": "3. Isoler : remplacer le SG",
+      "detail": "On associe un Security Group d'isolation sans aucune règle sortante (par défaut un SG neuf autorise tout en sortie : il faut la supprimer).",
+      "derja": "N9ata3 el telephone mta3 el sar9a, ama nkhallih mawjoud.",
+      "payload": {
+       "title": "Isolated SG",
+       "fields": [
+        {
+         "k": "Inbound",
+         "v": "aucune règle",
+         "note": "personne n'entre"
+        },
+        {
+         "k": "Outbound",
+         "v": "aucune règle",
+         "note": "pas d'exfiltration ni C2"
+        },
+        {
+         "k": "Commande",
+         "v": "aws ec2 modify-instance-attribute --instance-id i-0abc123example --groups sg-0isolated000000",
+         "note": "remplace tous les SG"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "lb",
+      "label": "4. Détacher de l'ASG, dé-enregistrer de l'ELB",
+      "detail": "On suspend les processus de l'Auto Scaling Group pour qu'il ne la remplace/termine pas, et on la retire de la target group du load balancer.",
+      "derja": "Bch el ASG ma yfas5ahach w el users ma yousloush lel instance."
+     },
+     {
+      "from": "so",
+      "to": "ebs",
+      "label": "5. Snapshot des volumes EBS",
+      "detail": "Un snapshot fige l'état du disque pour l'analyse approfondie (forensics).",
+      "derja": "Tsawer el scène mta3 el jarima.",
+      "tone": "good"
+     },
+     {
+      "from": "so",
+      "to": "ec2",
+      "label": "6. Tag (ticket d'enquête)",
+      "detail": "On étiquette l'instance avec le numéro du ticket pour la traçabilité (qui enquête, quand).",
+      "derja": "N7ott etiquette 'preuve n° 12'."
+     },
+     {
+      "from": "so",
+      "to": "ec2",
+      "label": "7. Investigation online ou offline",
+      "detail": "Online : capture mémoire / trafic réseau (automatisable avec SSM Run Command). Offline : arrêt de l'instance. Isolation automatisable avec Lambda.",
+      "derja": "Ken t7eb el memory, mat'ofkch el instance qbal."
+     },
+     {
+      "from": "ebs",
+      "to": "so",
+      "label": "8. Copie du volume vers une instance forensic",
+      "detail": "On crée un volume à partir du snapshot, attaché à une instance dans un Forensic SG, pour analyser sans toucher l'original.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "L'ordre est une décision",
+    "text": "Éteindre une instance détruit la mémoire vive (processus, connexions, clés en mémoire). Si tu veux l'analyse online (mémoire, trafic), fais-la AVANT l'arrêt. Le snapshot EBS ne contient que le disque. Autre point : changer le SG ne coupe pas forcément les connexions déjà établies suivies par le SG ; une règle de NACL (stateless) peut compléter."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 autres playbooks de ressources",
+    "head": [
+     "Ressource",
+     "Identifier",
+     "Isoler / contenir",
+     "Analyser & sécuriser"
+    ],
+    "rows": [
+     [
+      "**S3 bucket**",
+      "GuardDuty (S3 Protection) ; qui a fait les appels : CloudTrail ou Detective",
+      "Vérifier si la source (user, role) était autorisée à faire ces appels",
+      "Block Public Access, bucket policies / user policies, VPC endpoints S3, pre-signed URLs, Access Points, ACLs"
+     ],
+     [
+      "**ECS cluster**",
+      "GuardDuty ; source = image de conteneur ou tasks",
+      "Refuser tout ingress/egress des tasks touchées avec des Security Groups",
+      "Chercher du malware, revoir l'image utilisée"
+     ],
+     [
+      "**Conteneur standalone**",
+      "GuardDuty identifie le conteneur malveillant",
+      "Couper ingress/egress, suspendre les processus (pause) ou stopper le conteneur",
+      "Analyser les snapshots EBS conservés par GuardDuty (snapshot retention), chercher le malware"
+     ],
+     [
+      "**RDS instance**",
+      "GuardDuty identifie l'instance ET l'utilisateur DB",
+      "Si comportement illégitime : restreindre le réseau (SG, NACL) et l'accès DB de l'utilisateur",
+      "Rotation des mots de passe, revue des DB audit logs pour voir ce qui a fuité, Secrets Manager + IAM DB Authentication"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "S3 : les logs d'objets ne sont pas actifs par défaut",
+    "text": "CloudTrail enregistre par défaut les appels de gestion (CreateBucket, PutBucketPolicy). Les accès aux objets (GetObject, PutObject) sont des data events à activer explicitement. Sans eux, tu sais que le bucket a été touché mais pas quels objets ont été lus : pense à les activer avant l'incident."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : instance qui mine du crypto",
+    "situation": "GuardDuty signale qu'une instance d'un Auto Scaling Group derrière un ALB contacte un domaine de minage. Le responsable propose de la terminer immédiatement : « l'ASG en relancera une saine ».",
+    "q": "Quelle est la meilleure réponse ?",
+    "opts": [
+     {
+      "t": "Terminer l'instance tout de suite, l'ASG la remplace.",
+      "ok": false,
+      "why": "Tu perds les preuves (mémoire, disque) et tu ne sauras pas comment l'attaquant est entré."
+     },
+     {
+      "t": "Isoler avec un SG sans trafic, sortir l'instance de l'ASG et de l'ELB, snapshot EBS, tagger, puis investiguer.",
+      "ok": true,
+      "why": "C'est le playbook : on contient, on préserve les preuves, puis on analyse."
+     },
+     {
+      "t": "Supprimer toutes les règles du SG d'origine et garder l'instance en production.",
+      "ok": false,
+      "why": "Elle resterait dans le load balancer, et le trafic légitime serait cassé sans isoler correctement."
+     },
+     {
+      "t": "Redémarrer l'instance pour vider la mémoire de l'attaquant.",
+      "ok": false,
+      "why": "Tu détruis la mémoire, qui est une preuve, et l'attaquant garde son accès persistant."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Playbook",
+    "d": "Procédure d'incident écrite à l'avance pour un type de ressource ou de menace.",
+    "derja": "El dalil eli tfattahah wa9t el 9ala9."
+   },
+   {
+    "t": "Isolated SG",
+    "d": "Security Group sans règle entrante ni sortante utilisé pour couper une instance du réseau.",
+    "derja": "El 9fal eli yo9fel kol 7aja."
+   },
+   {
+    "t": "Termination Protection",
+    "d": "Attribut EC2 (DisableApiTermination) qui empêche la terminaison de l'instance par API/console."
+   },
+   {
+    "t": "Forensic SG",
+    "d": "Security Group dédié à l'instance d'analyse où est attachée la copie du volume suspect."
+   },
+   {
+    "t": "CloudTrail data events",
+    "d": "Journal des accès aux objets S3 (et autres) activable séparément des événements de gestion."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Que faites-vous quand une instance EC2 est compromise ?",
+    "a": "Je ne la supprime pas tout de suite. Je capture ses métadonnées, j'active la Termination Protection, je l'isole en remplaçant son Security Group par un SG sans trafic sortant, je la détache de l'ASG (suspension des processus) et du load balancer, je fais un snapshot EBS pour l'analyse et je la tague avec le ticket d'enquête. Ensuite j'investigue online (mémoire, trafic) ou offline (arrêt). L'isolation peut être automatisée avec Lambda et la capture mémoire avec SSM Run Command.",
+    "keys": [
+     "isoler SG",
+     "snapshot EBS",
+     "détacher ASG/ELB",
+     "Termination Protection",
+     "ne pas terminer"
+    ]
+   },
+   {
+    "q": "Comment réagir à un bucket S3 compromis ?",
+    "a": "J'identifie le bucket via GuardDuty, puis je trouve la source (user ou role) et les appels API via CloudTrail ou Detective. Je vérifie si cette source était autorisée. Ensuite je sécurise le bucket : S3 Block Public Access, bucket policies et user policies, VPC endpoints, pre-signed URLs, Access Points et ACLs.",
+    "keys": [
+     "GuardDuty",
+     "CloudTrail / Detective",
+     "Block Public Access",
+     "source autorisée ?"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre le playbook d'un cluster ECS et celui d'un conteneur standalone ?",
+    "a": "Pour ECS, on isole les tasks touchées avec des Security Groups (deny ingress/egress) et on étudie l'image et les tasks sources. Pour un conteneur standalone, on coupe son trafic, on suspend ses processus (pause) ou on l'arrête, et on exploite les snapshots EBS conservés par GuardDuty avant de chercher le malware.",
+    "keys": [
+     "SG sur les tasks",
+     "pause du conteneur",
+     "snapshot retention GuardDuty"
+    ]
+   },
+   {
+    "q": "Comment sécuriser RDS après un incident ?",
+    "a": "J'identifie l'instance et l'utilisateur DB avec GuardDuty. Si le comportement n'est pas légitime, je restreins l'accès réseau (SG, NACL) et l'accès de cet utilisateur, je fais tourner son mot de passe et je revois les DB audit logs pour mesurer la fuite. À long terme : Secrets Manager pour la rotation et IAM DB Authentication pour éviter les mots de passe.",
+    "keys": [
+     "restreindre SG/NACL",
+     "rotation du mot de passe",
+     "audit logs",
+     "IAM DB Authentication"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Terminer l'instance « pour nettoyer » : tu perds mémoire et disque, donc les preuves.",
+   "Créer un SG neuf et croire qu'il bloque la sortie : il autorise tout en sortie par défaut, supprime la règle.",
+   "Oublier de sortir l'instance de l'ASG : il peut la remplacer ou la terminer pendant l'enquête.",
+   "Analyser sur l'original au lieu de la copie du volume : tu risques de modifier les preuves.",
+   "S3 : ne pas avoir activé les data events CloudTrail, donc aucune visibilité sur les objets lus."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle est la 3e action du playbook EC2 selon le cours (après metadata et termination protection) ?",
+    "opts": [
+     "Isoler l'instance en remplaçant son Security Group",
+     "Terminer l'instance",
+     "Supprimer le snapshot",
+     "Désactiver CloudTrail"
+    ],
+    "ans": 0,
+    "why": "On isole avec un SG sans trafic sortant autorisé."
+   },
+   {
+    "q": "Quel service automatise la capture mémoire d'une instance ?",
+    "opts": [
+     "AWS Config",
+     "Route 53",
+     "SSM Run Command",
+     "Amazon Inspector"
+    ],
+    "ans": 2,
+    "why": "Le cours indique SSM Run Command pour la capture mémoire, et Lambda pour l'isolation."
+   },
+   {
+    "q": "Pour un conteneur standalone compromis, que peut-on exploiter après l'arrêt ?",
+    "opts": [
+     "Les snapshots EBS conservés par GuardDuty",
+     "Les logs de Route 53",
+     "Un export de Cost Explorer",
+     "Les rapports d'Artifact"
+    ],
+    "ans": 0,
+    "why": "GuardDuty peut retenir des snapshots EBS (snapshots retention) pour analyse."
+   },
+   {
+    "q": "Quel est l'ordre logique général d'un playbook ?",
+    "opts": [
+     "Restaurer, isoler, identifier",
+     "Supprimer, recréer, tester",
+     "Identifier, isoler / préserver les preuves, sécuriser",
+     "Notifier le client puis ignorer"
+    ],
+    "ans": 2,
+    "why": "On identifie d'abord, on contient et on préserve, puis on sécurise."
+   },
+   {
+    "q": "Sur RDS, que fait-on pour ne plus dépendre de mots de passe statiques ?",
+    "opts": [
+     "Secrets Manager et IAM DB Authentication",
+     "Ouvrir le port 3306 à Internet",
+     "Utiliser root en permanence",
+     "Désactiver les audit logs"
+    ],
+    "ans": 0,
+    "why": "Secrets Manager pour la rotation, IAM DB Authentication pour l'accès sans mot de passe."
+   }
+  ],
+  "recap": [
+   "Playbook = identifier → isoler → préserver les preuves → sécuriser.",
+   "EC2 : metadata, Termination Protection, isolated SG, détacher ASG/ELB, snapshot EBS, tag, investigation online/offline.",
+   "S3 : GuardDuty + CloudTrail/Detective, puis Block Public Access, policies, VPC endpoints, pre-signed URLs, Access Points, ACLs.",
+   "ECS : isoler les tasks via SG. Conteneur standalone : isoler puis pause/stop et snapshots GuardDuty.",
+   "RDS : restreindre SG/NACL et l'utilisateur, rotation de mot de passe, audit logs, Secrets Manager, IAM DB Auth."
+  ]
+ },
+ {
+  "id": "d2-03",
+  "part": "d2",
+  "title": "Playbooks : identités compromises (credentials, rôle IAM, compte)",
+  "emoji": "🪪",
+  "level": 1,
+  "minutes": 16,
+  "core": false,
+  "src": "PDF p.128-130",
+  "hook": {
+   "fr": "Une clé d'accès volée donne à l'attaquant TON identité : il faut la révoquer, invalider les sessions déjà émises et prouver ce qu'il a fait.",
+   "derja": "Kif tdhi3 el CIN w yjib wahed copie mta3ha, mch kifeh tbaddel el CIN w khalas: lazem tchouf chnowa 3mal biha deja (CloudTrail) w el wthayeq eli deja tsal7et. Nafs el 7aja: kif y9o3do el keys mta3ek ghalta, ma tkafeech tfaskhhom, lazem tkasser el sessions eli deja khrajet."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawer el access key kima mfateh dar. Ken 7ad sra9ha, tbaddel el 9fal (rotate) mrigel. Ama fama mochkla: el attacker deja a5dhet 'badge temporaire' b'el key (STS credentials), w el badge yab9a yekhdem ba3d ma fassakht el key. Donc lazem tkoul lel IAM: 'ay session sna3ouha qbal s3a X, mamnou3a'. Hadhi el Deny b'date condition."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : trois niveaux d'identité compromise",
+    "md": "Une **identité** compromise peut être :\n- un **utilisateur IAM** avec des *access keys* long terme (`AKIA...`) ;\n- un **rôle IAM** dont les **credentials temporaires** (STS) ont été volés (`ASIA...`) ;\n- tout un **compte AWS** (plusieurs utilisateurs, clés, key pairs).\n\nDans les trois cas, **GuardDuty** détecte (finding sur l'identité) puis on suit le playbook. Le piège central : **supprimer une clé ne tue pas les sessions temporaires déjà émises** avec elle ; il faut une *deny policy* basée sur la date d'émission du token."
+   },
+   {
+    "type": "flow",
+    "title": "Credentials AWS exposés : playbook",
+    "intro": "Les 6 actions du slide, dans l'ordre.",
+    "actors": [
+     {
+      "id": "att",
+      "label": "Attaquant",
+      "sub": "clé volée",
+      "kind": "attacker"
+     },
+     {
+      "id": "gd",
+      "label": "GuardDuty",
+      "sub": "détection",
+      "kind": "service"
+     },
+     {
+      "id": "so",
+      "label": "SecOps",
+      "sub": "analyste",
+      "kind": "user"
+     },
+     {
+      "id": "iam",
+      "label": "IAM",
+      "sub": "user alice",
+      "kind": "aws"
+     },
+     {
+      "id": "ct",
+      "label": "CloudTrail",
+      "sub": "journal API",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "att",
+      "to": "iam",
+      "label": "1. Appels API avec la clé volée",
+      "detail": "L'attaquant utilise la clé depuis une IP inhabituelle et énumère les ressources.",
+      "tone": "bad",
+      "derja": "El sar9a yesta3mel el mfateh."
+     },
+     {
+      "from": "gd",
+      "to": "so",
+      "label": "2. Finding sur l'utilisateur IAM",
+      "detail": "GuardDuty identifie l'utilisateur IAM affecté.",
+      "derja": "El alarme tdoq 3al user.",
+      "payload": {
+       "title": "Finding",
+       "fields": [
+        {
+         "k": "Type",
+         "v": "UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration.OutsideAWS",
+         "note": "credentials utilisés depuis l'extérieur d'AWS (exemple de type de finding)"
+        },
+        {
+         "k": "User",
+         "v": "alice",
+         "note": "identité à traiter"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "iam",
+      "label": "3. Rotation / désactivation de la clé",
+      "detail": "On désactive d'abord la clé (réversible, pas de panne brutale), on en crée une nouvelle pour l'application légitime, puis on supprime l'ancienne.",
+      "derja": "Nbaddel el 9fal.",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws iam update-access-key --user-name alice --access-key-id AKIAIOSFODNN7EXAMPLE --status Inactive",
+         "note": "désactive sans supprimer"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "iam",
+      "label": "4. Deny explicite avec condition de date STS",
+      "detail": "On attache une policy Deny * dont la condition vise les tokens émis avant maintenant. Les sessions temporaires déjà créées avec les credentials volés sont refusées.",
+      "derja": "Ncancelli kol badge temporaire deja sna3.",
+      "tone": "good"
+     },
+     {
+      "from": "so",
+      "to": "ct",
+      "label": "5. Revue des appels API",
+      "detail": "On cherche dans CloudTrail tout ce que l'identité a fait : création d'utilisateurs, de clés, d'instances, changement de policies.",
+      "derja": "Nchoufou chnowa 3mal.",
+      "payload": {
+       "title": "À chercher",
+       "fields": [
+        {
+         "k": "userIdentity",
+         "v": "arn:aws:iam::111122223333:user/alice",
+         "note": "filtrer sur cette identité"
+        },
+        {
+         "k": "eventName",
+         "v": "CreateUser, CreateAccessKey, RunInstances...",
+         "note": "persistance et ressources minées"
+        }
+       ]
+      }
+     },
+     {
+      "from": "so",
+      "to": "iam",
+      "label": "6. Nettoyage + vérification du compte",
+      "detail": "Supprimer les ressources non autorisées et vérifier les informations du compte (contacts, etc.).",
+      "derja": "Nnadhhef w nraje3 nchoufou kol chay normal.",
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "La deny policy « révoquer les sessions »",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Deny\",",
+     "      \"Action\": \"*\",",
+     "      \"Resource\": \"*\",",
+     "      \"Condition\": {",
+     "        \"DateLessThan\": {",
+     "          \"aws:TokenIssueTime\": \"2026-11-13T10:00:00Z\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5
+      ],
+      "text": "Deny explicite : il gagne toujours sur n'importe quel Allow.",
+      "tone": "bad"
+     },
+     {
+      "lines": [
+       6,
+       7
+      ],
+      "text": "Toutes les actions sur toutes les ressources.",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       9,
+       10
+      ],
+      "text": "Vise seulement les tokens émis AVANT la date indiquée (aws:TokenIssueTime).",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       10
+      ],
+      "text": "Mets la date/heure du moment de la révocation : les nouvelles sessions (après) ne sont pas bloquées par ce statement.",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Une session temporaire émise à 09:00 (avant la date) peut-elle encore appeler s3:GetObject ?",
+      "ans": false,
+      "why": "Elle est refusée : TokenIssueTime est antérieur à la date, le Deny s'applique."
+     },
+     {
+      "q": "Une session émise à 11:00, déjà autorisée par ailleurs, est-elle bloquée par ce statement ?",
+      "ans": false,
+      "why": "Non : la condition DateLessThan est fausse pour ce token, ce statement ne s'applique pas."
+     },
+     {
+      "q": "Ce Deny peut-il être contourné par un Allow * dans une autre policy ?",
+      "ans": false,
+      "why": "Un Deny explicite l'emporte toujours sur un Allow."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Credentials vs rôle IAM vs compte entier",
+    "head": [
+     "",
+     "Credentials AWS (user)",
+     "Rôle IAM",
+     "Compte AWS"
+    ],
+    "rows": [
+     [
+      "Identifier",
+      "GuardDuty : utilisateur IAM",
+      "GuardDuty : rôle",
+      "GuardDuty : compte"
+     ],
+     [
+      "Révoquer",
+      "Rotation des clés exposées",
+      "Deny avec condition de date STS (ou « Revoke active sessions » de la console)",
+      "Rotation et suppression de toutes les clés d'accès exposées"
+     ],
+     [
+      "Identités liées",
+      "Mots de passe de l'utilisateur",
+      "Révoquer l'accès de l'identité liée à l'AD / SSO s'il y en a un (désactiver l'utilisateur côté IdP)",
+      "Rotation des mots de passe des IAM users + supprimer les identifiants non autorisés"
+     ],
+     [
+      "Spécifique",
+      "-",
+      "-",
+      "Rotation / suppression de TOUTES les EC2 Key Pairs"
+     ],
+     [
+      "Investigation",
+      "CloudTrail : appels non autorisés",
+      "CloudTrail : appels non autorisés",
+      "CloudTrail : appels non autorisés"
+     ],
+     [
+      "Fin",
+      "Supprimer les ressources non autorisées + vérifier infos du compte",
+      "Idem",
+      "Idem"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "« Comment invalider les credentials temporaires d'un utilisateur compromis ? » → attacher une deny policy (Deny *) avec une condition de date STS (aws:TokenIssueTime). Supprimer la clé ne suffit pas pour les sessions déjà émises."
+   },
+   {
+    "type": "decode",
+    "title": "Désactiver une clé d'accès (commande)",
+    "raw": "aws iam update-access-key --user-name alice --access-key-id AKIAIOSFODNN7EXAMPLE --status Inactive",
+    "parts": [
+     {
+      "s": "aws iam",
+      "label": "Service IAM",
+      "note": "CLI AWS, service IAM"
+     },
+     {
+      "s": "update-access-key",
+      "label": "Action",
+      "note": "modifie le statut d'une clé existante"
+     },
+     {
+      "s": "--user-name alice",
+      "label": "Utilisateur",
+      "note": "propriétaire de la clé"
+     },
+     {
+      "s": "AKIAIOSFODNN7EXAMPLE",
+      "label": "Access key ID",
+      "note": "AKIA = clé long terme d'un utilisateur IAM (exemple de la doc AWS)"
+     },
+     {
+      "s": "--status Inactive",
+      "label": "Nouveau statut",
+      "note": "désactive sans supprimer : on peut revenir en arrière si on a visé la mauvaise clé"
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : un rôle d'EC2 aurait fuité",
+    "situation": "Une application web vulnérable (SSRF) a servi à lire les credentials temporaires du rôle attaché à une instance. GuardDuty signale leur usage depuis une IP externe. L'instance est toujours en production.",
+    "q": "Quelle est la première mesure pour invalider ces credentials ?",
+    "opts": [
+     {
+      "t": "Supprimer le rôle IAM et le recréer plus tard.",
+      "ok": false,
+      "why": "Brutal, casse la prod, et ne remplace pas la révocation ciblée des sessions ; le cours demande une deny avec date STS."
+     },
+     {
+      "t": "Attacher un Deny avec condition aws:TokenIssueTime pour refuser les sessions émises avant maintenant, puis revoir CloudTrail.",
+      "ok": true,
+      "why": "C'est le playbook : les credentials volés (anciens) sont refusés, les nouveaux de l'instance restent valides."
+     },
+     {
+      "t": "Attendre l'expiration naturelle sans rien faire.",
+      "ok": false,
+      "why": "L'attaquant garde l'accès pendant toute la durée de validité."
+     },
+     {
+      "t": "Changer le mot de passe console d'un administrateur.",
+      "ok": false,
+      "why": "Sans rapport : les credentials d'un rôle ne dépendent pas d'un mot de passe."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Access key",
+    "d": "Paire identifiant/secret long terme d'un utilisateur IAM (AKIA...) pour appeler l'API.",
+    "derja": "El mfateh mta3 el user."
+   },
+   {
+    "t": "aws:TokenIssueTime",
+    "d": "Clé de condition indiquant quand les credentials temporaires ont été émis ; sert à révoquer les anciennes sessions."
+   },
+   {
+    "t": "STS",
+    "d": "Security Token Service : émet les credentials temporaires (ASIA...) pour rôles et sessions."
+   },
+   {
+    "t": "Revoke active sessions",
+    "d": "Action de la console IAM sur un rôle qui ajoute automatiquement une deny policy basée sur l'heure d'émission."
+   },
+   {
+    "t": "Identité fédérée (AD/SSO)",
+    "d": "Identité gérée dans un annuaire externe qui accède à AWS via un rôle ; il faut aussi la désactiver côté IdP."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Comment traiter des credentials AWS compromis ?",
+    "a": "J'identifie l'utilisateur IAM concerné avec GuardDuty. Je fais la rotation des credentials exposés : désactiver puis supprimer l'ancienne clé. Comme des credentials temporaires ont pu être émis, j'attache une deny policy explicite avec une condition de date STS. Ensuite je revois CloudTrail pour détecter les actions non autorisées, je supprime les ressources créées par l'attaquant et je vérifie les informations du compte.",
+    "keys": [
+     "rotation",
+     "Deny + condition date STS",
+     "CloudTrail",
+     "supprimer ressources non autorisées"
+    ]
+   },
+   {
+    "q": "Pourquoi supprimer l'access key ne suffit pas ?",
+    "a": "Parce que des credentials temporaires obtenus avec cette identité restent valides jusqu'à leur expiration. Il faut donc une deny policy qui refuse toute session dont aws:TokenIssueTime est antérieur à l'heure de la révocation. Les nouvelles sessions légitimes émises après ne sont pas touchées par cette condition.",
+    "keys": [
+     "sessions temporaires",
+     "TokenIssueTime",
+     "Deny explicite"
+    ]
+   },
+   {
+    "q": "Que faire en plus si un compte AWS entier est compromis ?",
+    "a": "En plus de la rotation des clés d'accès, je fais tourner et supprime les identifiants non autorisés (mots de passe des IAM users), je supprime et remplace toutes les EC2 Key Pairs, je revois CloudTrail, je supprime les ressources non autorisées et je vérifie les informations du compte.",
+    "keys": [
+     "rotation de tout",
+     "EC2 Key Pairs",
+     "informations du compte"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'il suffit de supprimer l'access key : les sessions temporaires déjà émises continuent à fonctionner.",
+   "Mettre dans la condition une date FUTURE ou fausse : choisis l'heure de la révocation, sinon tu bloques aussi les sessions légitimes.",
+   "Oublier la partie fédérée : pour un rôle lié à un AD/SSO, il faut aussi désactiver l'utilisateur dans l'annuaire.",
+   "Ne pas regarder CloudTrail : l'attaquant peut avoir créé des utilisateurs, des clés ou des instances de persistance.",
+   "Oublier les EC2 Key Pairs quand c'est tout le compte qui est touché."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle policy invalide des credentials temporaires déjà émis ?",
+    "opts": [
+     "Allow * avec MFA",
+     "Un SCP de FullAWSAccess",
+     "Une bucket policy publique",
+     "Deny * avec condition de date sur le token STS"
+    ],
+    "ans": 3,
+    "why": "Un Deny explicite sur aws:TokenIssueTime avant la date de révocation."
+   },
+   {
+    "q": "Quelle clé de condition est utilisée dans cette deny policy ?",
+    "opts": [
+     "aws:SourceIp",
+     "aws:TokenIssueTime",
+     "aws:PrincipalOrgID",
+     "aws:MultiFactorAuthAge"
+    ],
+    "ans": 1,
+    "why": "aws:TokenIssueTime donne l'heure d'émission des credentials temporaires."
+   },
+   {
+    "q": "Pour un rôle IAM compromis lié à un annuaire AD via SSO, que faut-il faire en plus ?",
+    "opts": [
+     "Rien, AWS gère",
+     "Supprimer la région",
+     "Désactiver CloudTrail",
+     "Révoquer l'accès de l'identité liée côté AD / SSO"
+    ],
+    "ans": 3,
+    "why": "Le slide demande de révoquer l'accès de l'identité au AD lié s'il y en a un."
+   },
+   {
+    "q": "Quelle action est spécifique au playbook « compte compromis » ?",
+    "opts": [
+     "Revoir CloudTrail",
+     "Rotation et suppression de toutes les EC2 Key Pairs",
+     "Identifier avec GuardDuty",
+     "Vérifier le contact"
+    ],
+    "ans": 1,
+    "why": "Les key pairs sont citées uniquement pour le compte entier."
+   },
+   {
+    "q": "Pourquoi désactiver (Inactive) avant de supprimer une clé ?",
+    "opts": [
+     "C'est obligatoire techniquement",
+     "AWS supprime plus vite",
+     "Cela invalide les sessions temporaires",
+     "On peut revenir en arrière si on s'est trompé de clé, sans casser l'appli définitivement"
+    ],
+    "ans": 3,
+    "why": "Inactive est réversible ; la révocation des sessions est une autre étape."
+   }
+  ],
+  "recap": [
+   "Trois niveaux : credentials d'un user, rôle IAM, compte entier ; le point de départ est GuardDuty.",
+   "Rotation des clés + Deny explicite avec condition de date STS (aws:TokenIssueTime) pour tuer les sessions temporaires.",
+   "Rôle lié à un AD/SSO : couper aussi l'accès côté annuaire.",
+   "Compte entier : rotation de toutes les clés/mots de passe, suppression des EC2 Key Pairs.",
+   "Toujours : revue CloudTrail, suppression des ressources non autorisées, vérification des infos du compte."
+  ]
+ },
+ {
+  "id": "d2-04",
+  "part": "d2",
+  "title": "EC2 Key Pairs, clés exposées, EC2 Instance Connect & Serial Console",
+  "emoji": "🔑",
+  "level": 1,
+  "minutes": 17,
+  "core": false,
+  "src": "PDF p.131-135",
+  "hook": {
+   "fr": "Une clé SSH volée donne un accès root à toutes les instances qui lui font confiance : il faut comprendre où la clé publique vit vraiment pour la remplacer.",
+   "derja": "El key pair kima mfateh dar w 9fal. El 9fal (public key) yab9a fi el bab, w el mfateh (private key) 3andek inti bark. Ken el mfateh tdhai3, tbaddel el 9fal fi kol bab, mch kifeh tfassakh el mfateh mel console w t7asseb rohek rteh."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "El erreur el 3adi: ta3mel 'Delete key pair' fi el console w tgoul 'tfassakh el mochkel'. Ma tfassakhch chay! El console tfassakh ken el copie mta3 AWS. El public key yab9a fi ~/.ssh/authorized_keys 3al instance, w ken 3andek AMI qdima fiha el public key el 9dima, ay instance jdida mnha tab9a t9bel el private key el 9dima."
+   },
+   {
+    "type": "text",
+    "title": "Comment marche une EC2 Key Pair",
+    "md": "Une **key pair** est une paire de clés asymétriques : la **clé publique** est placée sur l'instance, la **clé privée** reste chez toi.\n\n- À la création, AWS te donne la clé privée (fichier `.pem`) **une seule fois**, puis **ne la garde pas** : impossible de la récupérer.\n- La clé **publique** est copiée dans `~/.ssh/authorized_keys` de l'utilisateur de l'instance au lancement.\n- Tu peux aussi **importer** une key pair créée ailleurs.\n- Types supportés (cours) : **ED25519** et **RSA 2048 bits (SSH-2)**.\n\nSSH prouve que tu possèdes la clé privée en signant un défi : la clé privée ne circule jamais."
+   },
+   {
+    "type": "flow",
+    "title": "Key pair : de la création à la connexion SSH",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "ton PC",
+      "kind": "user"
+     },
+     {
+      "id": "ec2",
+      "label": "Service EC2",
+      "sub": "gère les key pairs",
+      "kind": "aws"
+     },
+     {
+      "id": "i",
+      "label": "Instance EC2",
+      "sub": "~/.ssh/authorized_keys",
+      "kind": "app"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "ec2",
+      "label": "1. Crée la key pair + lance l'instance",
+      "detail": "Tu choisis la key pair au lancement de l'instance.",
+      "derja": "Tkhtar el mfateh w tlanci el dar."
+     },
+     {
+      "from": "ec2",
+      "to": "u",
+      "label": "2. Télécharge la clé privée (.pem)",
+      "detail": "La clé privée est livrée une seule fois ; AWS ne la conserve pas. Garde-la secrète.",
+      "dashed": true,
+      "derja": "Mrra wahda bark, ma tdhi3hech.",
+      "tone": "good"
+     },
+     {
+      "from": "ec2",
+      "to": "i",
+      "label": "3. Injecte la clé publique",
+      "detail": "La clé publique est stockée dans ~/.ssh/authorized_keys du volume racine EBS.",
+      "derja": "El 9fal yet7at fi el bab.",
+      "payload": {
+       "title": "authorized_keys",
+       "fields": [
+        {
+         "k": "Chemin",
+         "v": "/home/ec2-user/.ssh/authorized_keys",
+         "note": "Amazon Linux ; ubuntu sur Ubuntu"
+        },
+        {
+         "k": "Contenu",
+         "v": "ssh-ed25519 AAAA... ma-cle",
+         "note": "clé publique (sans danger)"
+        }
+       ]
+      }
+     },
+     {
+      "from": "u",
+      "to": "i",
+      "label": "4. ssh -i ma-cle.pem ec2-user@IP",
+      "detail": "Connexion SSH sur le port 22 ; le client prouve qu'il possède la clé privée.",
+      "derja": "Tod5el b'el mfateh."
+     },
+     {
+      "from": "i",
+      "to": "i",
+      "label": "5. Vérifie la signature avec la clé publique",
+      "detail": "L'instance compare avec les clés d'authorized_keys ; si l'une correspond, l'accès est accordé."
+     },
+     {
+      "from": "i",
+      "to": "u",
+      "label": "6. Session shell ouverte",
+      "detail": "Tu es connecté ; aucune clé privée n'a transité.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Pourquoi supprimer la key pair dans la console ne suffit pas",
+    "groups": [
+     {
+      "id": "U",
+      "label": "Console EC2",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "kp",
+        "label": "Key Pair (enregistrement)",
+        "sub": "supprimée de la console",
+        "icon": "key"
+       }
+      ]
+     },
+     {
+      "id": "I",
+      "label": "Instances existantes",
+      "kind": "vpc",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ins",
+        "label": "Instance en cours",
+        "sub": "authorized_keys garde l'ancienne clé",
+        "icon": "compute"
+       }
+      ]
+     },
+     {
+      "id": "A",
+      "label": "Nouvelles instances",
+      "kind": "vpc",
+      "col": 1,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "ami",
+        "label": "AMI préconstruite",
+        "sub": "contient l'ancienne clé publique",
+        "icon": "storage"
+       },
+       {
+        "id": "new",
+        "label": "Nouvelle instance",
+        "sub": "ancienne + nouvelle clé",
+        "icon": "compute"
+       }
+      ]
+     },
+     {
+      "id": "H",
+      "label": "Attaquant",
+      "kind": "internet",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "att",
+        "label": "Détenteur de l'ancienne clé privée",
+        "sub": "peut encore entrer",
+        "icon": "user"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "kp",
+      "to": "ins",
+      "label": "1. supprimer ne touche pas l'instance",
+      "style": "deny"
+     },
+     {
+      "id": "e2",
+      "from": "att",
+      "to": "ins",
+      "label": "2. SSH avec ancienne clé : OK",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "ami",
+      "to": "new",
+      "label": "3. lancement depuis l'AMI",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "att",
+      "to": "new",
+      "label": "4. ancienne clé acceptée aussi",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "kp",
+       "ins"
+      ],
+      "caption": "Retirer la key pair de la console n'efface rien dans le volume racine des instances existantes."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "att",
+       "ins"
+      ],
+      "caption": "Celui qui a la clé privée volée peut toujours se connecter."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4"
+      ],
+      "nodes": [
+       "ami",
+       "new",
+       "att"
+      ],
+      "caption": "Une AMI préconstruite embarque l'ancienne clé publique : l'instance lancée a l'ancienne ET la nouvelle clé."
+     }
+    ]
+   },
+   {
+    "type": "steps",
+    "title": "Remédier à des clés EC2 exposées",
+    "items": [
+     {
+      "t": "Supprimer toutes les clés publiques compromises",
+      "d": "Retire-les du fichier ~/.ssh/authorized_keys de chaque instance concernée."
+     },
+     {
+      "t": "Créer une nouvelle key pair",
+      "d": "Génère une paire neuve et ajoute sa clé publique dans authorized_keys sur toutes les instances."
+     },
+     {
+      "t": "Automatiser avec SSM Run Command",
+      "d": "Le cours recommande SSM Run Command pour ajouter/supprimer les clés sur toute la flotte plutôt que de se connecter à chaque instance."
+     },
+     {
+      "t": "Reconstruire les AMI",
+      "d": "Une AMI qui contient l'ancienne clé publique la réintroduira : recrée-la sans la clé compromise."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "EC2 Instance Connect : SSH sans clé permanente",
+    "md": "**Problème** : une clé privée long terme est une surface d'attaque (perdue, volée, copiée). **EC2 Instance Connect (EIC)** remplace la clé permanente par une clé **jetable** : l'API EIC pousse une clé publique **valide 60 secondes** dans les métadonnées de l'instance, l'agent EIC la récupère et la présente à sshd.\n\n- L'accès est contrôlé par **IAM** (permission `ec2-instance-connect:SendSSHPublicKey`).\n- Il faut autoriser le port **22** depuis la plage IP du service `EC2_INSTANCE_CONNECT` de la région (fichier `ip-ranges.json`) quand on passe par la console navigateur.\n- Toutes les connexions sont journalisées dans **CloudTrail**.\n- L'agent EIC doit être installé (déjà présent sur Amazon Linux 2 et Ubuntu 16.04+)."
+   },
+   {
+    "type": "flow",
+    "title": "EC2 Instance Connect : pas à pas",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "console / CLI / navigateur",
+      "kind": "user"
+     },
+     {
+      "id": "api",
+      "label": "EIC API",
+      "sub": "ec2-instance-connect",
+      "kind": "aws"
+     },
+     {
+      "id": "sg",
+      "label": "Security Group",
+      "sub": "port 22",
+      "kind": "network"
+     },
+     {
+      "id": "i",
+      "label": "Instance + agent EIC",
+      "sub": "métadonnées",
+      "kind": "app"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "api",
+      "label": "1. SendSSHPublicKey (IAM)",
+      "detail": "L'utilisateur envoie sa clé publique temporaire ; IAM vérifie qu'il a le droit.",
+      "derja": "El IAM ysa2el: 3andek el 7a9?",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ec2-instance-connect send-ssh-public-key --instance-id i-0abc123example --instance-os-user ec2-user --ssh-public-key file://temp.pub --availability-zone eu-west-1a",
+         "note": "pousse une clé jetable"
+        }
+       ]
+      }
+     },
+     {
+      "from": "api",
+      "to": "i",
+      "label": "2. Pousse la clé (valide 60 s)",
+      "detail": "La clé publique est placée dans les métadonnées de l'instance pour 60 secondes.",
+      "dashed": true,
+      "derja": "Mfateh yekhdem 60 secondes bark."
+     },
+     {
+      "from": "u",
+      "to": "sg",
+      "label": "3. SSH depuis une IP autorisée",
+      "detail": "La règle entrante autorise le port 22 depuis la plage IP AWS du service EC2_INSTANCE_CONNECT (console navigateur) ou depuis ton IP (CLI).",
+      "derja": "Lazem el bab yetfat7 lel 7aja el sah.",
+      "payload": {
+       "title": "ip-ranges.json (extrait)",
+       "fields": [
+        {
+         "k": "ip_prefix",
+         "v": "18.206.107.24/29",
+         "note": "exemple du slide : plage EIC us-east-1"
+        },
+        {
+         "k": "service",
+         "v": "EC2_INSTANCE_CONNECT",
+         "note": "filtre à utiliser"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sg",
+      "to": "i",
+      "label": "4. Trafic autorisé",
+      "detail": "Le Security Group laisse passer le SSH vers l'instance."
+     },
+     {
+      "from": "i",
+      "to": "i",
+      "label": "5. L'agent récupère et valide la clé",
+      "detail": "L'agent lit la clé dans les métadonnées et sshd l'accepte pendant la fenêtre de 60 s.",
+      "tone": "good"
+     },
+     {
+      "from": "i",
+      "to": "u",
+      "label": "6. Session ouverte (journalisée CloudTrail)",
+      "detail": "L'appel SendSSHPublicKey apparaît dans CloudTrail : on sait qui a ouvert l'accès.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Autoriser EIC pour un seul utilisateur OS",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"ec2-instance-connect:SendSSHPublicKey\",",
+     "      \"Resource\": \"arn:aws:ec2:eu-west-1:111122223333:instance/i-0abc123example\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"ec2:osuser\": \"ec2-user\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "L'action qui pousse la clé temporaire.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Limitée à UNE instance (ARN précis).",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       9,
+       10
+      ],
+      "text": "Seul l'utilisateur OS ec2-user est autorisé ; root ou autre est refusé.",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette policy permet-elle d'ouvrir une session sur une autre instance ?",
+      "ans": false,
+      "why": "La Resource cible une seule instance."
+     },
+     {
+      "q": "Permet-elle d'envoyer une clé pour l'utilisateur OS ec2-user de cette instance ?",
+      "ans": true,
+      "why": "Action + ressource + condition osuser correspondent."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "EC2 Serial Console : quand le réseau est cassé",
+    "md": "**Problème** : SSH, EIC et SSM exigent tous que le réseau, sshd ou un agent fonctionne. Si tu as cassé la config réseau, un firewall OS ou le boot, tu es enfermé dehors.\n\nLa **Serial Console** donne un accès au **port série** de l'instance, comme un clavier et un écran branchés dessus :\n- **Aucune connectivité réseau** requise.\n- Cas d'usage : dépanner le **boot**, la **configuration réseau**, analyser des problèmes de **reboot**.\n- Instances **Nitro** supportées.\n- Il faut un **utilisateur OS avec mot de passe** défini.\n- **Une seule session** active par instance.\n- **Désactivée par défaut** : à activer au niveau du **compte**."
+   },
+   {
+    "type": "compare",
+    "title": "SSH classique vs EIC vs Serial Console",
+    "cols": [
+     {
+      "name": "SSH + key pair",
+      "tag": "clé permanente",
+      "points": [
+       "Clé publique dans authorized_keys",
+       "Port 22 ouvert depuis ton IP",
+       "Si la clé fuit : rotation sur toutes les instances"
+      ],
+      "use": "Accès standard, à éviter pour la production sensible."
+     },
+     {
+      "name": "EC2 Instance Connect",
+      "tag": "clé 60 s + IAM",
+      "points": [
+       "Clé jetable poussée via API",
+       "Contrôle IAM + CloudTrail",
+       "Port 22 requis (plage EIC)",
+       "Agent EIC nécessaire"
+      ],
+      "use": "Accès SSH occasionnel sans gérer de clé permanente."
+     },
+     {
+      "name": "Serial Console",
+      "tag": "port série",
+      "points": [
+       "Sans réseau",
+       "Nitro uniquement",
+       "Login OS + mot de passe",
+       "1 session par instance, activée au niveau compte"
+      ],
+      "use": "Dépannage boot / réseau quand tout le reste est inaccessible."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : clé privée dans un dépôt Git public",
+    "situation": "Un développeur a publié par erreur le fichier .pem d'une key pair utilisée par 40 instances de production dans un dépôt public. Il propose de supprimer la key pair dans la console EC2.",
+    "q": "Que fais-tu ?",
+    "opts": [
+     {
+      "t": "Supprimer la key pair dans la console : elle ne sera plus utilisable.",
+      "ok": false,
+      "why": "La clé publique reste dans authorized_keys des instances ; l'attaquant peut toujours s'y connecter."
+     },
+     {
+      "t": "Créer une nouvelle key pair, remplacer les clés publiques dans authorized_keys sur toutes les instances (SSM Run Command), et reconstruire les AMI contenant l'ancienne clé.",
+      "ok": true,
+      "why": "C'est la remédiation du cours : retirer l'ancienne clé publique partout et ajouter la nouvelle, automatisée avec Run Command."
+     },
+     {
+      "t": "Redémarrer les 40 instances.",
+      "ok": false,
+      "why": "Un redémarrage ne modifie pas authorized_keys."
+     },
+     {
+      "t": "Changer uniquement le nom de la key pair.",
+      "ok": false,
+      "why": "Le nom n'a aucun effet sur les clés publiques stockées dans les instances."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Key Pair",
+    "d": "Paire clé publique / clé privée utilisée pour SSH vers une instance EC2.",
+    "derja": "9fal w mfateh."
+   },
+   {
+    "t": "authorized_keys",
+    "d": "Fichier ~/.ssh/authorized_keys qui liste les clés publiques acceptées pour un utilisateur Linux."
+   },
+   {
+    "t": "EC2 Instance Connect",
+    "d": "Service qui pousse une clé SSH publique temporaire (60 s) après vérification IAM.",
+    "derja": "Mfateh yekhdem 60 secondes bark."
+   },
+   {
+    "t": "EC2 Serial Console",
+    "d": "Accès au port série d'une instance Nitro, sans réseau, désactivé par défaut au niveau compte."
+   },
+   {
+    "t": "ip-ranges.json",
+    "d": "Fichier public d'AWS listant les plages IP par service/région, dont EC2_INSTANCE_CONNECT."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Expliquez le fonctionnement d'une EC2 Key Pair et pourquoi la supprimer de la console ne suffit pas.",
+    "a": "Une key pair est une paire asymétrique : AWS donne la clé privée une seule fois et place la clé publique dans ~/.ssh/authorized_keys de l'instance. Supprimer la key pair de la console ne supprime pas la clé publique déjà présente dans le volume racine. De plus, une AMI préconstruite contient l'ancienne clé : une nouvelle instance acceptera l'ancienne ET la nouvelle clé. Il faut donc nettoyer authorized_keys.",
+    "keys": [
+     "clé publique dans authorized_keys",
+     "privée non récupérable",
+     "AMI préconstruite"
+    ]
+   },
+   {
+    "q": "Comment remédier à des key pairs exposées ?",
+    "a": "Je supprime toutes les clés publiques compromises du fichier authorized_keys de toutes les instances, je crée une nouvelle key pair et j'ajoute sa clé publique partout. Pour ne pas le faire à la main, j'utilise SSM Run Command pour ajouter et supprimer les clés sur toute la flotte. Je reconstruis aussi les AMI qui contiennent l'ancienne clé.",
+    "keys": [
+     "supprimer clés publiques",
+     "nouvelle key pair",
+     "SSM Run Command"
+    ]
+   },
+   {
+    "q": "Quelle différence entre EC2 Instance Connect et la Serial Console ?",
+    "a": "EC2 Instance Connect pousse une clé publique temporaire de 60 secondes via IAM : il faut quand même le réseau (port 22) et l'agent EIC. La Serial Console accède au port série de l'instance Nitro, sans réseau, avec un utilisateur OS et un mot de passe ; elle est désactivée par défaut au niveau du compte et limitée à une session par instance.",
+    "keys": [
+     "60 secondes",
+     "sans réseau",
+     "Nitro",
+     "désactivée par défaut"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'on peut retélécharger la clé privée : AWS ne la conserve pas, la perdre = la perdre définitivement.",
+   "Penser que supprimer la key pair de la console révoque l'accès aux instances existantes.",
+   "Oublier les AMI préconstruites qui réintroduisent l'ancienne clé publique.",
+   "Croire que la Serial Console est activée par défaut ou qu'elle fonctionne sans mot de passe OS.",
+   "Confondre EIC (clé 60 s, réseau requis) et Serial Console (pas de réseau)."
+  ],
+  "quiz": [
+   {
+    "q": "Combien de temps la clé publique poussée par EC2 Instance Connect reste-t-elle valide ?",
+    "opts": [
+     "60 minutes",
+     "24 heures",
+     "60 secondes",
+     "Jusqu'au prochain redémarrage"
+    ],
+    "ans": 2,
+    "why": "La clé jetable est valide 60 secondes."
+   },
+   {
+    "q": "Où est stockée la clé publique d'une key pair sur une instance Linux ?",
+    "opts": [
+     "~/.ssh/authorized_keys",
+     "/etc/passwd",
+     "/var/log/auth.log",
+     "Dans CloudTrail"
+    ],
+    "ans": 0,
+    "why": "Dans authorized_keys, sur le volume racine EBS."
+   },
+   {
+    "q": "Quelle option fonctionne sans aucune connectivité réseau ?",
+    "opts": [
+     "SSH",
+     "EC2 Instance Connect",
+     "EC2 Serial Console",
+     "RDP"
+    ],
+    "ans": 2,
+    "why": "La Serial Console donne un accès au port série, comme un clavier et un écran physiques."
+   },
+   {
+    "q": "Quels types de clés EC2 supporte-t-il (cours) ?",
+    "opts": [
+     "ED25519 et RSA 2048 bits",
+     "DSA 512 bits uniquement",
+     "ECDSA 128 bits",
+     "Uniquement RSA 4096"
+    ],
+    "ans": 0,
+    "why": "ED25519 et SSH-2 RSA 2048 bits sont cités."
+   },
+   {
+    "q": "Quel outil permet de pousser/retirer des clés publiques sur de nombreuses instances ?",
+    "opts": [
+     "AWS Config",
+     "Amazon Macie",
+     "SSM Run Command",
+     "Route 53"
+    ],
+    "ans": 2,
+    "why": "Run Command exécute des commandes à grande échelle sans SSH."
+   }
+  ],
+  "recap": [
+   "Key pair : clé publique dans authorized_keys, clé privée chez toi, non récupérable chez AWS.",
+   "Supprimer la key pair de la console n'enlève pas la clé publique des instances ni des AMI préconstruites.",
+   "Remédiation : supprimer les clés publiques compromises, ajouter une nouvelle clé partout, automatiser avec SSM Run Command.",
+   "EC2 Instance Connect : clé publique jetable 60 s, IAM + CloudTrail, port 22 depuis la plage EC2_INSTANCE_CONNECT.",
+   "Serial Console : port série, sans réseau, Nitro, login OS, 1 session, activée au niveau compte."
+  ]
+ },
+ {
+  "id": "d2-05",
+  "part": "d2",
+  "title": "Clé perdue : récupérer l'accès à une instance (Linux, Windows) & EC2Rescue",
+  "emoji": "🛟",
+  "level": 2,
+  "minutes": 20,
+  "core": false,
+  "src": "PDF p.136-148",
+  "hook": {
+   "fr": "Tu as perdu la clé privée ou le mot de passe Administrator : AWS ne peut pas te les redonner, mais il existe plusieurs chemins pour reprendre la main sans détruire l'instance.",
+   "derja": "Dhai3t el mfateh mta3 el dar? Ma tkassarch el bab. Fama barcha tourou9: tkhalli el cleaner (user data), tgoul lel SSM yfeth lek, tdkhol men el fenetre (Instance Connect), walla tekhou el disque w t7ottou fi machine okhra bch tbaddel el cle (EBS swap). El mohim: tefhem 9bal ma tekhtar w t3araf chnowa yetlab."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fi Linux, el cle publique mawjouda fi el disque (authorized_keys). Donc el 7ala el a5ira, tekhou el disque, t7ottou 3and wahed sa7bek, tzid el cle jdida, w trajja3ou. Fi Windows nafs el fikra: el password yet3awad b'el EC2Launch / EC2Rescue. Ama ken el SSM Agent mawjoud, el 7all as-hel: tkhdem document AWSSupport-ResetAccess w khalas, bla ma tdkhol lel disque."
+   },
+   {
+    "type": "text",
+    "title": "Le problème",
+    "md": "Une instance EC2 n'accepte que la clé publique placée à sa création. Si tu perds la clé privée :\n- tu ne peux plus te connecter en SSH ;\n- AWS **ne peut pas** te la renvoyer (elle n'est pas conservée) ;\n- *recréer* la key pair dans la console ne change **pas** la clé dans l'instance existante.\n\nSolution générale : **réinjecter une nouvelle clé publique** dans l'instance (ou un nouveau mot de passe Windows), soit par un **mécanisme logiciel** (User Data, SSM, EIC, Serial Console), soit en **manipulant le disque** (EBS swap)."
+   },
+   {
+    "type": "table",
+    "title": "Linux : 5 méthodes pour une clé SSH perdue",
+    "head": [
+     "Méthode",
+     "Principe",
+     "Prérequis / limites"
+    ],
+    "rows": [
+     [
+      "**EC2 User Data**",
+      "Créer une nouvelle key pair, stopper l'instance, mettre la clé publique en User Data (cloud-config), redémarrer, se connecter, puis supprimer le User Data",
+      "Instance arrêtée ; n'écrase pas les clés publiques existantes (elle s'ajoute)"
+     ],
+     [
+      "**Systems Manager**",
+      "Document Automation **AWSSupport-ResetAccess** : crée et applique une nouvelle key pair ; clé privée stockée chiffrée dans Parameter Store `/ec2rl/openssh/instance_id/key`",
+      "SSM Agent installé + rôle IAM ; fonctionne Linux **et** Windows"
+     ],
+     [
+      "**EC2 Instance Connect**",
+      "Session temporaire (clé 60 s), puis on enregistre une nouvelle clé publique permanente dans ~/.ssh/authorized_keys",
+      "Agent EIC installé (Amazon Linux 2, Ubuntu 16.04+) ; port 22"
+     ],
+     [
+      "**EC2 Serial Console**",
+      "Accès port série, login OS, puis écriture de la clé dans authorized_keys",
+      "Nitro ; activée au niveau compte ; mot de passe OS requis"
+     ],
+     [
+      "**EBS Volume swap**",
+      "Détacher le volume racine, l'attacher à une instance temporaire, modifier authorized_keys, le remettre",
+      "Instance arrêtée ; méthode universelle mais manuelle"
+     ]
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "User Data cloud-config qui ajoute une clé SSH",
+    "raw": "#cloud-config\ncloud_final_modules:\n- [users-groups, always]\nusers:\n  - name: ec2-user\n    ssh-authorized-keys:\n      - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLE new-key",
+    "parts": [
+     {
+      "s": "#cloud-config",
+      "label": "En-tête cloud-init",
+      "note": "indique à cloud-init que le User Data est une configuration YAML"
+     },
+     {
+      "s": "cloud_final_modules",
+      "label": "Modules finaux",
+      "note": "modules exécutés en fin de boot"
+     },
+     {
+      "s": "[users-groups, always]",
+      "label": "Module users-groups + always",
+      "note": "force son exécution à CHAQUE démarrage (par défaut un module ne tourne qu'au premier boot) : c'est pourquoi on réinitialise la clé après un stop/start"
+     },
+     {
+      "s": "name: ec2-user",
+      "label": "Utilisateur Linux",
+      "note": "compte qui recevra la clé"
+     },
+     {
+      "s": "ssh-authorized-keys",
+      "label": "Clés autorisées",
+      "note": "liste des clés publiques ajoutées dans authorized_keys"
+     },
+     {
+      "s": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEXAMPLE new-key",
+      "label": "Nouvelle clé publique",
+      "note": "celle de la nouvelle key pair (la privée reste chez toi)"
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "EBS Volume swap (Linux et Windows : même mécanique)",
+    "actors": [
+     {
+      "id": "adm",
+      "label": "Administrateur",
+      "sub": "nouvelle clé",
+      "kind": "user"
+     },
+     {
+      "id": "orig",
+      "label": "Instance d'origine",
+      "sub": "accès perdu",
+      "kind": "app"
+     },
+     {
+      "id": "vol",
+      "label": "Volume racine EBS",
+      "sub": "disque de l'instance",
+      "kind": "store"
+     },
+     {
+      "id": "tmp",
+      "label": "Instance temporaire",
+      "sub": "même AZ",
+      "kind": "aws"
+     }
+    ],
+    "steps": [
+     {
+      "from": "adm",
+      "to": "orig",
+      "label": "1. Crée la key pair, stoppe l'instance",
+      "detail": "On arrête (stop, pas terminate) l'instance d'origine pour pouvoir détacher son disque racine.",
+      "derja": "Nwa9ef el dar, ma nahdemhech."
+     },
+     {
+      "from": "orig",
+      "to": "vol",
+      "label": "2. Détache le volume racine",
+      "detail": "Le volume racine devient un volume indépendant dans la même zone de disponibilité."
+     },
+     {
+      "from": "vol",
+      "to": "tmp",
+      "label": "3. Attache en volume secondaire",
+      "detail": "On l'attache à une instance temporaire de la même AZ et on le monte.",
+      "dashed": true,
+      "derja": "Nzid el disque fi machine okhra."
+     },
+     {
+      "from": "adm",
+      "to": "tmp",
+      "label": "4. Modifie le fichier",
+      "detail": "Linux : ajouter la nouvelle clé publique dans ~/.ssh/authorized_keys du volume. Windows : supprimer .run-once ou modifier la config selon la version.",
+      "tone": "good",
+      "payload": {
+       "title": "Linux",
+       "fields": [
+        {
+         "k": "Fichier",
+         "v": "<montage>/home/ec2-user/.ssh/authorized_keys",
+         "note": "ajouter la ligne de la nouvelle clé publique"
+        }
+       ]
+      }
+     },
+     {
+      "from": "tmp",
+      "to": "orig",
+      "label": "5. Ré-attache le volume à l'originale",
+      "detail": "On détache le volume de l'instance temporaire et on le rattache à l'instance d'origine comme volume racine.",
+      "dashed": true
+     },
+     {
+      "from": "adm",
+      "to": "orig",
+      "label": "6. Redémarre et se connecte",
+      "detail": "L'instance démarre avec la nouvelle clé (Windows : on peut redéfinir le mot de passe).",
+      "tone": "good",
+      "derja": "Wala el bab ye7el b'el cle jdida."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Windows : mot de passe Administrator perdu",
+    "head": [
+     "Contexte",
+     "Méthode",
+     "Détail"
+    ],
+    "rows": [
+     [
+      "AMI avec **EC2Launch v2**",
+      "EBS swap : supprimer le fichier d'état `.run-once`",
+      "Vérifier que le service EC2Launch v2 tourne ; supprimer `%ProgramData%/Amazon/EC2Launch/state/.run-once` sur le volume monté ; remettre et redémarrer : on peut définir un nouveau mot de passe"
+     ],
+     [
+      "**EC2Config** (AMI antérieures à Windows Server 2016)",
+      "EBS swap : modifier `config.xml`",
+      "Fichier `\\Program Files\\Amazon\\Ec2ConfigService\\Settings\\config.xml` : mettre **EC2SetPassword** sur **Enabled**"
+     ],
+     [
+      "Windows Server 2016+ **sans EC2Launch v2** (EC2Launch)",
+      "EBS swap + **EC2Rescue** (offline)",
+      "Installer EC2Rescue sur l'instance temporaire, Offline Instance, Diagnose and Rescue, **Reset Administrator Password**"
+     ],
+     [
+      "SSM Agent installé (méthode 1)",
+      "Run Command **AWSSupport-RunEC2RescueForWindowsTool**",
+      "Commande réglée sur **ResetAccess**"
+     ],
+     [
+      "SSM Agent installé (méthode 2)",
+      "Automation **AWSSupport-ResetAccess**",
+      "Fonctionne Linux **et** Windows"
+     ],
+     [
+      "SSM Agent installé (méthode 3)",
+      "Run Command **AWS-RunPowerShellScript**",
+      "`net user Administrator <nouveau mot de passe>` (à changer tout de suite, il apparaît dans la commande)"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Mot de passe dans la commande",
+    "text": "Dans le slide, le mot de passe est écrit en clair dans la commande Run Command. C'est un exemple pédagogique : en vrai, le paramètre se retrouve dans l'historique des commandes et les logs. Utilise un mot de passe temporaire, puis change-le immédiatement."
+   },
+   {
+    "type": "text",
+    "title": "EC2Rescue : l'outil de dépannage",
+    "md": "**EC2Rescue** collecte des logs, diagnostique et peut **corriger automatiquement** des problèmes courants.\n\n**Linux** : plus de **100 modules** ; Amazon Linux 2, Ubuntu, RHEL, SUSE. Se lance via le Automation **AWSSupport-TroubleshootSSH** (installe l'outil et tente de réparer SSH). Cas d'usage : rapports d'utilisation (vmstat, iostat, mpstat), logs (syslog, dmesg, erreurs applicatives, logs SSM), détection de routage asymétrique ou de labels de volume racine dupliqués, correction des permissions OpenSSH, désactivation de paramètres noyau problématiques ; tu peux écrire un module custom. Résultats envoyables à **AWS Support** ou à un **bucket S3**.\n\n**Windows Server** : 2 modules (collecteur de données, analyseur) ; Windows Server 2008 R2+. Via Run Command **AWSSupport-RunEC2RescueForWindowsTool** (commandes **CollectLogs**, **FixAll**, **ResetAccess**) ou Automation **AWSSupport-ExecuteEC2Rescue** pour les problèmes de connectivité. Cas d'usage : firewall/RDP/interface réseau, boot (écran bleu, boucle de boot, registre corrompu), collecte de logs, collision de signature de disque, restauration. Résultats vers S3."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : Linux sans SSM Agent ni EIC",
+    "situation": "Une instance Ubuntu 14.04 (ancienne) n'a ni SSM Agent ni agent EC2 Instance Connect. La clé privée est perdue et la production ne peut pas être détruite. L'instance n'est pas Nitro.",
+    "q": "Quelle méthode est la plus réaliste ?",
+    "opts": [
+     {
+      "t": "AWSSupport-ResetAccess via SSM.",
+      "ok": false,
+      "why": "Il faut l'SSM Agent, absent ici."
+     },
+     {
+      "t": "EC2 Instance Connect pour pousser une clé.",
+      "ok": false,
+      "why": "L'agent EIC n'est pas installé sur cette ancienne version."
+     },
+     {
+      "t": "EBS Volume swap : stopper, détacher le root volume, le monter sur une instance temporaire de la même AZ, ajouter la clé publique dans authorized_keys, remettre le volume.",
+      "ok": true,
+      "why": "Méthode universelle qui ne dépend ni d'un agent ni du réseau ; l'instance n'est pas détruite."
+     },
+     {
+      "t": "Serial Console.",
+      "ok": false,
+      "why": "Réservée aux instances Nitro et demande un mot de passe OS déjà défini."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "EBS volume swap",
+    "d": "Détacher le volume racine, le modifier depuis une instance temporaire, puis le rattacher.",
+    "derja": "Nkhou el disque, n3adlouh 3and wahed okhor, w nraje3ouh."
+   },
+   {
+    "t": "AWSSupport-ResetAccess",
+    "d": "Document Automation SSM qui recrée l'accès (key pair ou mot de passe) ; Linux et Windows."
+   },
+   {
+    "t": "AWSSupport-TroubleshootSSH",
+    "d": "Automation qui installe EC2Rescue for Linux et tente de réparer les problèmes SSH."
+   },
+   {
+    "t": "EC2Rescue",
+    "d": "Outil de diagnostic et de réparation pour instances Linux et Windows."
+   },
+   {
+    "t": "EC2Launch v2",
+    "d": "Service d'initialisation des AMI Windows récentes ; supprimer son fichier .run-once permet de réinitialiser le mot de passe."
+   }
+  ],
+  "oral": [
+   {
+    "q": "J'ai perdu la clé SSH d'une instance Linux. Que faites-vous ?",
+    "a": "AWS ne peut pas me redonner la clé privée, donc je réinjecte une nouvelle clé publique. Selon les prérequis : User Data cloud-config (instance arrêtée), AWSSupport-ResetAccess avec Systems Manager si l'SSM Agent est présent, EC2 Instance Connect si l'agent est installé, Serial Console sur une instance Nitro, ou EBS volume swap en dernier recours : stopper l'instance, attacher son volume racine à une instance temporaire, ajouter la clé dans authorized_keys, puis remettre le volume.",
+    "keys": [
+     "nouvelle clé publique",
+     "User Data",
+     "ResetAccess",
+     "EBS swap"
+    ]
+   },
+   {
+    "q": "Comment récupérer un mot de passe Administrator Windows perdu ?",
+    "a": "Avec EC2Launch v2, je fais un EBS swap et je supprime le fichier .run-once. Avec EC2Config (avant Windows Server 2016), je mets EC2SetPassword sur Enabled dans config.xml. Sans EC2Launch v2 sur Windows Server 2016+, j'utilise EC2Rescue en mode offline pour réinitialiser le mot de passe. Si l'SSM Agent est présent : Run Command AWSSupport-RunEC2RescueForWindowsTool (ResetAccess), Automation AWSSupport-ResetAccess ou AWS-RunPowerShellScript.",
+    "keys": [
+     ".run-once",
+     "EC2SetPassword",
+     "EC2Rescue",
+     "AWSSupport-ResetAccess"
+    ]
+   },
+   {
+    "q": "À quoi sert EC2Rescue ?",
+    "a": "C'est un outil de diagnostic et de dépannage qui collecte des logs, détecte des problèmes courants et corrige certains automatiquement. Version Linux : plus de 100 modules, lancée par AWSSupport-TroubleshootSSH. Version Windows : collecte de logs et analyse via Run Command, avec les commandes CollectLogs, FixAll et ResetAccess. Les résultats peuvent aller vers S3 ou AWS Support (Linux).",
+    "keys": [
+     "diagnostic",
+     "logs",
+     "TroubleshootSSH",
+     "S3"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'il suffit de créer une nouvelle key pair dans la console : elle n'est pas injectée dans l'instance existante.",
+   "EBS swap : attacher le volume à une instance temporaire d'une AZ différente (impossible, il faut la même AZ).",
+   "Utiliser Terminate au lieu de Stop : tu perds le volume racine si DeleteOnTermination est actif.",
+   "Oublier de supprimer le User Data après usage (le module always ré-applique la clé à chaque démarrage).",
+   "Confondre les versions Windows : EC2Config (avant 2016), EC2Launch, EC2Launch v2 ont des procédures différentes."
+  ],
+  "quiz": [
+   {
+    "q": "Quel document SSM crée et applique une nouvelle key pair pour Linux et Windows ?",
+    "opts": [
+     "AWS-RunShellScript",
+     "AWSSupport-ResetAccess",
+     "AWS-RunPatchBaseline",
+     "AWS-RestartEC2Instance"
+    ],
+    "ans": 1,
+    "why": "AWSSupport-ResetAccess (Automation), clé privée stockée dans Parameter Store."
+   },
+   {
+    "q": "Où la clé privée générée par AWSSupport-ResetAccess est-elle stockée ?",
+    "opts": [
+     "Dans un bucket S3 public",
+     "Dans CloudTrail",
+     "Dans l'AMI",
+     "Chiffrée dans SSM Parameter Store"
+    ],
+    "ans": 3,
+    "why": "Chemin /ec2rl/openssh/instance_id/key dans Parameter Store."
+   },
+   {
+    "q": "Avec EC2Launch v2, quelle action permet de redéfinir le mot de passe ?",
+    "opts": [
+     "Redémarrer deux fois",
+     "Supprimer le fichier .run-once du volume monté",
+     "Modifier le Security Group",
+     "Activer la Serial Console"
+    ],
+    "ans": 1,
+    "why": "On supprime %ProgramData%/Amazon/EC2Launch/state/.run-once."
+   },
+   {
+    "q": "Quelle contrainte pour attacher le volume racine à l'instance temporaire ?",
+    "opts": [
+     "Même compte root uniquement",
+     "Même type d'instance",
+     "Même nom de key pair",
+     "Même zone de disponibilité"
+    ],
+    "ans": 3,
+    "why": "Un volume EBS ne s'attache qu'à une instance de la même AZ."
+   },
+   {
+    "q": "Quelle commande Run Command EC2Rescue Windows réinitialise l'accès ?",
+    "opts": [
+     "CollectLogs",
+     "ResetAccess",
+     "FixAll",
+     "Restore"
+    ],
+    "ans": 1,
+    "why": "ResetAccess ; CollectLogs et FixAll existent aussi."
+   }
+  ],
+  "recap": [
+   "Clé privée perdue : on réinjecte une nouvelle clé publique, AWS ne peut pas la restituer.",
+   "Linux : User Data, SSM AWSSupport-ResetAccess, EC2 Instance Connect, Serial Console, EBS volume swap.",
+   "Windows : EC2Launch v2 (.run-once), EC2Config (EC2SetPassword), EC2Rescue offline, ou Run Command / Automation SSM.",
+   "EBS swap : stop, détacher, attacher à une instance temporaire (même AZ), modifier, ré-attacher, redémarrer.",
+   "EC2Rescue : diagnostic et réparation ; Linux via AWSSupport-TroubleshootSSH, Windows via RunEC2RescueForWindowsTool (CollectLogs, FixAll, ResetAccess)."
+  ]
+ },
+ {
+  "id": "d2-06",
+  "part": "d2",
+  "title": "AWS Abuse Report & notifications automatiques",
+  "emoji": "📣",
+  "level": 1,
+  "minutes": 11,
+  "core": false,
+  "src": "PDF p.149-150",
+  "hook": {
+   "fr": "Si ton compte sert à envoyer du spam ou à attaquer quelqu'un, AWS te contacte et peut suspendre ton compte sous 24 h si tu ne réponds pas : il faut détecter l'alerte vite.",
+   "derja": "Tsawer ken 7ad ya5dh el 7anout mta3ek bch yeb3ath spam walla yhajem nes okhra. El police (AWS Trust & Safety) t3aytelek, w ken ma jawebtch f 24 s3a, yesakrou el 7anout. Donc lazem tkoun mrabet: notification automatique 3al email, mch tsib el mail f spam."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fama zouz 7alet: (1) inti elli tchouf 7ad yehajem fik w fih AWS IP: tab3ath Abuse Report. (2) 7ad yehajem men compte mta3ek (eli ye3ref ken tkoun ta7t hack): AWS tab3athlek alert. Fi el 7ala el thenya, el compte mta3ek hack, donc el reflex: tchouf CloudTrail, tsaker el 7ajet, w tjawab AWS bil khat el 7all."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : le cloud est un outil, aussi pour les attaquants",
+    "md": "Un attaquant qui vole tes credentials lance des instances pour **envoyer du spam**, **scanner des ports**, faire des **DDoS** ou **héberger du contenu interdit**. AWS reçoit des plaintes de tiers et doit protéger sa réputation et ses clients.\n\nLe mécanisme **AWS Abuse Report** : tu signales (ou AWS te signale) une utilisation abusive ou illégale de ressources AWS. L'**équipe AWS Trust & Safety** traite le dossier.\n\nExemples d'abus : **spam**, **port scanning**, **attaques DDoS**, **tentatives d'intrusion**, **contenu interdit**, **distribution de malware**."
+   },
+   {
+    "type": "compare",
+    "title": "Deux directions possibles",
+    "cols": [
+     {
+      "name": "Tu es la victime",
+      "tag": "tu signales",
+      "points": [
+       "Tu suspectes que des ressources AWS (d'un autre client) t'attaquent ou t'envoient du spam",
+       "Tu crées un AWS Abuse Report",
+       "Tu fournis des preuves : logs, en-têtes d'e-mails, etc.",
+       "L'équipe Trust & Safety investigue"
+      ],
+      "use": "Ex : ton serveur reçoit des scans de port venant d'une IP AWS."
+     },
+     {
+      "name": "Ton compte est la source",
+      "tag": "AWS te signale",
+      "points": [
+       "AWS t'envoie un e-mail et une notification dans AWS Health Dashboard",
+       "Tu dois répondre et expliquer comment tu empêches la récidive",
+       "Sans réponse sous 24 heures, AWS peut suspendre le compte",
+       "Souvent : credentials volés"
+      ],
+      "use": "Ex : une instance minée par un attaquant envoie du spam depuis ton compte."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Quand ton compte est utilisé pour un abus : de l'alerte à ta réponse",
+    "intro": "Notifications automatiques : Health, EventBridge, SNS.",
+    "actors": [
+     {
+      "id": "acct",
+      "label": "Ton compte AWS",
+      "sub": "ressource abusée",
+      "kind": "aws"
+     },
+     {
+      "id": "ts",
+      "label": "Trust & Safety",
+      "sub": "équipe AWS",
+      "kind": "service"
+     },
+     {
+      "id": "health",
+      "label": "AWS Health Dashboard",
+      "sub": "événements du compte",
+      "kind": "service"
+     },
+     {
+      "id": "eb",
+      "label": "EventBridge",
+      "sub": "règle sur l'événement",
+      "kind": "service"
+     },
+     {
+      "id": "sns",
+      "label": "SNS",
+      "sub": "topic",
+      "kind": "service"
+     },
+     {
+      "id": "adm",
+      "label": "Administrateur",
+      "sub": "toi",
+      "kind": "user"
+     }
+    ],
+    "steps": [
+     {
+      "from": "acct",
+      "to": "acct",
+      "label": "1. Un attaquant envoie du spam depuis ton compte",
+      "detail": "Les credentials ont fuité ; des instances envoient du spam ou font du DDoS.",
+      "tone": "bad",
+      "derja": "El hacker yesta3mel el 7anout mta3ek."
+     },
+     {
+      "from": "ts",
+      "to": "health",
+      "label": "2. Abuse alert",
+      "detail": "Après plainte ou détection, Trust & Safety publie une alerte sur ton compte ; tu reçois aussi un e-mail.",
+      "derja": "El police te3tik 3ala el 7ala.",
+      "payload": {
+       "title": "Evénement Health",
+       "fields": [
+        {
+         "k": "eventTypeCode",
+         "v": "AWS_ABUSE_DOS_REPORT",
+         "note": "abus de type DDoS"
+        },
+        {
+         "k": "Canal",
+         "v": "e-mail + AWS Health Dashboard",
+         "note": "deux notifications"
+        }
+       ]
+      }
+     },
+     {
+      "from": "health",
+      "to": "eb",
+      "label": "3. Événement vers EventBridge",
+      "detail": "Les événements AWS Health sont publiés sur EventBridge ; une règle filtre les codes AWS_ABUSE_*.",
+      "dashed": true
+     },
+     {
+      "from": "eb",
+      "to": "sns",
+      "label": "4. Règle : invoque SNS",
+      "detail": "La règle déclenche le topic SNS (et pourrait aussi lancer une Lambda de remédiation)."
+     },
+     {
+      "from": "sns",
+      "to": "adm",
+      "label": "5. E-mail à l'administrateur",
+      "detail": "L'administrateur est alerté même s'il ne regarde pas le Health Dashboard.",
+      "dashed": true,
+      "tone": "good"
+     },
+     {
+      "from": "adm",
+      "to": "ts",
+      "label": "6. Réponse sous 24 h",
+      "detail": "Il répond en expliquant comment l'abus est stoppé (isolation, rotation de clés...). Sans réponse sous 24 h, AWS peut suspendre le compte.",
+      "tone": "good",
+      "derja": "Lazem tjawab f 24 s3a."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les codes de notification de compte à connaître",
+    "head": [
+     "Code",
+     "Signification"
+    ],
+    "rows": [
+     [
+      "`AWS_ABUSE_DOS_REPORT`",
+      "Rapport d'abus de type DDoS"
+     ],
+     [
+      "`AWS_ABUSE_SPAM_REPORT`",
+      "Rapport d'abus de type spam / e-mail"
+     ],
+     [
+      "`AWS_ABUSE_OTHER_REPORT`",
+      "Autres types d'abus"
+     ],
+     [
+      "`AWS_RISK_CREDENTIALS_EXPOSED`",
+      "Credentials AWS exposés détectés"
+     ],
+     [
+      "`AWS_ACCOUNT_SCHEDULED_CHANGE`",
+      "Changement planifié sur le compte"
+     ]
+    ],
+    "note": "Les 3 premiers concernent des abus ; le 4e est un signal fort de credentials compromis ; le 5e est informatif."
+   },
+   {
+    "type": "policy",
+    "title": "Règle EventBridge qui capture ces alertes",
+    "lines": [
+     "{",
+     "  \"source\": [\"aws.health\"],",
+     "  \"detail-type\": [\"AWS Health Event\"],",
+     "  \"detail\": {",
+     "    \"eventTypeCode\": [",
+     "      \"AWS_ABUSE_DOS_REPORT\",",
+     "      \"AWS_ABUSE_SPAM_REPORT\",",
+     "      \"AWS_ABUSE_OTHER_REPORT\",",
+     "      \"AWS_RISK_CREDENTIALS_EXPOSED\"",
+     "    ]",
+     "  }",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       2,
+       3
+      ],
+      "text": "On écoute uniquement les événements du service AWS Health.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       5,
+       6,
+       7,
+       8,
+       9
+      ],
+      "text": "Filtre sur les codes d'abus et de credentials exposés (liste du cours).",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       12
+      ],
+      "text": "À brancher sur un topic SNS (e-mail) ou une Lambda de remédiation.",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Une alerte AWS_ACCOUNT_SCHEDULED_CHANGE est-elle capturée par cette règle ?",
+      "ans": false,
+      "why": "Ce code n'est pas dans la liste du filtre."
+     },
+     {
+      "q": "Une alerte AWS_ABUSE_SPAM_REPORT est-elle capturée ?",
+      "ans": true,
+      "why": "Elle figure dans eventTypeCode."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Question : « Que se passe-t-il si vous ne répondez pas à une alerte d'abus ? » → AWS peut suspendre votre compte si aucune réponse sous 24 heures. Chaîne d'automatisation : AWS Trust & Safety → AWS Health Dashboard → EventBridge → SNS → e-mail à l'administrateur."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : alerte spam à 2 h du matin",
+    "situation": "Le lundi tu découvres un e-mail d'AWS : un rapport de spam concerne ton compte, vieux de 20 heures. Personne n'a lu le Health Dashboard. CloudTrail montre des RunInstances inhabituels avec une clé d'accès d'un développeur.",
+    "q": "Que fais-tu d'abord ?",
+    "opts": [
+     {
+      "t": "Ignorer : AWS gère le spam de son côté.",
+      "ok": false,
+      "why": "Faux : sans réponse sous 24 h, le compte peut être suspendu."
+     },
+     {
+      "t": "Isoler/arrêter les ressources abusives, appliquer le playbook credentials compromis, puis répondre à AWS en expliquant les mesures prises.",
+      "ok": true,
+      "why": "On stoppe l'abus, on corrige la cause (clé volée) et on répond dans le délai."
+     },
+     {
+      "t": "Supprimer le compte AWS tout de suite.",
+      "ok": false,
+      "why": "Disproportionné et tu perds les preuves et tes données."
+     },
+     {
+      "t": "Répondre qu'il s'agit d'une erreur sans rien changer.",
+      "ok": false,
+      "why": "AWS attend une explication de la prévention de la récidive, pas un déni."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "AWS Abuse Report",
+    "d": "Signalement d'une utilisation abusive ou illégale de ressources AWS (spam, scan, DDoS, malware...)."
+   },
+   {
+    "t": "AWS Trust & Safety",
+    "d": "Équipe AWS qui traite les rapports d'abus et peut contacter ou suspendre un compte."
+   },
+   {
+    "t": "AWS Health Dashboard",
+    "d": "Tableau de bord des événements AWS affectant ton compte, source des alertes d'abus."
+   },
+   {
+    "t": "AWS_RISK_CREDENTIALS_EXPOSED",
+    "d": "Code d'événement qui indique que des credentials AWS exposés ont été détectés."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce qu'un AWS Abuse Report ?",
+    "a": "C'est un signalement d'usage abusif ou illégal de ressources AWS : spam, scan de ports, DDoS, tentatives d'intrusion, contenu interdit, malware. L'équipe AWS Trust & Safety reçoit le dossier avec les preuves (logs, en-têtes d'e-mails). Si mes propres ressources sont concernées, je reçois un e-mail et une notification dans AWS Health Dashboard, et je dois répondre en expliquant comment je stoppe l'abus.",
+    "keys": [
+     "Trust & Safety",
+     "spam, DDoS, scan",
+     "preuves",
+     "Health Dashboard"
+    ]
+   },
+   {
+    "q": "Que risque-t-on si on ne répond pas ?",
+    "a": "Si les ressources du compte sont utilisées pour une activité illégale et qu'on ne répond pas dans les 24 heures, AWS peut suspendre le compte. Il faut donc surveiller les notifications et répondre en décrivant les mesures de prévention.",
+    "keys": [
+     "24 heures",
+     "suspension du compte"
+    ]
+   },
+   {
+    "q": "Comment être alerté automatiquement d'un abus ?",
+    "a": "Les alertes passent par AWS Health. Je crée une règle EventBridge qui filtre les codes AWS_ABUSE_DOS_REPORT, AWS_ABUSE_SPAM_REPORT, AWS_ABUSE_OTHER_REPORT et AWS_RISK_CREDENTIALS_EXPOSED, qui invoque un topic SNS envoyant un e-mail à l'administrateur.",
+    "keys": [
+     "AWS Health",
+     "EventBridge",
+     "SNS",
+     "codes AWS_ABUSE_*"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'une alerte d'abus est un faux positif : c'est le plus souvent un compte compromis.",
+   "Confondre l'abus vu par toi (tu signales) et l'abus venant de ton compte (AWS te signale).",
+   "Ne pas surveiller le Health Dashboard ni les e-mails du contact du compte : le délai de 24 h passe vite.",
+   "Répondre sans avoir corrigé la cause : isole et remédie avant d'expliquer."
+  ],
+  "quiz": [
+   {
+    "q": "Quel service reçoit l'alerte d'abus avant de la transmettre à EventBridge ?",
+    "opts": [
+     "AWS Health Dashboard",
+     "AWS Config",
+     "Amazon Macie",
+     "AWS Artifact"
+    ],
+    "ans": 0,
+    "why": "Trust & Safety → AWS Health Dashboard → EventBridge → SNS."
+   },
+   {
+    "q": "Quel code correspond à des credentials exposés ?",
+    "opts": [
+     "AWS_ABUSE_SPAM_REPORT",
+     "AWS_ACCOUNT_SCHEDULED_CHANGE",
+     "AWS_RISK_CREDENTIALS_EXPOSED",
+     "AWS_ABUSE_DOS_REPORT"
+    ],
+    "ans": 2,
+    "why": "AWS_RISK_CREDENTIALS_EXPOSED signale des credentials AWS exposés."
+   },
+   {
+    "q": "Quel délai pour répondre avant une éventuelle suspension ?",
+    "opts": [
+     "24 heures",
+     "1 heure",
+     "7 jours",
+     "30 jours"
+    ],
+    "ans": 0,
+    "why": "Sans réponse sous 24 heures, AWS peut suspendre le compte."
+   },
+   {
+    "q": "Lequel n'est PAS un exemple d'abus du cours ?",
+    "opts": [
+     "Spam",
+     "Port scanning",
+     "Rotation de mots de passe",
+     "Distribution de malware"
+    ],
+    "ans": 2,
+    "why": "La rotation est une bonne pratique, pas un abus."
+   }
+  ],
+  "recap": [
+   "Abuse Report : signalement d'une utilisation abusive (spam, scan, DDoS, intrusion, contenu interdit, malware).",
+   "Si ton compte est la source : e-mail + AWS Health Dashboard ; réponse attendue sous 24 h sinon suspension possible.",
+   "Chaîne d'alerte : Trust & Safety, Health Dashboard, EventBridge, SNS, administrateur.",
+   "Codes : AWS_ABUSE_DOS/SPAM/OTHER_REPORT, AWS_RISK_CREDENTIALS_EXPOSED, AWS_ACCOUNT_SCHEDULED_CHANGE."
+  ]
+ },
+ {
+  "id": "d2-07",
+  "part": "d2",
+  "title": "AWS Systems Manager (1/3) : principe, SSM Agent, tags, Documents, Run Command, Automation",
+  "emoji": "🧰",
+  "level": 1,
+  "minutes": 20,
+  "core": false,
+  "src": "PDF p.151-158",
+  "hook": {
+   "fr": "Quand tu gères 500 serveurs, tu ne peux pas te connecter à chacun en SSH : Systems Manager te laisse agir sur toute la flotte depuis un seul endroit, avec IAM et CloudTrail pour tracer.",
+   "derja": "Kif 3andek 500 serveur w t7eb tbaddel haja fihom, ma tmchich t7el SSH 500 marra. SSM ya3ni 'telecommande' lel flotte kamla: tab3ath commande wahda w tet'tbe9 3al kol, w tnajjem tchouf chkoun 3mal chnowa f CloudTrail."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawer inti 3and mudir mta3 immeuble fih 500 appartement. Bech y3adel el chauffage, ma yedkholch 3al appartement wahda wahda. 3andou panneau central (SSM) w kol appartement 3andha petit boitier (SSM Agent) yesma3 el awamer. Ken el boitier ma yekhdemch walla ma3andouch el droit (IAM role), el panneau ma yochkelch. Mchakel el SSM 90% mnhom: agent walla rôle."
+   },
+   {
+    "type": "text",
+    "title": "Définition et pourquoi",
+    "md": "**AWS Systems Manager (SSM)** est un service qui permet de **gérer à grande échelle** tes serveurs **EC2 et on-premises** (Windows et Linux) :\n- obtenir des **informations opérationnelles** sur l'état de l'infrastructure ;\n- **détecter** les problèmes facilement ;\n- **automatiser le patching** pour améliorer la conformité ;\n- intégration avec **CloudWatch** (métriques, dashboards) et **AWS Config** ;\n- le service SSM lui-même est **gratuit**.\n\nEn incident response, c'est le couteau suisse : capturer la mémoire, pousser des clés, réinitialiser un accès, patcher une faille, ouvrir un shell sans SSH."
+   },
+   {
+    "type": "table",
+    "title": "Les familles de fonctionnalités SSM",
+    "head": [
+     "Famille",
+     "Outils"
+    ],
+    "rows": [
+     [
+      "**Node Tools**",
+      "Fleet Manager, Compliance, Inventory, Hybrid Activations, Session Manager, Run Command, State Manager, Patch Manager, Distributor"
+     ],
+     [
+      "**Change Management**",
+      "Automation, Change Calendar, Maintenance Windows, Documents, Quick Setup"
+     ],
+     [
+      "**Application Tools**",
+      "Application Manager, AppConfig, Parameter Store"
+     ],
+     [
+      "**Resource Groups**",
+      "Regroupement logique de ressources"
+     ],
+     [
+      "**Operations Tools**",
+      "Explorer, OpsCenter, CloudWatch Dashboard"
+     ]
+    ],
+    "note": "Pour l'examen, concentre-toi sur Run Command, Automation, Documents, Parameter Store, Inventory, State Manager, Patch Manager, Maintenance Windows et Session Manager."
+   },
+   {
+    "type": "arch",
+    "title": "Comment SSM contrôle une machine",
+    "groups": [
+     {
+      "id": "S",
+      "label": "AWS Systems Manager",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ssm",
+        "label": "Systems Manager",
+        "sub": "Run Command, Session Manager...",
+        "icon": "cloud"
+       },
+       {
+        "id": "iam",
+        "label": "Permissions IAM",
+        "sub": "instance profile",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "V",
+      "label": "VPC / instances EC2",
+      "kind": "vpc",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "e1",
+        "label": "EC2 + SSM Agent",
+        "sub": "Amazon Linux 2, Ubuntu",
+        "icon": "compute"
+       },
+       {
+        "id": "e2",
+        "label": "EC2 + SSM Agent",
+        "sub": "Windows",
+        "icon": "compute"
+       }
+      ]
+     },
+     {
+      "id": "O",
+      "label": "On-premises",
+      "kind": "onprem",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "srv",
+        "label": "Serveur / VM + SSM Agent",
+        "sub": "Hybrid Activation",
+        "icon": "device"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e_1",
+      "from": "ssm",
+      "to": "e1",
+      "label": "1. commande via l'agent",
+      "style": "solid"
+     },
+     {
+      "id": "e_2",
+      "from": "ssm",
+      "to": "e2",
+      "label": "1. commande via l'agent",
+      "style": "solid"
+     },
+     {
+      "id": "e_3",
+      "from": "ssm",
+      "to": "srv",
+      "label": "2. gère aussi l'on-prem",
+      "style": "solid"
+     },
+     {
+      "id": "e_4",
+      "from": "iam",
+      "to": "e1",
+      "label": "3. rôle requis sur l'instance",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e_1",
+       "e_2"
+      ],
+      "nodes": [
+       "ssm",
+       "e1",
+       "e2"
+      ],
+      "caption": "L'agent SSM installé sur la machine appelle le service SSM : c'est lui qui exécute les ordres."
+     },
+     {
+      "edges": [
+       "e_3"
+      ],
+      "nodes": [
+       "srv"
+      ],
+      "caption": "Les serveurs on-premises sont gérés pareil, avec un agent et une activation hybride."
+     },
+     {
+      "edges": [
+       "e_4"
+      ],
+      "nodes": [
+       "iam",
+       "e1"
+      ],
+      "caption": "L'instance doit avoir un rôle IAM (instance profile) autorisant les actions SSM : sans lui, la machine n'apparaît pas comme managée."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Si une instance ne peut pas être contrôlée avec SSM, le coupable est presque toujours l'agent SSM (absent, arrêté) ou le rôle IAM manquant. L'agent est installé par défaut sur l'AMI Amazon Linux 2 et certaines AMI Ubuntu."
+   },
+   {
+    "type": "policy",
+    "title": "Trust policy du rôle d'instance SSM",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": { \"Service\": \"ec2.amazonaws.com\" },",
+     "      \"Action\": \"sts:AssumeRole\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Seul le service EC2 peut assumer ce rôle (via instance profile).",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Après création, on attache la policy managée AmazonSSMManagedInstanceCore au rôle.",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette trust policy donne-t-elle des permissions SSM par elle-même ?",
+      "ans": false,
+      "why": "Une trust policy dit QUI peut assumer le rôle ; les permissions viennent des policies attachées (AmazonSSMManagedInstanceCore)."
+     },
+     {
+      "q": "Une instance EC2 peut-elle assumer ce rôle ?",
+      "ans": true,
+      "why": "Principal = ec2.amazonaws.com."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Tags et Resource Groups : cibler sans lister des IDs",
+    "md": "**Pourquoi** : pour agir sur « tous les serveurs de dev » il faut pouvoir les désigner sans énumérer 200 identifiants.\n\n- **Tags** : paires clé-valeur libres sur de nombreuses ressources (Name, Environment, Team...). Usage : **regroupement**, **automatisation**, **allocation de coûts**. Mieux vaut trop de tags que trop peu.\n- **Resource Groups** : groupes logiques de ressources **construits à partir de tags** (ex. `Environment = Dev`) : applications, couches d'une application, prod vs dev. Service **régional**, compatible EC2, S3, DynamoDB, Lambda, etc.\n\nRun Command, Automation ou Patch Manager peuvent ensuite cibler un tag ou un resource group."
+   },
+   {
+    "type": "text",
+    "title": "SSM Documents : le « script » avec paramètres",
+    "md": "Un **Document SSM** décrit des **actions** à réaliser, avec des **paramètres**. Format **JSON ou YAML**. Beaucoup existent déjà chez AWS (`AWS-RunShellScript`, `AWS-RunPowerShellScript`, `AWS-RunPatchBaseline`...). Ils servent à **Run Command**, **State Manager**, **Patch Manager**, **Automation** et même **Parameter Store**."
+   },
+   {
+    "type": "decode",
+    "title": "Anatomie d'un Document SSM (Command)",
+    "raw": "{\n  \"schemaVersion\": \"2.2\",\n  \"description\": \"Affiche l'uptime\",\n  \"parameters\": {\n    \"Greeting\": { \"type\": \"String\", \"default\": \"Salut\" }\n  },\n  \"mainSteps\": [\n    {\n      \"action\": \"aws:runShellScript\",\n      \"name\": \"showUptime\",\n      \"inputs\": { \"runCommand\": [\"echo {{ Greeting }}\", \"uptime\"] }\n    }\n  ]\n}",
+    "parts": [
+     {
+      "s": "\"schemaVersion\": \"2.2\"",
+      "label": "Version du schéma",
+      "note": "2.2 pour les documents de type Command"
+     },
+     {
+      "s": "\"parameters\"",
+      "label": "Paramètres",
+      "note": "valeurs que l'appelant peut fournir"
+     },
+     {
+      "s": "\"mainSteps\"",
+      "label": "Actions",
+      "note": "liste ordonnée d'étapes exécutées sur la machine"
+     },
+     {
+      "s": "aws:runShellScript",
+      "label": "Plugin d'action",
+      "note": "exécute des commandes shell (Linux)"
+     },
+     {
+      "s": "\"runCommand\"",
+      "label": "Commandes",
+      "note": "les lignes shell à exécuter"
+     },
+     {
+      "s": "{{ Greeting }}",
+      "label": "Référence au paramètre",
+      "note": "remplacée par la valeur du paramètre au moment de l'exécution"
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Run Command : exécuter à grande échelle sans SSH",
+    "actors": [
+     {
+      "id": "adm",
+      "label": "Administrateur",
+      "sub": "console / CLI / EventBridge",
+      "kind": "user"
+     },
+     {
+      "id": "ssm",
+      "label": "Run Command",
+      "sub": "Systems Manager",
+      "kind": "service"
+     },
+     {
+      "id": "ag",
+      "label": "Instances + SSM Agent",
+      "sub": "ciblées par tag",
+      "kind": "app"
+     },
+     {
+      "id": "out",
+      "label": "S3 / CloudWatch Logs",
+      "sub": "sortie des commandes",
+      "kind": "store"
+     },
+     {
+      "id": "sns",
+      "label": "SNS",
+      "sub": "notification de statut",
+      "kind": "service"
+     }
+    ],
+    "steps": [
+     {
+      "from": "adm",
+      "to": "ssm",
+      "label": "1. SendCommand sur un tag",
+      "detail": "On choisit un document, une cible (tag ou resource group) et les contrôles de débit. Appel vérifié par IAM et journalisé par CloudTrail.",
+      "derja": "Commande wahda lel flotte.",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ssm send-command --document-name \"AWS-RunShellScript\" --targets \"Key=tag:Environment,Values=Dev\" --parameters 'commands=[\"uptime\"]' --max-concurrency \"50%\" --max-errors \"1\"",
+         "note": "cible tag, rate control et error control"
+        },
+        {
+         "k": "max-concurrency",
+         "v": "50%",
+         "note": "Rate Control : combien d'instances en parallèle"
+        },
+        {
+         "k": "max-errors",
+         "v": "1",
+         "note": "Error Control : on arrête après X erreurs"
+        }
+       ]
+      }
+     },
+     {
+      "from": "ssm",
+      "to": "ag",
+      "label": "2. Distribue aux agents",
+      "detail": "Chaque agent récupère la commande et l'exécute localement : pas de SSH, pas de port entrant.",
+      "derja": "Ma n7elouch 9fal fi el instance."
+     },
+     {
+      "from": "ag",
+      "to": "ag",
+      "label": "3. Exécute le document",
+      "detail": "Le script/document s'exécute sur chaque machine ciblée."
+     },
+     {
+      "from": "ag",
+      "to": "out",
+      "label": "4. Sortie vers S3 ou CloudWatch Logs",
+      "detail": "La sortie s'affiche aussi dans la console ; pour l'audit on l'envoie vers S3 ou CloudWatch Logs.",
+      "dashed": true
+     },
+     {
+      "from": "ssm",
+      "to": "sns",
+      "label": "5. Statut : In progress, Success, Failed...",
+      "detail": "SNS peut notifier les changements de statut de la commande.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Automation : un runbook déclenché par un événement",
+    "actors": [
+     {
+      "id": "trg",
+      "label": "Déclencheur",
+      "sub": "console / EventBridge / Config / Maintenance Window",
+      "kind": "service"
+     },
+     {
+      "id": "auto",
+      "label": "SSM Automation",
+      "sub": "runbook = document Automation",
+      "kind": "service"
+     },
+     {
+      "id": "res",
+      "label": "Ressources AWS",
+      "sub": "EC2, EBS, AMI, RDS...",
+      "kind": "aws"
+     }
+    ],
+    "steps": [
+     {
+      "from": "trg",
+      "to": "auto",
+      "label": "1. Déclenche le runbook",
+      "detail": "Manuellement (console, CLI, SDK), par EventBridge, sur planning via Maintenance Windows, ou par AWS Config pour remédier une règle non conforme.",
+      "derja": "Aya event yched el automation wa7do.",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ssm start-automation-execution --document-name AWS-RestartEC2Instance --parameters \"InstanceId=i-0abc123example\"",
+         "note": "runbook AWS pré-défini"
+        }
+       ]
+      }
+     },
+     {
+      "from": "auto",
+      "to": "res",
+      "label": "2. Exécute les actions",
+      "detail": "Redémarrer une instance, créer une AMI ou un snapshot EBS, etc., sur les ressources visées."
+     },
+     {
+      "from": "res",
+      "to": "auto",
+      "label": "3. Résultat",
+      "detail": "Le statut de chaque étape est remonté dans Automation.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "Run Command vs Automation",
+    "cols": [
+     {
+      "name": "Run Command",
+      "tag": "sur les machines",
+      "points": [
+       "Exécute un document ou une commande SUR les instances",
+       "Cible : tags, resource groups",
+       "Rate / Error Control",
+       "Sortie : console, S3, CloudWatch Logs, SNS"
+      ],
+      "use": "Capturer la mémoire, pousser une clé, lancer un script sur la flotte."
+     },
+     {
+      "name": "Automation",
+      "tag": "sur les ressources AWS",
+      "points": [
+       "Runbook = document SSM de type Automation",
+       "Agit sur des ressources AWS (instances, AMI, EBS, RDS...)",
+       "Déclenché par console/CLI/SDK, EventBridge, Maintenance Windows, AWS Config"
+      ],
+      "use": "Redémarrer des instances, créer des AMI, remédier automatiquement une règle Config."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : capturer la mémoire de 12 instances suspectes",
+    "situation": "GuardDuty signale 12 instances taguées Environment=Prod comme suspectes. Aucune ne doit être redémarrée et le port 22 est fermé dans les Security Groups.",
+    "q": "Comment lancer la capture mémoire ?",
+    "opts": [
+     {
+      "t": "Ouvrir le port 22 puis se connecter une par une en SSH.",
+      "ok": false,
+      "why": "Réouvrir un port sur des instances compromises est risqué et lent ; Run Command évite SSH."
+     },
+     {
+      "t": "Utiliser SSM Run Command avec un document de capture, ciblé par tag, avec Rate Control, sortie vers S3.",
+      "ok": true,
+      "why": "Pas de SSH, ciblage par tag, contrôle du débit, traçabilité IAM/CloudTrail, sortie archivée."
+     },
+     {
+      "t": "Terminer les instances et analyser les AMI.",
+      "ok": false,
+      "why": "Tu perds la mémoire vive que tu voulais capturer."
+     },
+     {
+      "t": "Créer un Resource Group puis supprimer le groupe.",
+      "ok": false,
+      "why": "Un resource group ne fait que regrouper ; il n'exécute rien."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "SSM Agent",
+    "d": "Logiciel installé sur la machine qui reçoit et exécute les ordres de Systems Manager.",
+    "derja": "El boitier eli yesma3 el awamer."
+   },
+   {
+    "t": "Instance profile / rôle SSM",
+    "d": "Rôle IAM attaché à l'instance (ex. AmazonSSMManagedInstanceCore) qui autorise l'agent à parler à SSM."
+   },
+   {
+    "t": "SSM Document",
+    "d": "Définition JSON/YAML d'actions et de paramètres, utilisée par Run Command, State Manager, Automation, etc."
+   },
+   {
+    "t": "Run Command",
+    "d": "Fonction SSM pour exécuter un document ou une commande sur plusieurs instances sans SSH."
+   },
+   {
+    "t": "Runbook",
+    "d": "Document SSM de type Automation qui décrit des actions sur des ressources AWS."
+   },
+   {
+    "t": "Resource Group",
+    "d": "Groupe logique de ressources basé sur des tags, régional."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce que AWS Systems Manager et à quoi sert-il ?",
+    "a": "C'est un service gratuit pour gérer à grande échelle des serveurs EC2 et on-premises, Windows ou Linux. Il fournit des informations opérationnelles, détecte des problèmes et automatise le patching. Il s'appuie sur un SSM Agent installé sur chaque machine et un rôle IAM autorisant les actions SSM. Il s'intègre à CloudWatch et AWS Config.",
+    "keys": [
+     "EC2 et on-premises",
+     "SSM Agent",
+     "rôle IAM",
+     "gratuit"
+    ]
+   },
+   {
+    "q": "Une instance n'apparaît pas dans Systems Manager. Que vérifier ?",
+    "a": "D'abord l'agent SSM : est-il installé et en cours d'exécution ? Il est présent par défaut sur Amazon Linux 2 et certaines AMI Ubuntu. Ensuite le rôle IAM attaché à l'instance : il doit autoriser les actions SSM (par exemple la policy AmazonSSMManagedInstanceCore). Si l'instance est sur un réseau privé, il faut aussi un accès réseau au service.",
+    "keys": [
+     "agent SSM",
+     "rôle IAM",
+     "AmazonSSMManagedInstanceCore"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre Run Command et Automation ?",
+    "a": "Run Command exécute des commandes ou documents directement sur les instances, ciblées par tags ou resource groups, avec Rate Control et Error Control, et envoie la sortie vers la console, S3 ou CloudWatch Logs. Automation exécute des runbooks (documents de type Automation) qui agissent sur des ressources AWS : redémarrer une instance, créer une AMI ou un snapshot. Elle peut être lancée par EventBridge, Maintenance Windows ou AWS Config.",
+    "keys": [
+     "Run Command = sur les instances",
+     "Automation = runbook",
+     "Rate Control",
+     "EventBridge / Config"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Chercher une panne SSM côté réseau avant de vérifier l'agent et le rôle IAM.",
+   "Croire qu'SSM n'agit que sur EC2 : il gère aussi les serveurs on-premises (agent + activation hybride).",
+   "Confondre Run Command (exécute sur la machine) et Automation (runbooks sur des ressources AWS).",
+   "Croire que les Resource Groups exécutent des actions : ils regroupent, c'est tout."
+  ],
+  "quiz": [
+   {
+    "q": "Pourquoi une instance n'est-elle pas contrôlable par SSM le plus souvent ?",
+    "opts": [
+     "Région non supportée",
+     "Elle est trop grande",
+     "Elle n'a pas de tag",
+     "Problème d'agent SSM ou de rôle IAM"
+    ],
+    "ans": 3,
+    "why": "Le cours insiste : probablement un problème d'agent SSM, et le rôle IAM doit autoriser SSM."
+   },
+   {
+    "q": "Quels formats sont supportés par un SSM Document ?",
+    "opts": [
+     "XML uniquement",
+     "JSON ou YAML",
+     "CSV",
+     "Binaire"
+    ],
+    "ans": 1,
+    "why": "Les documents sont en JSON ou YAML."
+   },
+   {
+    "q": "Quel paramètre limite le nombre d'instances traitées en parallèle par Run Command ?",
+    "opts": [
+     "max-errors",
+     "document-version",
+     "timeout-seconds",
+     "max-concurrency (Rate Control)"
+    ],
+    "ans": 3,
+    "why": "max-concurrency correspond au Rate Control ; max-errors à l'Error Control."
+   },
+   {
+    "q": "Qu'est-ce qu'un runbook SSM ?",
+    "opts": [
+     "Un type d'instance",
+     "Un document de type Automation",
+     "Un rapport de patch",
+     "Un fichier de log"
+    ],
+    "ans": 1,
+    "why": "Un runbook est un document SSM de type Automation."
+   },
+   {
+    "q": "Lequel peut déclencher une Automation ?",
+    "opts": [
+     "Le Resource Group",
+     "Le SSM Agent en local uniquement",
+     "Route 53",
+     "AWS Config pour remédier une règle"
+    ],
+    "ans": 3,
+    "why": "Manuel, EventBridge, Maintenance Windows ou AWS Config (remédiation)."
+   }
+  ],
+  "recap": [
+   "SSM = gestion à grande échelle d'EC2 et on-prem (Windows/Linux), gratuit, intégré à CloudWatch et AWS Config.",
+   "Prérequis : SSM Agent installé + rôle IAM d'instance (AmazonSSMManagedInstanceCore).",
+   "Tags et Resource Groups servent à cibler des groupes de machines.",
+   "Documents JSON/YAML (paramètres + actions) alimentent Run Command, Automation, State Manager, Patch Manager.",
+   "Run Command : sans SSH, rate/error control, sortie S3/CloudWatch, IAM + CloudTrail. Automation : runbooks sur ressources AWS."
+  ]
+ },
+ {
+  "id": "d2-08",
+  "part": "d2",
+  "title": "AWS Systems Manager (2/3) : Parameter Store, Inventory, State Manager",
+  "emoji": "🗄️",
+  "level": 1,
+  "minutes": 19,
+  "core": false,
+  "src": "PDF p.159-164",
+  "hook": {
+   "fr": "Mettre un mot de passe dans le code ou dans un fichier de config est l'une des causes classiques d'incident : Parameter Store centralise secrets et configuration avec IAM, KMS et traçabilité.",
+   "derja": "Ken el password mta3 el base de donnees mektoub fi el code, ay wahed y9ra el code ya3raf el password. Parameter Store howa 'coffre-fort' mta3 el configuration: el app tsal 3al password waqt el exécution w el IAM yfaraz chkoun yodkhol, w KMS ychaffer."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Tsawer 3andek dossier fih les cles mta3 kol dar. El mdhaher (Parameter Store) yarteb el dossier b'des chemins: /dev/db-password, /prod/db-password. Kol application tkhou ken el dossier mta3ha, w el 7ajet el sensibles (SecureString) m9afla b'KMS. Inventory ya3ni 'recensement' mta3 les machines: chnowa software installé 3and kol wahda. State Manager ya3ni 'contrôleur' yraje3 kol 7aja l'7alet el matloubin ken tbaddlet."
+   },
+   {
+    "type": "text",
+    "title": "Parameter Store : le problème et la définition",
+    "md": "**Problème** : les applications ont besoin de configuration (URL de DB, flags) et de secrets (mots de passe). Les écrire en dur dans le code ou les AMI les expose, rend la rotation pénible et empêche de savoir qui les lit.\n\n**SSM Parameter Store** = stockage **sécurisé** de configuration et de secrets :\n- chiffrement optionnel et transparent avec **KMS** (type `SecureString`) ;\n- **serverless**, scalable, durable, SDK simple ;\n- **versionnement** des valeurs ;\n- sécurité par **IAM** ;\n- notifications avec **EventBridge** ;\n- intégration avec **CloudFormation**."
+   },
+   {
+    "type": "flow",
+    "title": "Lecture d'un paramètre chiffré (SecureString)",
+    "intro": "Deux contrôles : IAM sur le paramètre, KMS sur la clé de chiffrement.",
+    "actors": [
+     {
+      "id": "app",
+      "label": "Fonction Lambda",
+      "sub": "Dev",
+      "kind": "app"
+     },
+     {
+      "id": "ps",
+      "label": "Parameter Store",
+      "sub": "SSM",
+      "kind": "service"
+     },
+     {
+      "id": "kms",
+      "label": "AWS KMS",
+      "sub": "clé de chiffrement",
+      "kind": "key"
+     }
+    ],
+    "steps": [
+     {
+      "from": "app",
+      "to": "ps",
+      "label": "1. GetParametersByPath",
+      "detail": "La fonction demande tous les paramètres sous un chemin, avec déchiffrement.",
+      "derja": "Tsal 3al kol 7ajet el dev.",
+      "payload": {
+       "title": "CLI équivalent",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ssm get-parameters-by-path --path /my-department/my-app/dev --recursive --with-decryption",
+         "note": "récupère db-url et db-password du dev"
+        },
+        {
+         "k": "Permission IAM",
+         "v": "ssm:GetParametersByPath",
+         "note": "sur le chemin demandé"
+        }
+       ]
+      }
+     },
+     {
+      "from": "ps",
+      "to": "ps",
+      "label": "2. Vérifie les permissions IAM",
+      "detail": "Le rôle de la fonction doit avoir le droit sur ce chemin précis. Un rôle Dev ne doit pas lire /prod.",
+      "tone": "good"
+     },
+     {
+      "from": "ps",
+      "to": "kms",
+      "label": "3. Demande le déchiffrement",
+      "detail": "Pour un SecureString, Parameter Store appelle KMS ; la fonction doit aussi avoir kms:Decrypt sur la clé.",
+      "derja": "Lazem zeda el 7a9 3al clé mta3 KMS."
+     },
+     {
+      "from": "kms",
+      "to": "ps",
+      "label": "4. Valeur en clair",
+      "detail": "KMS renvoie la donnée déchiffrée au service (pas à l'application directement).",
+      "dashed": true
+     },
+     {
+      "from": "ps",
+      "to": "app",
+      "label": "5. Paramètres renvoyés",
+      "detail": "L'application reçoit db-url et db-password du chemin dev.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Hiérarchie des paramètres",
+    "md": "On organise les paramètres comme un **système de fichiers**, ce qui permet d'attribuer des droits **par branche** :\n\n```\n/my-department/\n  my-app/\n    dev/\n      db-url\n      db-password\n    prod/\n      db-url\n      db-password\n  other-app/\n/other-department/\n```\n\nAppels : `GetParameters` (une liste de noms) ou `GetParametersByPath` (toute une branche). Chemins spéciaux : `/aws/reference/secretsmanager/<secret_ID>` (lire un secret Secrets Manager via Parameter Store) et `/aws/service/ami-amazon-linux-latest/...` (paramètres **publics** pointant vers l'AMI Amazon Linux la plus récente)."
+   },
+   {
+    "type": "policy",
+    "title": "Dev ne lit que /dev (IAM identity policy)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [\"ssm:GetParameter\", \"ssm:GetParameters\", \"ssm:GetParametersByPath\"],",
+     "      \"Resource\": \"arn:aws:ssm:eu-west-1:111122223333:parameter/my-department/my-app/dev/*\"",
+     "    },",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"kms:Decrypt\",",
+     "      \"Resource\": \"arn:aws:kms:eu-west-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Les 3 actions de lecture de paramètres.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "ARN avec le nom du paramètre après « parameter » (le slash initial du nom est conservé). Seule la branche /dev est visée.",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       11,
+       12
+      ],
+      "text": "Pour les SecureString il faut aussi le droit de déchiffrer avec la clé KMS.",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Ce rôle peut-il lire /my-department/my-app/prod/db-password ?",
+      "ans": false,
+      "why": "Seule la branche /dev/* est autorisée."
+     },
+     {
+      "q": "Peut-il lire /my-department/my-app/dev/db-password (SecureString chiffré avec cette clé) ?",
+      "ans": true,
+      "why": "ssm:GetParameter sur dev/* + kms:Decrypt sur la clé."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Tiers Standard vs Advanced",
+    "head": [
+     "Critère",
+     "Standard",
+     "Advanced"
+    ],
+    "rows": [
+     [
+      "Nombre max de paramètres (par compte et région)",
+      "10 000",
+      "100 000"
+     ],
+     [
+      "Taille max d'une valeur",
+      "4 KB",
+      "8 KB"
+     ],
+     [
+      "Parameter policies",
+      "Non",
+      "**Oui**"
+     ],
+     [
+      "Coût",
+      "Pas de frais supplémentaires",
+      "Payant"
+     ],
+     [
+      "Stockage",
+      "Gratuit",
+      "0,05 $ par paramètre advanced et par mois (valeur du cours)"
+     ]
+    ],
+    "note": "Les chiffres viennent du cours : demande-toi d'abord « ai-je besoin des policies ou de plus de 4 KB ? » avant de passer à Advanced."
+   },
+   {
+    "type": "text",
+    "title": "Parameter policies (Advanced uniquement)",
+    "md": "**Pourquoi** : forcer le renouvellement ou la suppression de données sensibles (mots de passe) au lieu de les laisser vivre indéfiniment.\n\nUne policy associe un **TTL** à un paramètre ; on peut en cumuler plusieurs :\n- **Expiration** : supprime le paramètre à une date ;\n- **ExpirationNotification** : événement **EventBridge** avant l'expiration ;\n- **NoChangeNotification** : événement EventBridge si le paramètre n'a pas changé depuis un certain temps (rotation oubliée)."
+   },
+   {
+    "type": "policy",
+    "title": "Exemple de parameter policies (JSON)",
+    "lines": [
+     "[",
+     "  {",
+     "    \"Type\": \"Expiration\",",
+     "    \"Version\": \"1.0\",",
+     "    \"Attributes\": { \"Timestamp\": \"2026-12-31T00:00:00.000Z\" }",
+     "  },",
+     "  {",
+     "    \"Type\": \"ExpirationNotification\",",
+     "    \"Version\": \"1.0\",",
+     "    \"Attributes\": { \"Before\": \"15\", \"Unit\": \"Days\" }",
+     "  },",
+     "  {",
+     "    \"Type\": \"NoChangeNotification\",",
+     "    \"Version\": \"1.0\",",
+     "    \"Attributes\": { \"After\": \"20\", \"Unit\": \"Days\" }",
+     "  }",
+     "]"
+    ],
+    "notes": [
+     {
+      "lines": [
+       3,
+       5
+      ],
+      "text": "Expiration : le paramètre est supprimé à cette date.",
+      "tone": "bad"
+     },
+     {
+      "lines": [
+       8,
+       10
+      ],
+      "text": "ExpirationNotification : événement EventBridge 15 jours avant l'expiration.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       13,
+       15
+      ],
+      "text": "NoChangeNotification : alerte si le secret n'a pas été modifié depuis 20 jours.",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Ces policies sont-elles utilisables sur un paramètre du tier Standard ?",
+      "ans": false,
+      "why": "Les parameter policies exigent le tier Advanced."
+     },
+     {
+      "q": "Peut-on cumuler plusieurs policies sur un paramètre ?",
+      "ans": true,
+      "why": "Plusieurs policies peuvent être assignées simultanément."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "SSM Inventory : savoir ce qui est installé",
+    "md": "**Problème** : après un incident ou une faille (ex. une librairie vulnérable), il faut savoir **quelles machines** ont ce logiciel.\n\n**Inventory** collecte des **métadonnées** de tes instances managées (EC2 et on-premises) : logiciels installés, pilotes, configurations, mises à jour, services en cours d'exécution...\n- consultation dans la console, ou stockage dans **S3** pour analyse avec **Athena** et **QuickSight** ;\n- **intervalle** de collecte configurable (minutes, heures, jours) ;\n- requêtes **multi-comptes et multi-régions** ;\n- **Custom Inventory** pour tes propres métadonnées (ex. emplacement du rack d'un serveur)."
+   },
+   {
+    "type": "text",
+    "title": "SSM State Manager : maintenir un état voulu",
+    "md": "**Problème** : une machine dérive (un port 22 rouvert, un antivirus désinstallé). **State Manager** **réapplique automatiquement** l'état que tu as défini.\n\n- Une **Association** = l'état à maintenir + un **planning**. Exemples : « le port 22 doit être fermé », « l'antivirus doit être installé », « l'agent CloudWatch doit être configuré ».\n- Elle s'appuie sur un **SSM Document** (ex. un document qui configure l'agent CloudWatch).\n- Cas d'usage : **initialiser** des instances avec des logiciels, **patcher** l'OS/les logiciels selon un planning."
+   },
+   {
+    "type": "decode",
+    "title": "Créer une association State Manager",
+    "raw": "aws ssm create-association --name AWS-GatherSoftwareInventory --targets Key=InstanceIds,Values=* --schedule-expression \"rate(1 day)\"",
+    "parts": [
+     {
+      "s": "create-association",
+      "label": "Action",
+      "note": "crée une association State Manager"
+     },
+     {
+      "s": "--name AWS-GatherSoftwareInventory",
+      "label": "Document SSM",
+      "note": "document AWS qui collecte l'inventaire logiciel (alimente Inventory)"
+     },
+     {
+      "s": "--targets Key=InstanceIds,Values=*",
+      "label": "Cibles",
+      "note": "toutes les instances managées (on peut aussi cibler par tag)"
+     },
+     {
+      "s": "--schedule-expression \"rate(1 day)\"",
+      "label": "Planning",
+      "note": "le document est ré-appliqué chaque jour"
+     }
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "Parameter Store vs Inventory vs State Manager",
+    "cols": [
+     {
+      "name": "Parameter Store",
+      "tag": "configuration & secrets",
+      "points": [
+       "Hiérarchie /app/env/clé",
+       "SecureString + KMS",
+       "IAM par chemin",
+       "Policies de TTL (Advanced)"
+      ],
+      "use": "Fournir la config et les mots de passe aux applications."
+     },
+     {
+      "name": "Inventory",
+      "tag": "recensement",
+      "points": [
+       "Logiciels, drivers, services, updates",
+       "S3 + Athena/QuickSight",
+       "Multi-comptes / régions",
+       "Custom Inventory"
+      ],
+      "use": "Savoir exactement ce qui tourne sur la flotte."
+     },
+     {
+      "name": "State Manager",
+      "tag": "conformité continue",
+      "points": [
+       "Association = état + planning",
+       "Basée sur un Document",
+       "Réapplique l'état voulu",
+       "Initialisation et patching planifié"
+      ],
+      "use": "Empêcher la dérive de configuration."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : mot de passe DB dans un fichier .env",
+    "situation": "Une équipe stocke le mot de passe de la base de production dans un fichier .env déployé sur toutes les instances. Après un incident, tu dois migrer vers Parameter Store en limitant l'accès au strict nécessaire, et forcer un renouvellement tous les 90 jours.",
+    "q": "Quelle configuration choisis-tu ?",
+    "opts": [
+     {
+      "t": "Paramètre String standard dans /prod/db-password, lisible par tout le compte.",
+      "ok": false,
+      "why": "Non chiffré avec KMS et accès trop large."
+     },
+     {
+      "t": "SecureString (KMS) sous /my-app/prod/db-password, policy IAM limitée à cette branche + kms:Decrypt, tier Advanced avec policy NoChangeNotification pour la rotation.",
+      "ok": true,
+      "why": "Chiffrement, moindre privilège par chemin, et notification si le secret n'est pas renouvelé. Les policies exigent le tier Advanced."
+     },
+     {
+      "t": "Garder .env et chiffrer le disque EBS.",
+      "ok": false,
+      "why": "Le fichier reste lisible par quiconque accède à l'instance."
+     },
+     {
+      "t": "Tier Standard avec Expiration policy.",
+      "ok": false,
+      "why": "Les parameter policies ne sont disponibles qu'en tier Advanced."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Parameter Store",
+    "d": "Stockage SSM sécurisé de configuration et de secrets, avec versionnement et IAM.",
+    "derja": "El coffre-fort mta3 el configuration."
+   },
+   {
+    "t": "SecureString",
+    "d": "Type de paramètre chiffré avec une clé KMS."
+   },
+   {
+    "t": "Parameter policy",
+    "d": "Règle d'expiration/notification associée à un paramètre du tier Advanced."
+   },
+   {
+    "t": "SSM Inventory",
+    "d": "Collecte de métadonnées (logiciels, configs, services) des instances managées."
+   },
+   {
+    "t": "State Manager Association",
+    "d": "Définition d'un état à maintenir sur des instances, avec planning et document SSM.",
+    "derja": "El contrôleur yraje3 el 7ala kol marra."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Pourquoi utiliser Parameter Store plutôt que mettre les secrets dans le code ?",
+    "a": "Parameter Store stocke configuration et secrets de façon centralisée et sécurisée. Avec SecureString, la valeur est chiffrée par KMS. L'accès est contrôlé par IAM, branche par branche grâce à la hiérarchie des paramètres (par exemple dev vs prod). Les valeurs sont versionnées et les changements peuvent déclencher des notifications EventBridge. Le service est serverless et s'intègre à CloudFormation.",
+    "keys": [
+     "SecureString + KMS",
+     "IAM par chemin",
+     "versionnement",
+     "hiérarchie dev/prod"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre les tiers Standard et Advanced ?",
+    "a": "Standard : 10 000 paramètres par compte et par région, valeur jusqu'à 4 KB, pas de parameter policies, sans frais supplémentaires. Advanced : 100 000 paramètres, valeur jusqu'à 8 KB, parameter policies disponibles (Expiration, ExpirationNotification, NoChangeNotification), payant (0,05 $ par paramètre et par mois selon le cours).",
+    "keys": [
+     "10 000 vs 100 000",
+     "4 KB vs 8 KB",
+     "policies = Advanced"
+    ]
+   },
+   {
+    "q": "À quoi servent Inventory et State Manager ?",
+    "a": "Inventory collecte des métadonnées sur les instances managées (logiciels installés, mises à jour, services...) pour savoir ce qui tourne ; les données peuvent être envoyées vers S3 et analysées avec Athena et QuickSight. State Manager maintient un état voulu grâce à des associations : un document SSM appliqué selon un planning, par exemple port 22 fermé ou antivirus installé.",
+    "keys": [
+     "métadonnées",
+     "S3 + Athena",
+     "association",
+     "état voulu"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Oublier kms:Decrypt : sans lui un SecureString est illisible même avec ssm:GetParameter.",
+   "Penser que les parameter policies marchent en Standard : elles exigent le tier Advanced.",
+   "Confondre Parameter Store (stockage de valeurs) et Secrets Manager (rotation native), même s'ils peuvent se rejoindre via /aws/reference/secretsmanager/...",
+   "Donner ssm:GetParameter* sur parameter/* : on perd la séparation dev/prod.",
+   "Confondre Inventory (observe) et State Manager (impose un état)."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle taille maximale pour une valeur de paramètre en tier Standard ?",
+    "opts": [
+     "1 KB",
+     "8 KB",
+     "4 KB",
+     "64 KB"
+    ],
+    "ans": 2,
+    "why": "Standard : 4 KB ; Advanced : 8 KB."
+   },
+   {
+    "q": "Quelle policy Parameter Store supprime un paramètre à une date précise ?",
+    "opts": [
+     "Expiration",
+     "NoChangeNotification",
+     "ExpirationNotification",
+     "Versioning"
+    ],
+    "ans": 0,
+    "why": "Expiration supprime ; les deux autres notifient via EventBridge."
+   },
+   {
+    "q": "Quel appel récupère tous les paramètres d'une branche ?",
+    "opts": [
+     "PutParameter",
+     "DeleteParameter",
+     "GetParametersByPath",
+     "DescribeInstance"
+    ],
+    "ans": 2,
+    "why": "GetParametersByPath lit toute une branche de la hiérarchie."
+   },
+   {
+    "q": "Avec quoi analyse-t-on les données d'Inventory stockées dans S3 ?",
+    "opts": [
+     "Athena et QuickSight",
+     "Route 53",
+     "Shield",
+     "CodeBuild"
+    ],
+    "ans": 0,
+    "why": "Le cours cite Athena et QuickSight."
+   },
+   {
+    "q": "Que définit une association State Manager ?",
+    "opts": [
+     "Un groupe IAM",
+     "Une AMI",
+     "Un état à maintenir + un planning",
+     "Un tag de facturation"
+    ],
+    "ans": 2,
+    "why": "L'association applique un document SSM selon un planning pour maintenir l'état voulu."
+   }
+  ],
+  "recap": [
+   "Parameter Store : config et secrets, SecureString/KMS, IAM, versionnement, EventBridge, CloudFormation.",
+   "Hiérarchie /dept/app/env/nom ; GetParameters ou GetParametersByPath ; droits par branche.",
+   "Standard (10 000 / 4 KB / sans policies) vs Advanced (100 000 / 8 KB / policies / payant).",
+   "Parameter policies : Expiration, ExpirationNotification, NoChangeNotification (EventBridge).",
+   "Inventory = recensement des instances ; State Manager = association (document + planning) pour maintenir l'état."
+  ]
+ },
+ {
+  "id": "d2-09",
+  "part": "d2",
+  "title": "AWS Systems Manager (3/3) : Patch Manager, Maintenance Windows, Session Manager vs SSH",
+  "emoji": "🩹",
+  "level": 1,
+  "minutes": 20,
+  "core": false,
+  "src": "PDF p.165-172",
+  "hook": {
+   "fr": "La plupart des compromissions exploitent une faille déjà corrigée : Patch Manager patche à grande échelle, et Session Manager supprime le besoin d'ouvrir le port 22 et de gérer des clés SSH.",
+   "derja": "Barcha hacks yodkhlou men 'faille' deja mtsal7a ama el serveur ma t3adelch. Patch Manager yet3adel 3al kol serveur f wa9t mou3ayen (Maintenance Window). W Session Manager ya3ni tod5ol lel serveur bla ma t7el port 22 w bla cle: el IAM houwa el bawab."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Patch Manager = 'el mikanicien mta3 el flotte': ye3raf chnowa patches ma7tajhom kol serveur, ykhtar chnowa ya3mel (baseline), w ye3mel el khedma f wa9t el 'Maintenance Window' (par exemple dimanche fajr). Session Manager = 'telecommande' lel serveur: ma 3andekch 7ajet fi el chare3 (pas de port 22 ouvert), el serveur houwa eli yt3ayyet lel SSM. Ken tzid el IAM, tchouf chkoun d5al w tsajjel kol commande."
+   },
+   {
+    "type": "text",
+    "title": "Patch Manager : le problème et la définition",
+    "md": "**Problème** : une machine non patchée est la porte d'entrée numéro un. Patcher à la main 300 serveurs est lent et incohérent.\n\n**Patch Manager** automatise le patching des instances managées :\n- mises à jour **OS**, **applications** et **sécurité** ;\n- **EC2 et on-premises** ; **Linux, macOS et Windows** ;\n- à la demande ou sur planning via **Maintenance Windows** ;\n- **scan** + **rapport de conformité** (patches manquants), exportable vers **S3**."
+   },
+   {
+    "type": "text",
+    "title": "Patch Baseline et Patch Group",
+    "md": "**Patch Baseline** = la liste de règles qui dit **quels patches installer ou refuser**.\n- **Pré-défini** : géré par AWS pour chaque OS, **non modifiable**.\n- **Custom** : tu choisis l'OS, les patches autorisés, les patches rejetés, l'**auto-approbation** (par exemple quelques jours après la sortie du patch) et même des dépôts de patches alternatifs.\n- Par défaut, on installe seulement les patches **critiques** et ceux liés à la **sécurité**.\n\n**Patch Group** = ensemble d'instances associé à **une** baseline (ex. dev / test / prod) :\n- l'instance porte le tag de clé **`Patch Group`** ;\n- une instance ne peut appartenir qu'à **un seul** Patch Group ;\n- un Patch Group ne s'enregistre qu'avec **une seule** baseline."
+   },
+   {
+    "type": "arch",
+    "title": "Patch Manager en action",
+    "groups": [
+     {
+      "id": "T",
+      "label": "Déclencheurs",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "mw",
+        "label": "Maintenance Window",
+        "sub": "planning + rate control",
+        "icon": "api"
+       },
+       {
+        "id": "rc",
+        "label": "Run Command",
+        "sub": "AWS-RunPatchBaseline",
+        "icon": "api"
+       }
+      ]
+     },
+     {
+      "id": "P",
+      "label": "Patch Manager",
+      "kind": "account",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "def",
+        "label": "Baseline par défaut",
+        "sub": "pb-0123456789abcdef0",
+        "icon": "policy"
+       },
+       {
+        "id": "dev",
+        "label": "Baseline Dev",
+        "sub": "pb-9876543210abcdef0",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "I",
+      "label": "Instances (SSM Agent)",
+      "kind": "vpc",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "idev",
+        "label": "EC2 Patch Group = Dev",
+        "sub": "tag",
+        "icon": "compute"
+       },
+       {
+        "id": "iprod",
+        "label": "EC2 Patch Group = Prod",
+        "sub": "tag",
+        "icon": "compute"
+       },
+       {
+        "id": "inone",
+        "label": "EC2 sans Patch Group",
+        "sub": "baseline par défaut",
+        "icon": "compute"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "mw",
+      "to": "rc",
+      "label": "1. planning déclenche",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "rc",
+      "to": "idev",
+      "label": "2. exécute le document",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "rc",
+      "to": "iprod",
+      "label": "2. exécute le document",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "idev",
+      "to": "dev",
+      "label": "3. l'agent demande sa baseline",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "iprod",
+      "to": "def",
+      "label": "3. Prod : pas de baseline dédiée",
+      "style": "dashed"
+     },
+     {
+      "id": "e6",
+      "from": "inone",
+      "to": "def",
+      "label": "3. défaut",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "mw",
+       "rc"
+      ],
+      "caption": "Une Maintenance Window lance le document AWS-RunPatchBaseline via Run Command ; on y règle le Rate Control (max. nombre ou pourcentage de cibles en parallèle)."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "rc",
+       "idev",
+       "iprod"
+      ],
+      "caption": "Run Command envoie le document à chaque instance ciblée."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "idev",
+       "dev"
+      ],
+      "caption": "L'agent lit son tag Patch Group = Dev et interroge Patch Manager : il reçoit la baseline Dev."
+     },
+     {
+      "edges": [
+       "e5",
+       "e6"
+      ],
+      "nodes": [
+       "iprod",
+       "inone",
+       "def"
+      ],
+      "caption": "Sans Patch Group enregistré avec une baseline dédiée, c'est la baseline par défaut de l'OS qui s'applique."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Baseline pré-définie vs custom",
+    "head": [
+     "",
+     "Pré-définie",
+     "Custom"
+    ],
+    "rows": [
+     [
+      "Gérée par",
+      "AWS (par OS)",
+      "Toi"
+     ],
+     [
+      "Modifiable",
+      "Non",
+      "Oui"
+     ],
+     [
+      "Contenu",
+      "Document **AWS-RunPatchBaseline** : patches OS et applicatifs (Linux, macOS, Windows Server)",
+      "OS, patches approuvés / rejetés, auto-approbation, dépôts alternatifs"
+     ],
+     [
+      "Usage typique",
+      "Démarrer vite",
+      "Prod stricte, patches testés d'abord en dev"
+     ]
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Maintenance Windows : patcher au bon moment",
+    "md": "**Problème** : un patch qui redémarre un serveur en pleine journée casse le business. Une **Maintenance Window** définit **quand** des actions peuvent être exécutées sur les instances (patch OS, mise à jour de drivers, installation de logiciels).\n\nElle contient :\n- un **planning** (schedule) ;\n- une **durée** ;\n- un ensemble de **cibles enregistrées** (instances) ;\n- un ensemble de **tâches enregistrées** (Run Command, Automation...)."
+   },
+   {
+    "type": "decode",
+    "title": "Créer une Maintenance Window",
+    "raw": "aws ssm create-maintenance-window --name patch-dimanche --schedule \"cron(0 2 ? * SUN *)\" --duration 3 --cutoff 1 --allow-unassociated-targets",
+    "parts": [
+     {
+      "s": "create-maintenance-window",
+      "label": "Action",
+      "note": "crée la fenêtre"
+     },
+     {
+      "s": "--name patch-dimanche",
+      "label": "Nom",
+      "note": "libellé de la fenêtre"
+     },
+     {
+      "s": "--schedule \"cron(0 2 ? * SUN *)\"",
+      "label": "Planning",
+      "note": "tous les dimanches à 02:00 (UTC par défaut)"
+     },
+     {
+      "s": "--duration 3",
+      "label": "Durée",
+      "note": "la fenêtre dure 3 heures"
+     },
+     {
+      "s": "--cutoff 1",
+      "label": "Cutoff",
+      "note": "plus aucune nouvelle tâche ne démarre dans la dernière heure"
+     },
+     {
+      "s": "--allow-unassociated-targets",
+      "label": "Cibles non associées",
+      "note": "autorise des cibles non enregistrées dans la fenêtre"
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Session Manager : un shell sans SSH",
+    "md": "**Problème** : SSH exige un **port 22 ouvert**, souvent un **bastion**, et des **clés** à distribuer, tourner, révoquer (cf. leçons précédentes). Le tout sans journalisation native des commandes.\n\n**Session Manager** ouvre un **shell sécurisé** sur EC2 et serveurs on-premises :\n- accès via **console**, **CLI** ou **SDK Session Manager** ;\n- **aucun accès SSH**, bastion ou clé SSH nécessaire ;\n- supporte Linux, macOS et Windows ;\n- **journalise** les connexions et les commandes exécutées, vers **S3** ou **CloudWatch Logs** ;\n- **CloudTrail** enregistre les événements `StartSession`.\n\nPrérequis : SSM Agent, instance profile (ex. `AmazonSSMManagedInstanceCore`) et une connectivité sortante de l'instance vers les endpoints SSM."
+   },
+   {
+    "type": "flow",
+    "title": "Session Manager : connexion d'un utilisateur",
+    "actors": [
+     {
+      "id": "u",
+      "label": "Utilisateur",
+      "sub": "console / CLI / SDK",
+      "kind": "user"
+     },
+     {
+      "id": "ssm",
+      "label": "Session Manager",
+      "sub": "SSM",
+      "kind": "service"
+     },
+     {
+      "id": "i",
+      "label": "EC2 + SSM Agent",
+      "sub": "aucun port entrant",
+      "kind": "app"
+     },
+     {
+      "id": "log",
+      "label": "S3 / CloudWatch Logs",
+      "sub": "journal de session",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "u",
+      "to": "ssm",
+      "label": "1. StartSession",
+      "detail": "L'utilisateur demande une session ; IAM vérifie ses droits (quelle instance, quels tags) ; CloudTrail enregistre StartSession.",
+      "derja": "El IAM houwa el bawab.",
+      "payload": {
+       "title": "CLI",
+       "fields": [
+        {
+         "k": "Commande",
+         "v": "aws ssm start-session --target i-0abc123example",
+         "note": "ouvre un shell sans SSH"
+        },
+        {
+         "k": "Permission",
+         "v": "ssm:StartSession",
+         "note": "vérifiée par IAM"
+        }
+       ]
+      }
+     },
+     {
+      "from": "ssm",
+      "to": "ssm",
+      "label": "2. Contrôle IAM + tags",
+      "detail": "On peut restreindre l'accès aux instances ayant un tag précis.",
+      "tone": "good"
+     },
+     {
+      "from": "i",
+      "to": "ssm",
+      "label": "3. Canal ouvert depuis l'agent",
+      "detail": "L'agent maintient une connexion SORTANTE vers SSM : le Security Group n'a aucune règle entrante.",
+      "dashed": true,
+      "derja": "El serveur yt3ayyet, ma7ad ye7el el bab."
+     },
+     {
+      "from": "u",
+      "to": "i",
+      "label": "4. Shell interactif",
+      "detail": "Les commandes transitent par le service SSM jusqu'à l'agent.",
+      "tone": "good"
+     },
+     {
+      "from": "i",
+      "to": "log",
+      "label": "5. Journal des commandes",
+      "detail": "Les données de session sont envoyées vers S3 ou CloudWatch Logs pour audit.",
+      "dashed": true
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Limiter Session Manager par tag",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"ssm:StartSession\",",
+     "      \"Resource\": [",
+     "        \"arn:aws:ec2:eu-west-1:111122223333:instance/*\",",
+     "        \"arn:aws:ssm:eu-west-1:111122223333:document/SSM-SessionManagerRunShell\"",
+     "      ],",
+     "      \"Condition\": {",
+     "        \"StringEquals\": { \"ssm:resourceTag/Environment\": \"Dev\" }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Autorise l'ouverture d'une session.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       8,
+       9
+      ],
+      "text": "Les instances et le document de shell par défaut.",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       12
+      ],
+      "text": "Seules les instances taguées Environment=Dev sont accessibles.",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Peut-on ouvrir une session sur une instance taguée Environment=Prod ?",
+      "ans": false,
+      "why": "La condition exige Environment=Dev."
+     },
+     {
+      "q": "Cette policy autorise-t-elle aussi à lire les logs de session dans S3 ?",
+      "ans": false,
+      "why": "Elle ne contient que ssm:StartSession ; l'écriture des logs relève du rôle de l'instance."
+     }
+    ]
+   },
+   {
+    "type": "compare",
+    "title": "SSH vs SSM Session Manager",
+    "cols": [
+     {
+      "name": "SSH",
+      "tag": "port 22 + clé",
+      "points": [
+       "Security Group : TCP 22 depuis ton IP (ex. 1.2.3.4/32)",
+       "Clé SSH à gérer",
+       "Bastion souvent nécessaire",
+       "Peu de traçabilité native"
+      ],
+      "use": "Quand rien d'autre n'est disponible."
+     },
+     {
+      "name": "Session Manager",
+      "tag": "IAM + agent",
+      "points": [
+       "Aucune règle entrante dans le SG",
+       "Instance profile AmazonSSMManagedInstanceCore",
+       "Accès via console, CLI ou SDK avec permissions IAM",
+       "Logs vers S3 / CloudWatch, StartSession dans CloudTrail"
+      ],
+      "use": "Accès d'administration sécurisé et audité, y compris en réponse à incident."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "« Comment donner un accès shell à des instances sans ouvrir le port 22, sans bastion et en gardant les logs des commandes ? » → SSM Session Manager (SSM Agent + rôle IAM d'instance, logs vers S3/CloudWatch Logs, StartSession dans CloudTrail)."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : patcher la prod sans tout casser",
+    "situation": "Une faille critique est publiée. Tu as 80 instances Linux taguées Patch Group=Prod et 20 en Patch Group=Dev. Les patches doivent d'abord passer en Dev et la prod ne peut être touchée que le dimanche à 2 h, par lots pour garder le service disponible.",
+    "q": "Quelle configuration retiens-tu ?",
+    "opts": [
+     {
+      "t": "Patcher manuellement chaque instance en SSH le dimanche.",
+      "ok": false,
+      "why": "Non scalable, non traçable, et ouvre le port 22."
+     },
+     {
+      "t": "Baseline custom Dev (auto-approbation courte) et Prod ; Patch Groups par tag ; Maintenance Window dimanche 2 h avec AWS-RunPatchBaseline et Rate Control.",
+      "ok": true,
+      "why": "Chaque Patch Group a sa baseline, le planning est maîtrisé et le Rate Control limite le nombre d'instances patchées en parallèle."
+     },
+     {
+      "t": "Mettre les 100 instances dans le même Patch Group avec deux baselines.",
+      "ok": false,
+      "why": "Un Patch Group ne peut être enregistré qu'avec une seule baseline."
+     },
+     {
+      "t": "Utiliser State Manager pour supprimer les instances vulnérables.",
+      "ok": false,
+      "why": "State Manager maintient un état, il ne remplace pas le patching."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Patch Baseline",
+    "d": "Règles qui définissent quels patches sont approuvés ou rejetés pour une famille d'instances.",
+    "derja": "Lista mta3 el patches eli yet9blou."
+   },
+   {
+    "t": "Patch Group",
+    "d": "Ensemble d'instances (tag Patch Group) associé à une seule baseline."
+   },
+   {
+    "t": "AWS-RunPatchBaseline",
+    "d": "Document SSM qui applique la baseline (patches OS et applicatifs)."
+   },
+   {
+    "t": "Maintenance Window",
+    "d": "Fenêtre planifiée (planning, durée, cibles, tâches) pour exécuter des actions de maintenance."
+   },
+   {
+    "t": "Session Manager",
+    "d": "Shell sécurisé sur instance via IAM et SSM Agent, sans SSH ni bastion, avec journalisation.",
+    "derja": "Tod5el bla port 22 w bla cle."
+   },
+   {
+    "t": "Rate Control",
+    "d": "Réglage du nombre ou du pourcentage maximal de cibles traitées en parallèle."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Comment fonctionne SSM Patch Manager ?",
+    "a": "Patch Manager automatise le patching OS, applications et sécurité des instances EC2 et on-premises, sous Linux, macOS et Windows. Une Patch Baseline définit les patches approuvés ou rejetés ; les instances sont rattachées à un Patch Group par le tag Patch Group, lui-même enregistré avec une seule baseline. Le patch s'exécute avec le document AWS-RunPatchBaseline via Run Command, à la demande ou dans une Maintenance Window avec Rate Control. Un rapport de conformité liste les patches manquants et peut être envoyé vers S3.",
+    "keys": [
+     "baseline",
+     "Patch Group",
+     "AWS-RunPatchBaseline",
+     "Maintenance Window",
+     "rapport de conformité"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'une Maintenance Window ?",
+    "a": "C'est une fenêtre planifiée pour exécuter des actions sur les instances : patching, mise à jour de drivers, installation de logiciels. Elle contient un planning, une durée, des cibles enregistrées et des tâches enregistrées. On y utilise le Rate Control pour limiter le nombre ou le pourcentage de cibles qui travaillent en parallèle.",
+    "keys": [
+     "planning",
+     "durée",
+     "cibles",
+     "tâches",
+     "Rate Control"
+    ]
+   },
+   {
+    "q": "Pourquoi préférer Session Manager à SSH ?",
+    "a": "Session Manager n'exige ni accès SSH, ni bastion, ni clés SSH : l'accès se fait par IAM via console, CLI ou SDK. Aucune règle entrante n'est nécessaire dans le Security Group. Les connexions et commandes sont journalisées vers S3 ou CloudWatch Logs, et CloudTrail enregistre StartSession. On peut restreindre l'accès par tags, voire limiter les commandes autorisées.",
+    "keys": [
+     "pas de port 22",
+     "pas de clés",
+     "IAM",
+     "logs S3/CloudWatch",
+     "CloudTrail StartSession"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Mettre une instance dans plusieurs Patch Groups : impossible, une instance = un seul Patch Group.",
+   "Oublier la clé de tag exacte « Patch Group » : sans elle l'instance reçoit la baseline par défaut.",
+   "Croire qu'une baseline pré-définie est modifiable : seule une baseline custom l'est.",
+   "Penser que Session Manager nécessite un port 22 ouvert : l'agent initie une connexion sortante.",
+   "Oublier de configurer les logs de session : sans destination S3/CloudWatch, pas d'historique des commandes."
+  ],
+  "quiz": [
+   {
+    "q": "Quel tag associe une instance à un Patch Group ?",
+    "opts": [
+     "Environment",
+     "Patch Group",
+     "Baseline",
+     "SSM-Group"
+    ],
+    "ans": 1,
+    "why": "La clé de tag doit être Patch Group."
+   },
+   {
+    "q": "Quel document SSM applique la baseline de patchs ?",
+    "opts": [
+     "AWS-RestartEC2Instance",
+     "AWSSupport-ResetAccess",
+     "AWS-RunShellScript",
+     "AWS-RunPatchBaseline"
+    ],
+    "ans": 3,
+    "why": "AWS-RunPatchBaseline applique les patches OS et applicatifs."
+   },
+   {
+    "q": "Qu'est-ce qui n'est PAS requis pour Session Manager ?",
+    "opts": [
+     "SSM Agent",
+     "Un bastion SSH",
+     "Un rôle IAM d'instance",
+     "Des permissions IAM utilisateur"
+    ],
+    "ans": 1,
+    "why": "Session Manager supprime le besoin de bastion, de port SSH et de clés."
+   },
+   {
+    "q": "Où peut-on envoyer les journaux de session ?",
+    "opts": [
+     "Uniquement e-mail",
+     "Route 53",
+     "Directory Service",
+     "S3 ou CloudWatch Logs"
+    ],
+    "ans": 3,
+    "why": "Les données de session partent vers S3 ou CloudWatch Logs."
+   },
+   {
+    "q": "Combien de baselines peut-on enregistrer pour un Patch Group ?",
+    "opts": [
+     "Deux",
+     "Une seule",
+     "Illimité",
+     "Zéro"
+    ],
+    "ans": 1,
+    "why": "Un Patch Group ne peut être enregistré qu'avec une seule baseline."
+   }
+  ],
+  "recap": [
+   "Patch Manager : baselines (pré-définies ou custom), Patch Groups par tag, document AWS-RunPatchBaseline, rapport de conformité vers S3.",
+   "Une instance ne peut être que dans un Patch Group ; un Patch Group n'a qu'une baseline.",
+   "Maintenance Window : planning + durée + cibles + tâches ; Rate Control pour limiter le parallélisme.",
+   "Session Manager : shell via IAM + SSM Agent, sans port 22, bastion ni clé SSH.",
+   "Audit de Session Manager : logs S3/CloudWatch Logs et événement StartSession dans CloudTrail."
+  ]
+ },
+ {
+  "id": "d2-10",
+  "part": "d2",
+  "title": "Méthode IR : Préparer, Détecter, Contenir, Éradiquer, Récupérer, Leçons",
+  "emoji": "🧭",
+  "level": 1,
+  "minutes": 16,
+  "core": false,
+  "src": "Synthèse PDF p.119-172",
+  "hook": {
+   "fr": "Tous les playbooks du domaine suivent le même cycle : si tu retiens la méthode et sais où placer chaque outil AWS, tu peux répondre à n'importe quelle question d'incident.",
+   "derja": "Kol incident, ken EC2, S3 walla IAM, ye3ref nafs el tartib: nesta3ed 9bal, nkachef, n3azel, nnadhhef, nraje3, w nta3lem. Ken thafem el tartib, ma tahfedhch 30 playbook: tab3athom kol b'tartib w tkhtar el outil el sah."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "El incident kima 7ric fi dar: (1) 9bal el 7ric, 3andek extincteur w plan d'évacuation (Préparer). (2) Tchouf el dokhan (Détecter). (3) Tsaker el bab w t9ate3 el courant (Contenir). (4) Tkhammed el nar w t7ayed el sbeb (Éradiquer). (5) Tarja3 el dar normal (Récupérer). (6) Ta3mel réunion: kifech nmanao3 mrra jaya (Leçons). El ghalta el kbira: tkhalt el 7ala: tnadhhef 9bal ma te7fadh el preuves, walla trajja3 9bal ma tchouf el sbeb."
+   },
+   {
+    "type": "text",
+    "title": "Pourquoi une méthode ?",
+    "md": "Sous stress on improvise : on supprime des preuves, on oublie de couper l'accès de l'attaquant, on restaure un système encore compromis. Une **méthode** impose l'**ordre** et rend le travail **reproductible**.\n\nLe cycle présenté ici (inspiré des cycles classiques d'incident response) a 6 phases :\n1. **Préparer**\n2. **Détecter**\n3. **Contenir** (et **préserver les preuves**)\n4. **Éradiquer**\n5. **Récupérer**\n6. **Leçons apprises**\n\nChaque outil du Domain 2 se range dans une phase."
+   },
+   {
+    "type": "table",
+    "title": "Les 6 phases et les outils AWS du domaine",
+    "head": [
+     "Phase",
+     "Objectif",
+     "Ce que tu fais / outils AWS"
+    ],
+    "rows": [
+     [
+      "**1. Préparer**",
+      "Être prêt avant l'incident",
+      "Playbooks écrits ; SSM Agent + rôle IAM sur les instances (accès sans SSH) ; Session Manager avec logs ; CloudTrail (dont data events S3) ; GuardDuty ; règles EventBridge/SNS pour AWS Health (abus, credentials exposés) ; Isolated SG et Forensic SG prêts ; tags ; connaître les règles de pentest/DDoS"
+     ],
+     [
+      "**2. Détecter**",
+      "Savoir vite qu'il y a un problème",
+      "GuardDuty (ressource, utilisateur DB, identité) ; AWS Health : AWS_ABUSE_*, AWS_RISK_CREDENTIALS_EXPOSED ; CloudTrail ; Detective pour la source"
+     ],
+     [
+      "**3. Contenir**",
+      "Stopper l'extension sans détruire de preuves",
+      "SG isolé, NACL, détacher ASG/ELB, Termination Protection, snapshot EBS, capture mémoire (Run Command), Deny + condition de date STS, désactiver une clé, Block Public Access, pause du conteneur"
+     ],
+     [
+      "**4. Éradiquer**",
+      "Supprimer la cause et la persistance",
+      "Rotation/suppression des credentials et key pairs, retrait des clés publiques de authorized_keys, suppression des ressources non autorisées, révocation côté AD/SSO, patching (Patch Manager), mots de passe DB changés"
+     ],
+     [
+      "**5. Récupérer**",
+      "Remettre le service en état sûr",
+      "Relancer depuis une AMI saine, nouvelle key pair, restaurer des données, retrouver l'accès (User Data, ResetAccess, EBS swap, EC2Rescue), vérifier les informations du compte, répondre à AWS Trust & Safety"
+     ],
+     [
+      "**6. Leçons**",
+      "Ne pas refaire la même erreur",
+      "Mettre à jour playbooks ; secrets dans Parameter Store / Secrets Manager ; State Manager pour empêcher la dérive ; Inventory ; Session Manager à la place de SSH ; Patch Manager planifié"
+     ]
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Où se placent les services dans le cycle",
+    "groups": [
+     {
+      "id": "P",
+      "label": "Préparer",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ssm",
+        "label": "SSM + Session Manager",
+        "sub": "accès sans SSH",
+        "icon": "cloud"
+       },
+       {
+        "id": "ct",
+        "label": "CloudTrail",
+        "sub": "journal API",
+        "icon": "log"
+       }
+      ]
+     },
+     {
+      "id": "D",
+      "label": "Détecter",
+      "kind": "account",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "gd",
+        "label": "GuardDuty",
+        "sub": "findings",
+        "icon": "shield"
+       },
+       {
+        "id": "hl",
+        "label": "AWS Health",
+        "sub": "abuse alerts",
+        "icon": "log"
+       }
+      ]
+     },
+     {
+      "id": "C",
+      "label": "Contenir & Éradiquer",
+      "kind": "vpc",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "sg",
+        "label": "SG isolé / Deny STS",
+        "sub": "isoler, révoquer",
+        "icon": "lock"
+       },
+       {
+        "id": "rc",
+        "label": "Run Command / Automation",
+        "sub": "agir en masse",
+        "icon": "api"
+       }
+      ]
+     },
+     {
+      "id": "R",
+      "label": "Récupérer & Leçons",
+      "kind": "generic",
+      "col": 3,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pm",
+        "label": "Patch / State / Parameter Store",
+        "sub": "durcir",
+        "icon": "key"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "ct",
+      "to": "gd",
+      "label": "1. données",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "gd",
+      "to": "sg",
+      "label": "2. alerte puis isoler",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "hl",
+      "to": "rc",
+      "label": "2b. alerte puis agir",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "ssm",
+      "to": "rc",
+      "label": "3. agents prêts",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "rc",
+      "to": "pm",
+      "label": "4. restaurer / durcir",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1",
+       "e4"
+      ],
+      "nodes": [
+       "ssm",
+       "ct",
+       "gd"
+      ],
+      "caption": "Préparer : agents SSM et journaux en place avant l'incident."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "gd",
+       "hl",
+       "sg",
+       "rc"
+      ],
+      "caption": "Détecter puis contenir : GuardDuty et AWS Health alertent ; on isole et on agit en masse."
+     },
+     {
+      "edges": [
+       "e5"
+      ],
+      "nodes": [
+       "pm"
+      ],
+      "caption": "Récupérer et tirer les leçons : patcher, imposer l'état voulu, mettre les secrets dans Parameter Store."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Exemple complet : clé SSH volée sur une flotte",
+    "intro": "Les 6 phases appliquées à une même histoire.",
+    "actors": [
+     {
+      "id": "so",
+      "label": "SecOps",
+      "sub": "analyste",
+      "kind": "user"
+     },
+     {
+      "id": "gd",
+      "label": "GuardDuty / CloudTrail",
+      "sub": "détection",
+      "kind": "service"
+     },
+     {
+      "id": "iam",
+      "label": "IAM",
+      "sub": "identités",
+      "kind": "aws"
+     },
+     {
+      "id": "ec2",
+      "label": "Flotte EC2",
+      "sub": "40 instances",
+      "kind": "app"
+     },
+     {
+      "id": "ssm",
+      "label": "Systems Manager",
+      "sub": "Run Command",
+      "kind": "service"
+     }
+    ],
+    "steps": [
+     {
+      "from": "so",
+      "to": "ssm",
+      "label": "0. Préparer (avant l'incident)",
+      "detail": "Les instances ont le SSM Agent et un rôle IAM ; Session Manager et CloudTrail sont configurés ; les playbooks existent.",
+      "tone": "good"
+     },
+     {
+      "from": "gd",
+      "to": "so",
+      "label": "1. Détecter",
+      "detail": "Un finding montre des connexions SSH depuis une IP inconnue avec une clé du dépôt public.",
+      "tone": "bad"
+     },
+     {
+      "from": "so",
+      "to": "iam",
+      "label": "2. Contenir : coupe les identités",
+      "detail": "Désactiver les clés d'accès concernées et attacher un Deny avec condition de date STS ; isoler les instances touchées et faire un snapshot EBS."
+     },
+     {
+      "from": "so",
+      "to": "ssm",
+      "label": "3. Éradiquer : Run Command",
+      "detail": "Supprimer les clés publiques compromises de authorized_keys sur toute la flotte, ajouter la nouvelle clé publique, supprimer les ressources non autorisées."
+     },
+     {
+      "from": "ssm",
+      "to": "ec2",
+      "label": "4. Récupérer",
+      "detail": "Reconstruire les AMI sans l'ancienne clé, relancer le service, vérifier CloudTrail et les informations du compte.",
+      "tone": "good"
+     },
+     {
+      "from": "so",
+      "to": "ec2",
+      "label": "5. Leçons",
+      "detail": "Passer à Session Manager (plus de clé, plus de port 22), secrets dans Parameter Store, State Manager pour fermer le port 22.",
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Table de décision : symptôme vers premier réflexe",
+    "head": [
+     "Symptôme / question",
+     "Premier réflexe",
+     "Outils AWS",
+     "Leçon"
+    ],
+    "rows": [
+     [
+      "Instance EC2 qui communique avec un domaine de minage",
+      "Isoler (SG sans trafic), sortir de l'ASG/ELB, snapshot EBS, tag, puis investiguer",
+      "GuardDuty, SG, EBS, Lambda, SSM Run Command",
+      "d2-02"
+     ],
+     [
+      "Bucket S3 accédé de façon suspecte",
+      "Identifier la source et les API calls, vérifier si autorisée, verrouiller le bucket",
+      "GuardDuty, CloudTrail, Detective, Block Public Access",
+      "d2-02"
+     ],
+     [
+      "Tasks ECS ou conteneur standalone compromis",
+      "Couper ingress/egress, pause ou stop, snapshots EBS GuardDuty",
+      "GuardDuty, Security Groups",
+      "d2-02"
+     ],
+     [
+      "Comportement anormal d'une DB RDS",
+      "Restreindre réseau et utilisateur DB, rotation du mot de passe, audit logs",
+      "GuardDuty, SG/NACL, Secrets Manager, IAM DB Auth",
+      "d2-02"
+     ],
+     [
+      "Access key exposée (GitHub)",
+      "Désactiver la clé, Deny avec date STS, CloudTrail",
+      "IAM, CloudTrail, GuardDuty",
+      "d2-03"
+     ],
+     [
+      "Credentials temporaires d'un rôle volés",
+      "Deny avec condition de date STS ; couper l'identité AD/SSO liée",
+      "IAM, CloudTrail",
+      "d2-03"
+     ],
+     [
+      "Compte entier compromis",
+      "Tout faire tourner (clés, mots de passe, key pairs), revue CloudTrail, nettoyage",
+      "IAM, EC2, CloudTrail",
+      "d2-03"
+     ],
+     [
+      "Clé SSH privée exposée",
+      "Retirer les clés publiques, en ajouter une nouvelle, automatiser",
+      "SSM Run Command",
+      "d2-04"
+     ],
+     [
+      "Plus de réseau / boot cassé, mais accès nécessaire",
+      "EC2 Serial Console (Nitro, activée au niveau compte)",
+      "Serial Console",
+      "d2-04"
+     ],
+     [
+      "Clé perdue ou mot de passe Windows perdu",
+      "User Data, ResetAccess, EIC, EBS swap, EC2Rescue",
+      "SSM, EC2Rescue",
+      "d2-05"
+     ],
+     [
+      "E-mail AWS : spam / DDoS depuis ton compte",
+      "Stopper l'abus, corriger la cause, répondre sous 24 h",
+      "AWS Health, EventBridge, SNS",
+      "d2-06"
+     ],
+     [
+      "Patcher 300 serveurs un dimanche",
+      "Baselines + Patch Groups + Maintenance Window",
+      "Patch Manager, Maintenance Windows",
+      "d2-09"
+     ],
+     [
+      "Accès shell sans SSH, avec traçabilité",
+      "Session Manager",
+      "SSM, IAM, S3/CloudWatch Logs",
+      "d2-09"
+     ],
+     [
+      "Faire un pentest ou un test DDoS",
+      "Pentest autorisé sur 8 services ; DDoS = partenaire approuvé + Shield Advanced",
+      "-",
+      "d2-01"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Question piège : « une instance est compromise, que faites-vous en premier ? » → isoler et préserver les preuves (SG sans trafic, snapshot, éventuellement capture mémoire), pas terminer l'instance et pas restaurer tout de suite. Autre : « credentials volés, ça suffit de supprimer la clé ? » → non, Deny avec condition de date STS pour les sessions temporaires."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : quel ordre ?",
+    "situation": "GuardDuty signale qu'un rôle IAM d'une instance EC2 est utilisé depuis l'extérieur d'AWS. Le chef d'équipe veut restaurer le service immédiatement depuis la dernière AMI et supprimer l'instance.",
+    "q": "Quelle approche respecte la méthode ?",
+    "opts": [
+     {
+      "t": "Restaurer et supprimer l'instance dès que possible : la disponibilité d'abord.",
+      "ok": false,
+      "why": "On saute contenir et éradiquer : l'attaquant garde ses credentials et on perd les preuves."
+     },
+     {
+      "t": "Contenir (Deny avec date STS, isoler l'instance, snapshot), éradiquer (cause, secrets, ressources non autorisées), puis récupérer depuis une AMI saine et tirer les leçons.",
+      "ok": true,
+      "why": "L'ordre complet : on coupe l'accès, on retire la cause, on restaure sur une base saine, on améliore."
+     },
+     {
+      "t": "Seulement écrire un rapport d'incident.",
+      "ok": false,
+      "why": "Les leçons viennent à la fin, pas à la place de l'action."
+     },
+     {
+      "t": "Désactiver GuardDuty pour arrêter les alertes.",
+      "ok": false,
+      "why": "Tu perds la détection ; ça ne traite pas l'incident."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Incident Response (IR)",
+    "d": "Ensemble de pratiques pour préparer, détecter, contenir, éradiquer un incident, récupérer et en tirer des leçons.",
+    "derja": "Kifech net3amlou m3a el 7ric mel awel lel a5er."
+   },
+   {
+    "t": "Containment",
+    "d": "Phase qui limite la propagation (isolation, révocation) sans détruire les preuves."
+   },
+   {
+    "t": "Eradication",
+    "d": "Suppression de la cause et des mécanismes de persistance de l'attaquant."
+   },
+   {
+    "t": "Preuves (forensics)",
+    "d": "Snapshots, mémoire, logs conservés pour comprendre l'attaque."
+   },
+   {
+    "t": "Lessons learned",
+    "d": "Revue post-incident qui met à jour playbooks, contrôles et automatisations."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Décrivez votre méthode de réponse à incident sur AWS.",
+    "a": "Je suis six phases. Préparer : playbooks, SSM Agent et rôles IAM, CloudTrail, GuardDuty et alertes. Détecter : GuardDuty, AWS Health, CloudTrail, Detective. Contenir : isoler la ressource (SG sans trafic), révoquer les accès (Deny avec condition de date STS) et préserver les preuves (snapshots, mémoire). Éradiquer : supprimer les causes et ressources non autorisées, faire tourner clés et mots de passe. Récupérer : relancer depuis une base saine. Leçons : mettre à jour playbooks et durcir (Parameter Store, State Manager, Patch Manager).",
+    "keys": [
+     "6 phases",
+     "contenir avant éradiquer",
+     "preuves",
+     "GuardDuty/CloudTrail"
+    ]
+   },
+   {
+    "q": "Pourquoi isoler avant de supprimer une ressource compromise ?",
+    "a": "Supprimer détruit la mémoire, le disque et les logs locaux, donc les preuves pour comprendre l'attaque. Sans cette compréhension l'attaquant peut revenir par la même faille. L'isolation (SG sans trafic, détachement de l'ASG et de l'ELB, snapshot EBS) coupe l'extension de l'attaque tout en gardant la ressource pour analyse.",
+    "keys": [
+     "preuves",
+     "isolation",
+     "snapshot",
+     "récidive"
+    ]
+   },
+   {
+    "q": "Quels services Systems Manager utilisez-vous en réponse à incident ?",
+    "a": "Run Command pour agir à grande échelle sans SSH (capture mémoire, retirer ou ajouter des clés), Automation avec des runbooks (ex. ResetAccess ou redémarrage), Session Manager pour un accès shell audité, Patch Manager avec Maintenance Windows pour corriger la faille, Parameter Store pour les secrets, State Manager pour empêcher la dérive et Inventory pour savoir ce qui est installé.",
+    "keys": [
+     "Run Command",
+     "Automation",
+     "Session Manager",
+     "Patch Manager"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Passer directement à Récupérer sans Contenir ni Éradiquer : tu restaures un système encore ouvert à l'attaquant.",
+   "Éradiquer avant d'avoir préservé les preuves (snapshot, mémoire).",
+   "Oublier la phase Préparer : sans CloudTrail data events, SSM Agent et playbooks, les autres phases sont aveugles.",
+   "Ne pas conclure par les Leçons : le même incident se reproduit.",
+   "Penser que supprimer la clé volée suffit : il faut aussi la deny policy avec date STS."
+  ],
+  "quiz": [
+   {
+    "q": "Dans quelle phase placer « Snapshot EBS + SG isolé » ?",
+    "opts": [
+     "Contenir (avec préservation des preuves)",
+     "Préparer",
+     "Leçons",
+     "Récupérer"
+    ],
+    "ans": 0,
+    "why": "On isole et on conserve les preuves pour stopper l'extension sans détruire les données."
+   },
+   {
+    "q": "Quel est l'ordre correct ?",
+    "opts": [
+     "Récupérer, Contenir, Détecter",
+     "Éradiquer, Préparer, Récupérer",
+     "Préparer, Détecter, Contenir, Éradiquer, Récupérer, Leçons",
+     "Détecter, Leçons, Contenir"
+    ],
+    "ans": 2,
+    "why": "C'est le cycle à 6 phases."
+   },
+   {
+    "q": "Quel outil pousse une nouvelle clé publique sur toute une flotte sans SSH ?",
+    "opts": [
+     "SSM Run Command",
+     "Amazon Inspector",
+     "Route 53",
+     "CloudFront"
+    ],
+    "ans": 0,
+    "why": "Run Command exécute à grande échelle sur des instances ciblées."
+   },
+   {
+    "q": "Où se place la mise en place de Parameter Store pour les secrets après un incident ?",
+    "opts": [
+     "Détecter",
+     "Contenir",
+     "Leçons / durcissement",
+     "Aucune phase"
+    ],
+    "ans": 2,
+    "why": "C'est une amélioration structurelle qui évite le renouvellement de l'incident."
+   },
+   {
+    "q": "Quel service t'avertit d'un abus venant de ton compte ?",
+    "opts": [
+     "AWS Health (via EventBridge)",
+     "AWS Artifact",
+     "Amazon Macie",
+     "AWS Backup"
+    ],
+    "ans": 0,
+    "why": "Les alertes d'abus arrivent via AWS Health, avec règle EventBridge possible."
+   }
+  ],
+  "recap": [
+   "Cycle : Préparer, Détecter, Contenir, Éradiquer, Récupérer, Leçons.",
+   "Contenir = isoler + préserver les preuves ; ne jamais terminer d'emblée.",
+   "Identités : désactiver/rotater les clés ET attacher un Deny avec date STS pour les sessions temporaires.",
+   "Systems Manager couvre les phases : Run Command/Automation (agir), Session Manager (accès audité), Patch/State/Parameter Store (durcir).",
+   "La table de décision relie chaque symptôme à son réflexe et à sa leçon."
+  ]
+ }
+]

@@ -1,0 +1,5332 @@
+[
+ {
+  "id": "ch2b-01",
+  "part": "ch2b",
+  "title": "Comment AWS contrôle les accès : 4 questions, 5 policies, STS & Roles",
+  "emoji": "🛡️",
+  "level": 0,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 40-46",
+  "hook": {
+   "fr": "Avant d'écrire la moindre policy, il faut comprendre la logique d'AWS : chaque requête reçoit un Allow ou un Deny après 4 questions, et deux briques servent de socle à tout le reste, STS et les IAM Roles.",
+   "derja": "Kif tod5ol l'immeuble, el bawab ysa2lek 4 as2ila: inti chkoun? chnoua t7eb ta3mel? fi anehi bab? w b'anehi chrout? Ba3d ya3tik 7okm wa7ed: yfta7lek wala ykollek la. AWS ya3mel nafs 7aja m3a kol requête API. W fi el akhir 3andna 7ajtin lazem nfahmouhom men el awel: el STS (badge mo2a99at) w el Role (dour tlbsou wa9t el 7aja)."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Imagine el cloud kima l'immeuble kbir fih mille bureau. Kol marra yji wa7ed, el bawab ma yaarfouch chkoun houwa: yelzem ysa2lou. El 4 as2ila houma: QUI (inti chkoun?), QUOI (chnoua t7eb ta3mel?), QUELLE RESSOURCE (fi anehi bureau?), CONDITIONS (wa9tech? men anehi IP? m3ak MFA?). El jaweb yji dima Allow wala Deny. Ama 7ata cartes d'identité ma tsallekch el 7aja: AWS ya3tik badge mo2a99at (STS) w hedha el badge yetna7a wa7do ba3d chwaya wa9t, 7ata ken tsayyaa3tou ma yodhorrekch barcha."
+   },
+   {
+    "type": "text",
+    "title": "Le problème de départ",
+    "md": "Dans un compte AWS, des milliers d'**actions** (créer une instance, lire un objet, supprimer une file...) peuvent être appelées par des **humains**, des **applications** et d'autres **services AWS**, souvent à travers plusieurs comptes. Sans moteur de décision central, impossible de dire qui a le droit de faire quoi.\n\nAWS résout ça en passant **chaque requête** (console, CLI, SDK, API) par le même contrôle : il évalue un ensemble de règles, les **policies**, et rend un verdict unique : **ALLOW** ou **DENY**."
+   },
+   {
+    "type": "table",
+    "title": "Les 4 questions de chaque requête AWS",
+    "head": [
+     "Question",
+     "Ce qu'AWS regarde",
+     "Où ça se lit dans une policy",
+     "Exemple"
+    ],
+    "rows": [
+     [
+      "**QUI ?**",
+      "L'identité qui fait la requête : IAM User, Role, service AWS",
+      "Implicite dans une identity-based policy, élément `Principal` dans une resource-based policy",
+      "Role `S3AccessRole`"
+     ],
+     [
+      "**QUOI ?**",
+      "L'action demandée (lire, écrire, supprimer, créer...)",
+      "`Action`",
+      "`s3:GetObject`"
+     ],
+     [
+      "**QUELLE RESSOURCE ?**",
+      "La ressource visée (bucket, instance EC2, table DynamoDB...)",
+      "`Resource`",
+      "`arn:aws:s3:::my-bucket/*`"
+     ],
+     [
+      "**SOUS QUELLES CONDITIONS ?**",
+      "Exigences supplémentaires : MFA, adresse IP, Region, heure...",
+      "`Condition`",
+      "`aws:SourceIp`, `aws:MultiFactorAuthPresent`"
+     ]
+    ],
+    "note": "Les IAM Policies sont les règles qu'AWS utilise pour répondre à ces 4 questions et rendre Allow ou Deny."
+   },
+   {
+    "type": "table",
+    "title": "Vue d'ensemble : les 5 types de policies",
+    "head": [
+     "Type de policy",
+     "Attachée à",
+     "Question à laquelle elle répond",
+     "Accorde des permissions ?"
+    ],
+    "rows": [
+     [
+      "**Identity-based**",
+      "IAM User, Group ou Role",
+      "« Que peut faire cette identité ? »",
+      "Oui"
+     ],
+     [
+      "**Resource-based**",
+      "Une ressource (bucket, queue, topic, clé...)",
+      "« Qui peut accéder à cette ressource ? »",
+      "Oui"
+     ],
+     [
+      "**Permissions boundary**",
+      "Un IAM User ou un Role",
+      "« Quel est le plafond de cette identité ? »",
+      "Non, elle plafonne"
+     ],
+     [
+      "**SCP (Organizations)**",
+      "Un compte ou une OU",
+      "« Quel est le plafond de tous les comptes concernés ? »",
+      "Non, elle plafonne"
+     ],
+     [
+      "**Session policy**",
+      "Passée à l'`AssumeRole`",
+      "« Quel est le plafond de cette session ? »",
+      "Non, elle plafonne"
+     ]
+    ],
+    "note": "On détaille chacune dans les leçons suivantes. Retiens déjà : seules 2 types donnent des droits, les 3 autres limitent."
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "« Citez les 5 types de policies et dites lesquelles accordent des permissions. » Réponse courte : identity-based et resource-based accordent ; permissions boundary, SCP et session policy ne font que limiter (elles ne donnent jamais rien toutes seules)."
+   },
+   {
+    "type": "text",
+    "title": "STS : l'émetteur de credentials temporaires",
+    "md": "**Pourquoi ?** Une clé d'accès permanente (access key) qui traîne dans un code, un log ou un repo Git est un danger tant qu'on ne la révoque pas. Idéalement une application ne devrait jamais détenir de clé permanente.\n\n**Définition :** **AWS Security Token Service (STS)** est le service qui émet des **identifiants de sécurité temporaires** valables pour une durée limitée. Ils contiennent :\n- **Access Key ID** : l'identifiant de la clé (les clés temporaires commencent par `ASIA`, les permanentes par `AKIA`)\n- **Secret Access Key** : le secret qui signe les requêtes\n- **Session Token** : le jeton qui prouve que la clé est temporaire et valide\n- **Expiration** : la date après laquelle tout cesse de fonctionner\n\n**AssumeRole** est l'opération d'API de STS par laquelle une entité de confiance (trusted entity) obtient des credentials temporaires pour un IAM Role."
+   },
+   {
+    "type": "decode",
+    "title": "Décoder des credentials temporaires renvoyés par STS",
+    "raw": "{\n  \"AccessKeyId\": \"ASIA6D7F8G9H0J1K2L3M\",\n  \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"SessionToken\": \"IQoJb3JpZ2luX2VjEXAMPLE...(tr\\u00e8s long, tronqu\\u00e9)...zFQ=\",\n  \"Expiration\": \"2025-09-04T19:32:15Z\"\n}",
+    "parts": [
+     {
+      "s": "AccessKeyId",
+      "label": "Access Key ID",
+      "note": "Identifiant de la clé temporaire"
+     },
+     {
+      "s": "ASIA6D7F8G9H0J1K2L3M",
+      "label": "Préfixe ASIA",
+      "note": "ASIA = clé temporaire (STS) ; AKIA = clé permanente d'un IAM User"
+     },
+     {
+      "s": "SecretAccessKey",
+      "label": "Secret Access Key",
+      "note": "Secret utilisé pour signer chaque requête, jamais à partager"
+     },
+     {
+      "s": "SessionToken",
+      "label": "Session Token",
+      "note": "Obligatoire avec une clé temporaire, envoyé avec chaque requête"
+     },
+     {
+      "s": "Expiration",
+      "label": "Expiration",
+      "note": "Au-delà de cette date, les credentials sont refusés"
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "IAM Role : une identité sans propriétaire fixe",
+    "md": "**Pourquoi ?** Un IAM User est lié à une personne précise. Or une instance EC2, une fonction Lambda ou un autre compte AWS n'ont pas de « personne » derrière. Il leur faut une identité qu'ils puissent **endosser** le temps d'une mission.\n\n**Définition :** un **IAM Role** est une identité IAM qui fournit des **permissions temporaires** à des entités de confiance. Il n'est pas associé durablement à quelqu'un : il peut être **assumé** par un service AWS, un utilisateur ou un autre compte.\n\nUn Role contient **deux composants** :\n- **Trust policy** : définit **QUI** peut assumer le Role\n- **Permission policies** : définissent **CE QUE** le Role peut faire une fois assumé"
+   },
+   {
+    "type": "policy",
+    "title": "Trust policy d'un Role pour EC2 (QUI peut assumer)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"Service\": \"ec2.amazonaws.com\"",
+     "      },",
+     "      \"Action\": \"sts:AssumeRole\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       8
+      ],
+      "text": "Principal = le QUI : ici le service EC2 est autorisé à assumer le Role",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       9
+      ],
+      "text": "L'action autorisée est sts:AssumeRole : assumer le Role",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Une instance EC2 peut-elle assumer ce Role ?",
+      "ans": true,
+      "why": "Le Principal Service ec2.amazonaws.com est autorisé à faire sts:AssumeRole."
+     },
+     {
+      "q": "Une fonction Lambda peut-elle assumer ce Role avec cette trust policy ?",
+      "ans": false,
+      "why": "Seul ec2.amazonaws.com est listé ; Lambda aurait besoin de lambda.amazonaws.com."
+     },
+     {
+      "q": "Cette policy donne-t-elle le droit de lire dans S3 ?",
+      "ans": false,
+      "why": "Une trust policy dit seulement QUI peut assumer le Role, pas ce que le Role peut faire."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Permission policy du même Role (CE QUE le Role peut faire)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:GetObject\",",
+     "      \"Resource\": \"arn:aws:s3:::my-secure-bucket/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Le Role pourra lire des objets...",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "...mais uniquement dans ce bucket",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec ce Role, peut-on faire s3:PutObject dans my-secure-bucket ?",
+      "ans": false,
+      "why": "Seul s3:GetObject est autorisé."
+     },
+     {
+      "q": "Avec ce Role, peut-on lire my-secure-bucket/rapport.pdf ?",
+      "ans": true,
+      "why": "GetObject sur arn:aws:s3:::my-secure-bucket/* couvre tous les objets du bucket."
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Anatomie d'un ARN (le « nom complet » d'une ressource)",
+    "raw": "arn:aws:iam::123456789012:role/S3AccessRole",
+    "parts": [
+     {
+      "s": "arn",
+      "label": "Préfixe",
+      "note": "Amazon Resource Name : identifiant unique mondial d'une ressource AWS"
+     },
+     {
+      "s": "aws",
+      "label": "Partition",
+      "note": "aws = partition standard (il existe aws-cn, aws-us-gov)"
+     },
+     {
+      "s": "iam",
+      "label": "Service",
+      "note": "Le service propriétaire : IAM"
+     },
+     {
+      "s": "123456789012",
+      "label": "ID du compte",
+      "note": "12 chiffres. La région est vide ici car IAM est un service global"
+     },
+     {
+      "s": "role",
+      "label": "Type de ressource",
+      "note": "Ici un IAM Role"
+     },
+     {
+      "s": "S3AccessRole",
+      "label": "Nom",
+      "note": "Nom du Role dans le compte"
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "Une instance EC2 assume un Role via STS",
+    "intro": "Le Role S3AccessRole est attaché à l'instance. Elle n'a aucune clé permanente, elle reçoit des credentials temporaires.",
+    "actors": [
+     {
+      "id": "ec2",
+      "label": "Instance EC2",
+      "sub": "avec Role attaché",
+      "kind": "app"
+     },
+     {
+      "id": "sts",
+      "label": "AWS STS",
+      "sub": "Security Token Service",
+      "kind": "aws"
+     },
+     {
+      "id": "s3",
+      "label": "Amazon S3",
+      "sub": "my-secure-bucket",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "ec2",
+      "to": "sts",
+      "label": "1. sts:AssumeRole",
+      "detail": "L'instance utilise son Role pour demander des credentials temporaires à STS (en pratique le SDK AWS fait cette demande tout seul).",
+      "derja": "El instance tolb el badge mo2a99at men el bawab.",
+      "payload": {
+       "title": "Demande AssumeRole",
+       "fields": [
+        {
+         "k": "Action",
+         "v": "sts:AssumeRole",
+         "note": "Opération STS"
+        },
+        {
+         "k": "Role",
+         "v": "S3AccessRole",
+         "note": "Le Role attaché à l'instance"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sts",
+      "to": "sts",
+      "label": "2. Vérifie la trust policy",
+      "detail": "STS contrôle que le Role fait confiance à EC2 : la trust policy doit autoriser ec2.amazonaws.com."
+     },
+     {
+      "from": "sts",
+      "to": "ec2",
+      "label": "3. Credentials temporaires",
+      "detail": "STS renvoie une clé temporaire, valable un temps limité (1 heure par défaut selon le cours).",
+      "dashed": true,
+      "tone": "good",
+      "payload": {
+       "title": "Credentials temporaires",
+       "fields": [
+        {
+         "k": "AccessKeyId",
+         "v": "ASIA...",
+         "note": "Clé temporaire"
+        },
+        {
+         "k": "SecretAccessKey",
+         "v": "(secret)",
+         "note": "Sert à signer"
+        },
+        {
+         "k": "SessionToken",
+         "v": "IQoJb3...",
+         "note": "Jeton de session"
+        },
+        {
+         "k": "Expiration",
+         "v": "dans environ 1 h",
+         "note": "Durée limitée"
+        }
+       ]
+      }
+     },
+     {
+      "from": "ec2",
+      "to": "s3",
+      "label": "4. s3:GetObject avec les credentials",
+      "detail": "C'est l'instance (et non STS) qui utilise les credentials pour appeler S3."
+     },
+     {
+      "from": "s3",
+      "to": "s3",
+      "label": "5. Vérifie la permission policy",
+      "detail": "S3 évalue ce que le Role a le droit de faire : s3:GetObject sur ce bucket est autorisé."
+     },
+     {
+      "from": "s3",
+      "to": "ec2",
+      "label": "6. Objet renvoyé",
+      "detail": "Accès accordé selon les permissions du Role, aucune clé permanente n'a circulé.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Role vs IAM User : le réflexe",
+    "text": "Pour une application ou un service AWS, on préfère toujours un Role (credentials temporaires qui expirent) à un IAM User avec des access keys permanentes (qui fuient dans les repos Git et les logs)."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : l'application et la clé oubliée",
+    "situation": "Une application tourne sur EC2 et lit des objets dans S3. Un développeur propose de créer un IAM User, de générer une access key et de la coller dans le fichier de configuration de l'application.",
+    "q": "Quelle est la meilleure solution ?",
+    "opts": [
+     {
+      "t": "Créer l'IAM User et stocker la clé dans le code, c'est plus rapide",
+      "ok": false,
+      "why": "La clé est permanente : si elle fuite (Git, logs, backup), elle reste valable jusqu'à révocation."
+     },
+     {
+      "t": "Attacher à l'instance un Role (trust policy pour ec2.amazonaws.com + permission policy s3:GetObject)",
+      "ok": true,
+      "why": "L'instance reçoit des credentials temporaires de STS ; rien de permanent n'est stocké, les droits sont limités par la permission policy."
+     },
+     {
+      "t": "Donner à l'application la clé de l'utilisateur root",
+      "ok": false,
+      "why": "Catastrophique : l'utilisateur root a tous les droits et ses clés ne doivent jamais servir à une application."
+     },
+     {
+      "t": "Mettre le bucket en accès public pour éviter toute authentification",
+      "ok": false,
+      "why": "On supprime le contrôle d'accès au lieu de le configurer ; les données deviennent lisibles par tous."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "STS",
+    "d": "AWS Security Token Service : service qui émet des identifiants de sécurité temporaires.",
+    "derja": "El service elli yotbaa badge mo2a99at."
+   },
+   {
+    "t": "Credentials temporaires",
+    "d": "Access Key ID + Secret Access Key + Session Token + Expiration, valables pour une durée limitée.",
+    "derja": "Clé elli tetna7a wa7dha ba3d wa9t."
+   },
+   {
+    "t": "AssumeRole",
+    "d": "Opération d'API STS permettant à une entité de confiance d'obtenir des credentials temporaires pour un IAM Role.",
+    "derja": "Tolbet el badge mta3 el Role."
+   },
+   {
+    "t": "IAM Role",
+    "d": "Identité IAM non liée à une personne, avec permissions temporaires, assumable par des entités de confiance.",
+    "derja": "Dour tlbsou, mouch 7ouwiya mta3 chkoun."
+   },
+   {
+    "t": "Trust policy",
+    "d": "Policy du Role qui définit QUI peut l'assumer.",
+    "derja": "Chkoun 3andou el 7a9 yelbes el dour."
+   },
+   {
+    "t": "Permission policy",
+    "d": "Policy du Role qui définit CE QUE le Role peut faire une fois assumé.",
+    "derja": "El dour hedha chnoua ya3mel."
+   },
+   {
+    "t": "ARN",
+    "d": "Amazon Resource Name : identifiant unique d'une ressource AWS (arn:partition:service:region:compte:ressource)."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Comment AWS décide-t-il d'autoriser ou de refuser une requête ?",
+    "a": "Chaque requête AWS doit répondre à quatre questions : QUI fait la requête, QUOI (quelle action), sur QUELLE RESSOURCE, et SOUS QUELLES CONDITIONS (MFA, IP, Region, heure). AWS évalue ces éléments contre les policies applicables et rend un verdict unique, ALLOW ou DENY. Par exemple, le Role S3AccessRole demandant s3:GetObject sur my-bucket depuis une instance EC2 est autorisé si une policy l'y autorise et qu'aucune autre ne l'interdit.",
+    "keys": [
+     "4 questions",
+     "Allow/Deny",
+     "policies",
+     "Principal Action Resource Condition"
+    ]
+   },
+   {
+    "q": "C'est quoi STS et que contiennent les credentials temporaires ?",
+    "a": "STS, le Security Token Service, est le service AWS qui émet des identifiants temporaires valables pour une durée limitée. Ils contiennent un Access Key ID, une Secret Access Key, un Session Token et une date d'expiration. AssumeRole est l'opération qui permet à une entité de confiance d'obtenir ces credentials pour un Role. L'intérêt : on évite de donner des clés permanentes aux applications.",
+    "keys": [
+     "credentials temporaires",
+     "Session Token",
+     "Expiration",
+     "AssumeRole"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'un IAM Role et quelle est la différence entre trust policy et permission policy ?",
+    "a": "Un IAM Role est une identité IAM qui donne des permissions temporaires à des entités de confiance ; contrairement à un IAM User, il n'est pas lié à une personne précise et peut être assumé par un service, un utilisateur ou un autre compte. Il possède deux composants. La trust policy dit QUI peut l'assumer, la permission policy dit CE QUE le Role peut faire. Exemple : trust policy pour ec2.amazonaws.com et permission policy avec s3:GetObject.",
+    "keys": [
+     "trust policy = QUI",
+     "permission policy = CE QUE",
+     "temporaire",
+     "trusted entity"
+    ]
+   },
+   {
+    "q": "Citez les 5 types de policies. Lesquelles accordent des permissions ?",
+    "a": "Il y a les identity-based policies, les resource-based policies, les permissions boundaries, les SCP d'Organizations et les session policies. Seules les identity-based et les resource-based accordent des permissions. Les trois autres, boundary, SCP et session policy, définissent uniquement un plafond : elles ne donnent aucun droit toutes seules.",
+    "keys": [
+     "identity-based",
+     "resource-based",
+     "boundary",
+     "SCP",
+     "session policy",
+     "plafond"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Confondre la trust policy (QUI peut assumer le Role) et la permission policy (CE QUE le Role peut faire) : un Role a besoin des deux.",
+   "Croire que boundary, SCP ou session policy donnent des droits : elles ne font que plafonner.",
+   "Dire que STS « utilise » les credentials pour accéder à S3 : STS les émet, c'est l'application (EC2 par exemple) qui les utilise.",
+   "Penser qu'un Role appartient à une personne : il est assumé temporairement par une entité de confiance.",
+   "Oublier que les credentials STS expirent (Expiration) : une application doit pouvoir les renouveler."
+  ],
+  "quiz": [
+   {
+    "q": "Parmi ces éléments, lequel ne fait PAS partie des 4 questions posées par AWS à chaque requête ?",
+    "opts": [
+     "QUI fait la requête",
+     "QUELLE RESSOURCE est visée",
+     "COMBIEN ça coûte",
+     "SOUS QUELLES CONDITIONS"
+    ],
+    "ans": 2,
+    "why": "Les 4 questions sont QUI, QUOI, QUELLE RESSOURCE et SOUS QUELLES CONDITIONS ; le coût n'intervient pas dans la décision Allow/Deny."
+   },
+   {
+    "q": "Que contiennent les credentials temporaires émis par STS ?",
+    "opts": [
+     "Seulement un mot de passe et un code MFA",
+     "Access Key ID, Secret Access Key, Session Token, Expiration",
+     "Une trust policy et une permission policy",
+     "Un ARN et un nom de bucket"
+    ],
+    "ans": 1,
+    "why": "Les quatre éléments sont l'Access Key ID, la Secret Access Key, le Session Token et la date d'expiration."
+   },
+   {
+    "q": "Dans un IAM Role, quelle partie définit QUI peut l'assumer ?",
+    "opts": [
+     "La permission policy",
+     "La session policy",
+     "La permissions boundary",
+     "La trust policy"
+    ],
+    "ans": 3,
+    "why": "La trust policy dit qui peut assumer le Role ; la permission policy dit ce qu'il peut faire."
+   },
+   {
+    "q": "Quels types de policies accordent réellement des permissions ?",
+    "opts": [
+     "Identity-based et resource-based",
+     "SCP et permissions boundary",
+     "Session policy uniquement",
+     "Toutes les 5 de la même façon"
+    ],
+    "ans": 0,
+    "why": "Les SCP, boundaries et session policies ne font que limiter ; seules identity-based et resource-based accordent."
+   },
+   {
+    "q": "Une instance EC2 avec un Role attaché accède à S3. Qui utilise les credentials temporaires pour appeler S3 ?",
+    "opts": [
+     "STS, au nom de l'instance",
+     "L'instance EC2 elle-même",
+     "Le bucket S3",
+     "L'utilisateur root du compte"
+    ],
+    "ans": 1,
+    "why": "STS émet les credentials ; c'est l'instance EC2 qui les utilise pour appeler S3 selon les permissions du Role."
+   }
+  ],
+  "recap": [
+   "Chaque requête AWS : QUI, QUOI, QUELLE RESSOURCE, SOUS QUELLES CONDITIONS, puis ALLOW ou DENY.",
+   "5 types de policies : identity-based, resource-based, permissions boundary, SCP, session policy. Seules les 2 premières accordent des droits.",
+   "STS émet des credentials temporaires : Access Key ID, Secret Access Key, Session Token, Expiration.",
+   "AssumeRole = l'opération STS qui donne des credentials pour un Role.",
+   "IAM Role = trust policy (QUI peut l'assumer) + permission policies (CE QUE le Role peut faire).",
+   "Pour une application ou un service : Role et credentials temporaires, pas de clé permanente."
+  ]
+ },
+ {
+  "id": "ch2b-02",
+  "part": "ch2b",
+  "title": "Identity-based policies : ce que peut faire une identité",
+  "emoji": "🪪",
+  "level": 1,
+  "minutes": 15,
+  "core": true,
+  "src": "CH2 slides 47-52",
+  "hook": {
+   "fr": "Les identity-based policies sont la policy la plus courante : elles disent ce qu'un User, un Group ou un Role a le droit de faire, et suivent une règle d'or : tout est refusé par défaut et un Deny explicite gagne toujours.",
+   "derja": "Identity-based policy ya3ni el 'wara9a' elli temchi m3a el 7ad: CIN w fi dhaharha mektoub chnoua 3andek el 7a9 ta3mlou. El 9a3da: kol 7aja mamnou3a ken ma kenetch mektouba 'Allow', w ken fama 'Deny' mektouba, hiya dima tghleb, 7ata ken fama 100 Allow."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Fi el club, kol 3adhou 3andou carte: carte mta3 John tgol 'tnajjem tod5ol lel piscine'. El carte mta3 el groupe 'Developers' ykoul nafs 7aja l'kol 3adhou fel groupe. W el Role kima carte mta3 ba3dh el jobs: ay wa7ed yelbesha ykhdem. El carte hedhi hiya el identity-based policy: tetsajjel 3al 7ad (identity), mouch 3al piscine. Donc ma tod5olch tkoul 'chkoun'; el carte nafsha ta3rf li houwa inti."
+   },
+   {
+    "type": "text",
+    "title": "Le problème et la définition",
+    "md": "**Pourquoi ?** Il faut une manière simple de dire « cette personne / cette application peut faire ceci ». On attache donc les droits directement à l'**identité** elle-même.\n\n**Définition :** une **identity-based policy** est attachée à un **IAM User**, un **IAM Group** ou un **IAM Role**. Elle définit **ce que cette identité peut faire** et répond à la question : « Quelles actions cette identité peut-elle effectuer ? »\n\nCes trois cibles sont les seules identités IAM auxquelles on l'attache."
+   },
+   {
+    "type": "arch",
+    "title": "Où s'attachent les identity-based policies",
+    "groups": [
+     {
+      "id": "ident",
+      "label": "Identités IAM",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "john",
+        "label": "John",
+        "sub": "IAM User",
+        "icon": "user"
+       },
+       {
+        "id": "devs",
+        "label": "Developers",
+        "sub": "IAM Group",
+        "icon": "user"
+       },
+       {
+        "id": "ec2role",
+        "label": "EC2S3ReadRole",
+        "sub": "IAM Role",
+        "icon": "role"
+       }
+      ]
+     },
+     {
+      "id": "pols",
+      "label": "Policies",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "p1",
+        "label": "S3ReadPolicy",
+        "sub": "Allow s3:GetObject",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "res",
+      "label": "Ressource",
+      "kind": "generic",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "bucket",
+        "label": "my-bucket",
+        "sub": "S3",
+        "icon": "storage"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "john",
+      "to": "p1",
+      "label": "attachée directement",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "devs",
+      "to": "p1",
+      "label": "attachée au groupe",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "ec2role",
+      "to": "p1",
+      "label": "attachée au Role",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "p1",
+      "to": "bucket",
+      "label": "s3:GetObject",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "john",
+       "p1"
+      ],
+      "caption": "John est un IAM User : la policy lui est attachée directement, il peut lire des objets S3."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "devs",
+       "p1"
+      ],
+      "caption": "Le groupe Developers reçoit la policy : tous ses membres héritent de s3:GetObject."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "ec2role",
+       "p1"
+      ],
+      "caption": "Une instance EC2 assume le Role : l'application peut lire S3 avec les permissions du Role."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "p1",
+       "bucket"
+      ],
+      "caption": "Dans les trois cas, l'action autorisée porte sur le bucket my-bucket."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les trois identités et un exemple chacune",
+    "head": [
+     "Identité",
+     "Exemple du cours",
+     "Effet"
+    ],
+    "rows": [
+     [
+      "**IAM Role**",
+      "Une instance EC2 assume un Role qui autorise `s3:GetObject`",
+      "L'application EC2 peut lire des objets S3"
+     ],
+     [
+      "**IAM User**",
+      "John a besoin de lire des objets d'un bucket ; la policy est attachée directement à John",
+      "John reçoit `s3:GetObject`"
+     ],
+     [
+      "**IAM Group**",
+      "Les développeurs ont tous besoin du même accès ; la policy est attachée au groupe Developers",
+      "Tous les membres reçoivent `s3:GetObject`"
+     ]
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Identity-based policy : lire des objets dans S3",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:GetObject\",",
+     "      \"Resource\": \"arn:aws:s3:::my-bucket/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       2
+      ],
+      "text": "Toujours 2012-10-17 (version du langage de policy)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       3
+      ],
+      "text": "Un ou plusieurs statements (règles)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       5
+      ],
+      "text": "Effect : Allow autorise (ou Deny interdit)",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       6
+      ],
+      "text": "Action : QUOI, service:Opération",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Resource : QUELLE RESSOURCE, ici tous les objets (/*) du bucket my-bucket",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Peut-on faire s3:GetObject sur arn:aws:s3:::my-bucket/photo.png ?",
+      "ans": true,
+      "why": "Le statement autorise GetObject sur tous les objets du bucket."
+     },
+     {
+      "q": "Peut-on faire s3:PutObject sur my-bucket ?",
+      "ans": false,
+      "why": "PutObject n'est pas listé : pas d'Allow, donc refusé par défaut."
+     },
+     {
+      "q": "Peut-on faire s3:GetObject sur un autre-bucket ?",
+      "ans": false,
+      "why": "La Resource ne couvre que my-bucket."
+     },
+     {
+      "q": "Cette policy contient-elle un élément Principal ?",
+      "ans": false,
+      "why": "Une identity-based policy n'en a normalement pas : le Principal est l'identité à laquelle elle est attachée."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Structure complète d'une policy (avec Condition)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Id\": \"S3-Account-Permissions\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"1\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:GetObject\",",
+     "        \"s3:PutObject\"",
+     "      ],",
+     "      \"Resource\": [",
+     "        \"arn:aws:s3:::mybucket/*\"",
+     "      ],",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:username\": \"johndoe\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       3
+      ],
+      "text": "Id : identifiant de la policy (optionnel)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       6
+      ],
+      "text": "Sid : identifiant du statement (optionnel)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Allow ou Deny",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       8,
+       11
+      ],
+      "text": "Liste des actions autorisées ou refusées",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       12,
+       14
+      ],
+      "text": "Liste des ressources visées",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       15,
+       17
+      ],
+      "text": "Condition : le statement ne s'applique que si l'utilisateur s'appelle johndoe",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette policy est-elle valide sans l'élément Id ?",
+      "ans": true,
+      "why": "Id et Sid sont optionnels."
+     },
+     {
+      "q": "Faut-il un élément Principal dans une identity-based policy ?",
+      "ans": false,
+      "why": "Non : l'identité qui porte la policy est déjà le Principal."
+     },
+     {
+      "q": "Un utilisateur nommé alice peut-il faire s3:GetObject grâce à cette policy ?",
+      "ans": false,
+      "why": "La condition exige aws:username = johndoe."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les éléments d'une policy en un coup d'oeil",
+    "head": [
+     "Élément",
+     "Rôle",
+     "Obligatoire ?"
+    ],
+    "rows": [
+     [
+      "`Version`",
+      "Version du langage ; toujours `2012-10-17`",
+      "Oui (à toujours inclure)"
+     ],
+     [
+      "`Id`",
+      "Identifiant de la policy",
+      "Non"
+     ],
+     [
+      "`Statement`",
+      "Un ou plusieurs statements",
+      "Oui"
+     ],
+     [
+      "`Sid`",
+      "Identifiant du statement",
+      "Non"
+     ],
+     [
+      "`Effect`",
+      "`Allow` ou `Deny`",
+      "Oui"
+     ],
+     [
+      "`Action`",
+      "Liste des actions (QUOI)",
+      "Oui"
+     ],
+     [
+      "`Resource`",
+      "Liste des ressources (QUELLE RESSOURCE)",
+      "Oui, pour une identity-based policy"
+     ],
+     [
+      "`Condition`",
+      "Quand la règle s'applique (SOUS QUELLES CONDITIONS)",
+      "Non"
+     ],
+     [
+      "`Principal`",
+      "À qui s'applique la policy",
+      "Non dans une identity-based policy (sert aux resource-based)"
+     ]
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Deny par défaut, Allow explicite, Deny explicite",
+    "md": "Trois règles à connaître par coeur :\n- **Implicit deny (refus par défaut)** : tout ce qui n'est pas explicitement autorisé est refusé.\n- **Allow explicite** : un statement `Allow` qui correspond à l'action et à la ressource débloque l'accès.\n- **Explicit deny** : un statement `Deny` qui correspond **gagne toujours**, même s'il existe un Allow ailleurs.\n\nCe qui fait donc la différence : « pas d'Allow » (refus implicite) n'est pas la même chose qu'un « Deny » (refus explicite, impossible à contourner)."
+   },
+   {
+    "type": "policy",
+    "title": "ACTIVITÉ : Deny sqs:* + Allow sqs:DeleteQueue",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Deny\",",
+     "      \"Action\": \"sqs:*\",",
+     "      \"Resource\": \"*\"",
+     "    },",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"sqs:DeleteQueue\",",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5,
+       7
+      ],
+      "text": "Statement 1 : Deny sur TOUTES les actions SQS, sur toutes les ressources",
+      "tone": "bad"
+     },
+     {
+      "lines": [
+       10,
+       12
+      ],
+      "text": "Statement 2 : Allow de sqs:DeleteQueue... mais le Deny explicite l'emporte",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Peux-tu effectuer sqs:CreateQueue ?",
+      "ans": false,
+      "why": "Le Deny sur sqs:* couvre CreateQueue : refus explicite."
+     },
+     {
+      "q": "Peux-tu effectuer sqs:DeleteQueue ?",
+      "ans": false,
+      "why": "Il y a bien un Allow, mais le Deny explicite sur sqs:* l'emporte toujours."
+     },
+     {
+      "q": "Peux-tu effectuer ec2:DescribeInstances ?",
+      "ans": false,
+      "why": "Aucun Allow ne couvre EC2 : refus implicite (deny par défaut)."
+     },
+     {
+      "q": "Si on supprimait le statement Deny, pourrait-on faire sqs:DeleteQueue ?",
+      "ans": true,
+      "why": "Il resterait l'Allow sur DeleteQueue."
+     },
+     {
+      "q": "Si on supprimait le statement Deny, pourrait-on faire sqs:CreateQueue ?",
+      "ans": false,
+      "why": "Aucun Allow ne couvre CreateQueue : retour au refus implicite."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen : l'activité de la slide 52",
+    "text": "Les trois réponses sont NON. CreateQueue : Deny explicite sqs:*. DeleteQueue : Allow présent mais le Deny explicite l'emporte. ec2:DescribeInstances : aucun Allow, donc deny par défaut (implicite). Retiens la phrase : Explicit Deny > Allow > Implicit Deny."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le groupe Developers et le Deny oublié",
+    "situation": "Le groupe Developers a une policy Allow s3:* sur tous les buckets. Un administrateur ajoute au groupe une seconde policy avec Deny s3:DeleteBucket sur Resource *. Sara, membre du groupe, essaie de supprimer un bucket.",
+    "q": "Sara peut-elle faire s3:DeleteBucket ?",
+    "opts": [
+     {
+      "t": "Oui, car Allow s3:* couvre DeleteBucket",
+      "ok": false,
+      "why": "L'Allow existe mais un Deny explicite qui correspond l'emporte toujours."
+     },
+     {
+      "t": "Non, car le Deny explicite l'emporte sur l'Allow",
+      "ok": true,
+      "why": "Explicit Deny > Allow : la suppression de bucket est interdite, quel que soit le nombre d'Allow."
+     },
+     {
+      "t": "Ça dépend de l'ordre des policies dans le groupe",
+      "ok": false,
+      "why": "L'ordre n'a aucune importance : AWS évalue toutes les policies applicables ensemble."
+     },
+     {
+      "t": "Oui, car Sara est dans un groupe et les groupes ne subissent pas les Deny",
+      "ok": false,
+      "why": "Un Deny dans une policy attachée au groupe s'applique à tous ses membres."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Identity-based policy",
+    "d": "Policy attachée à un IAM User, Group ou Role : elle définit ce que l'identité peut faire.",
+    "derja": "El carte elli temchi m3a el 7ad."
+   },
+   {
+    "t": "Implicit deny",
+    "d": "Refus par défaut : tout ce qui n'est pas explicitement autorisé est refusé."
+   },
+   {
+    "t": "Explicit deny",
+    "d": "Statement avec Effect Deny : il l'emporte toujours sur n'importe quel Allow.",
+    "derja": "El 'la' elli ma tet3adech."
+   },
+   {
+    "t": "Statement",
+    "d": "Une règle de la policy : Effect + Action + Resource (+ Condition)."
+   },
+   {
+    "t": "Action",
+    "d": "Opération d'API autorisée ou refusée, au format service:Opération (ex. s3:GetObject)."
+   },
+   {
+    "t": "IAM Group",
+    "d": "Collection d'IAM Users à qui on attache une policy commune."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce qu'une identity-based policy ?",
+    "a": "C'est une policy attachée à une identité IAM : un User, un Group ou un Role. Elle définit ce que cette identité peut faire, donc elle répond à la question « quelles actions cette identité peut-elle effectuer ? ». Comme elle est déjà attachée à une identité, elle ne contient normalement pas d'élément Principal. Exemple : une policy qui autorise s3:GetObject sur arn:aws:s3:::my-bucket/* attachée au groupe Developers donne cette lecture à tous les membres.",
+    "keys": [
+     "User Group Role",
+     "ce que l'identité peut faire",
+     "pas de Principal",
+     "s3:GetObject"
+    ]
+   },
+   {
+    "q": "Expliquez la structure d'une policy IAM.",
+    "a": "Une policy est un document JSON avec une Version, toujours 2012-10-17, et un ou plusieurs Statements. Chaque statement a un Effect (Allow ou Deny), une liste d'Actions, une liste de Resources et éventuellement une Condition ; Id et Sid sont optionnels. Dans une identity-based policy il n'y a pas de Principal, qui n'apparaît que dans les resource-based policies. La Condition précise quand la règle est en vigueur, par exemple aws:username égal à johndoe.",
+    "keys": [
+     "Version 2012-10-17",
+     "Effect Action Resource Condition",
+     "Sid Id optionnels",
+     "Principal absent"
+    ]
+   },
+   {
+    "q": "Que se passe-t-il quand une policy contient à la fois un Allow et un Deny sur la même action ?",
+    "a": "Le Deny explicite l'emporte toujours. Dans l'exemple de la slide, la policy refuse sqs:* et autorise sqs:DeleteQueue : DeleteQueue reste refusé. Et pour une action absente de toute policy, comme ec2:DescribeInstances, c'est un refus implicite car tout est refusé par défaut. L'ordre : Explicit Deny, puis Allow, puis refus implicite.",
+    "keys": [
+     "explicit deny gagne",
+     "implicit deny",
+     "refus par défaut",
+     "sqs:DeleteQueue"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre appliquer une policy à un User, à un Group et à un Role ?",
+    "a": "Pour un User, la policy est attachée directement à une personne, comme John. Pour un Group, elle est attachée au groupe et tous les membres en bénéficient, comme le groupe Developers. Pour un Role, la policy donne des permissions temporaires à toute entité qui l'assume, par exemple une instance EC2 qui lit S3. Dans les trois cas il s'agit d'identity-based policies.",
+    "keys": [
+     "User",
+     "Group",
+     "Role",
+     "même type de policy"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'un Allow suffit à débloquer l'accès : un Deny explicite ailleurs (policy, SCP, resource policy) le bloque quand même.",
+   "Confondre « pas d'Allow » (implicit deny) et « Deny » (explicit deny) : seul le second est impossible à contourner par un autre Allow.",
+   "Mettre un Principal dans une identity-based policy : il n'a pas de sens ici, l'identité qui porte la policy est le Principal.",
+   "Oublier le /* dans Resource : arn:aws:s3:::my-bucket désigne le bucket, arn:aws:s3:::my-bucket/* désigne ses objets.",
+   "Penser que l'ordre des statements compte : AWS évalue tous les statements applicables ensemble."
+  ],
+  "quiz": [
+   {
+    "q": "Dans la policy de l'activité (Deny sqs:* puis Allow sqs:DeleteQueue), peut-on faire sqs:DeleteQueue ?",
+    "opts": [
+     "Oui, l'Allow est plus précis donc il gagne",
+     "Oui, car il vient en second dans la policy",
+     "Non, le Deny explicite sur sqs:* l'emporte",
+     "Ça dépend de la Region"
+    ],
+    "ans": 2,
+    "why": "Un Deny explicite gagne toujours sur un Allow ; la précision ou l'ordre n'y changent rien."
+   },
+   {
+    "q": "Avec la même policy, peut-on faire ec2:DescribeInstances ?",
+    "opts": [
+     "Non, car aucun Allow ne couvre EC2 : refus par défaut",
+     "Oui, car le Deny ne concerne que SQS",
+     "Oui, les actions Describe sont toujours autorisées",
+     "Non, à cause du Deny sqs:*"
+    ],
+    "ans": 0,
+    "why": "Rien n'autorise EC2 : c'est un refus implicite. Le Deny sqs:* ne concerne pas EC2, ce n'est donc pas la cause."
+   },
+   {
+    "q": "À quoi peut-on attacher une identity-based policy ?",
+    "opts": [
+     "À un bucket S3",
+     "À une file SQS",
+     "À un IAM User, Group ou Role",
+     "À une SCP"
+    ],
+    "ans": 2,
+    "why": "Les identity-based policies s'attachent aux identités IAM : User, Group, Role. Bucket et file utilisent des resource-based policies."
+   },
+   {
+    "q": "Quel élément est normalement absent d'une identity-based policy ?",
+    "opts": [
+     "Effect",
+     "Principal",
+     "Action",
+     "Resource"
+    ],
+    "ans": 1,
+    "why": "Le Principal est implicite : c'est l'identité à laquelle la policy est attachée."
+   },
+   {
+    "q": "Lequel de ces ordres de priorité est correct ?",
+    "opts": [
+     "Allow > Explicit Deny > Implicit Deny",
+     "Implicit Deny > Allow > Explicit Deny",
+     "Explicit Deny > Allow > Implicit Deny",
+     "Tous les statements ont la même priorité"
+    ],
+    "ans": 2,
+    "why": "Un Deny explicite l'emporte sur un Allow ; sans aucun Allow, le refus implicite s'applique."
+   }
+  ],
+  "recap": [
+   "Identity-based policy = attachée à un User, un Group ou un Role : elle dit ce que l'identité peut faire.",
+   "Structure : Version, Statement(Effect, Action, Resource, Condition) ; Id et Sid optionnels ; pas de Principal.",
+   "Tout est refusé par défaut (implicit deny) ; il faut un Allow explicite.",
+   "Un Deny explicite gagne toujours : Explicit Deny > Allow > Implicit Deny.",
+   "Activité slide 52 : CreateQueue, DeleteQueue et DescribeInstances sont tous refusés."
+  ]
+ },
+ {
+  "id": "ch2b-03",
+  "part": "ch2b",
+  "title": "Resource-based policies & l'élément Principal",
+  "emoji": "🛂",
+  "level": 1,
+  "minutes": 16,
+  "core": true,
+  "src": "CH2 slides 53-57",
+  "hook": {
+   "fr": "Une resource-based policy se place sur la ressource elle-même (bucket, queue...) et dit QUI a le droit d'y accéder, ce qui permet d'ouvrir l'accès à un service AWS ou à un autre compte sans créer de Role.",
+   "derja": "Identity-based, el carte mta3 el 7ad. Resource-based, el 'liste des invités' elli teb3ath 3al bab mta3 el ressource: 'ahna n9bol CloudFront w el compte 111122223333'. Houni el ressource hiya elli ta3ref chkoun yod5olha, mouch el 7ad elli ya3ref chnoua ynajjem ya3mel."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Kima fi 3ors: el 3arous 3andha liste mta3 invités 3al bab. Ken esmek fel liste, tod5ol, ma3neha el liste mta3 el 9a3a (resource) hiya elli ta7kem. Ma3andekch lazem 3andek carte men 3and el 9a3a nafsha. Hedha ben3ik: CloudFront w S3: bech nkhallik tod5ol, matetsna3ch 'dour' khas bel CloudFront, kteb esmou fel 'liste' mta3 el bucket w khalas."
+   },
+   {
+    "type": "text",
+    "title": "Le problème et la définition",
+    "md": "**Pourquoi ?** Supposons un bucket S3 **privé** qui contient les images d'un site web, et que **CloudFront** doive les lire. On pourrait créer un Role pour CloudFront et lui attacher une identity-based policy. Il est plus simple (et nécessaire pour autoriser un autre compte) de poser la règle **sur le bucket**.\n\n**Définition :** une **resource-based policy** est attachée à une **ressource AWS**. Elle définit **qui peut accéder à la ressource** et répond à la question : « Qui peut accéder à cette ressource ? ». Comme elle doit désigner l'appelant, elle contient normalement un élément **`Principal`**, absent des identity-based policies."
+   },
+   {
+    "type": "policy",
+    "title": "Structure d'une policy avec Principal",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Id\": \"S3-Account-Permissions\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"1\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"AWS\": [",
+     "          \"arn:aws:iam::123456789012:root\"",
+     "        ]",
+     "      },",
+     "      \"Action\": [",
+     "        \"s3:GetObject\",",
+     "        \"s3:PutObject\"",
+     "      ],",
+     "      \"Resource\": [",
+     "        \"arn:aws:s3:::mybucket/*\"",
+     "      ],",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:username\": \"johndoe\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       2
+      ],
+      "text": "Version du langage : toujours 2012-10-17",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       3
+      ],
+      "text": "Identifiant de la policy (optionnel)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       6
+      ],
+      "text": "Identifiant du statement (optionnel)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Effect : Allow ou Deny",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       8,
+       12
+      ],
+      "text": "Principal : le compte, User ou Role concerné. Ici tout le compte 123456789012 (root = le compte)",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       13,
+       16
+      ],
+      "text": "Actions autorisées",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       17,
+       19
+      ],
+      "text": "Ressources visées",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       20,
+       22
+      ],
+      "text": "Condition optionnelle : quand la règle est en vigueur",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette policy pourrait-elle être une identity-based policy telle quelle ?",
+      "ans": false,
+      "why": "Elle contient un Principal ; c'est la signature d'une resource-based policy."
+     },
+     {
+      "q": "Principal arn:aws:iam::123456789012:root signifie-t-il uniquement l'utilisateur root ?",
+      "ans": false,
+      "why": "Cela désigne le compte entier : les identités du compte, selon leurs propres droits."
+     },
+     {
+      "q": "Les éléments Id et Sid sont-ils obligatoires ?",
+      "ans": false,
+      "why": "Ils sont optionnels."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les valeurs possibles de Principal",
+    "head": [
+     "Forme",
+     "Exemple",
+     "Signifie"
+    ],
+    "rows": [
+     [
+      "Compte AWS",
+      "`\"AWS\": \"arn:aws:iam::123456789012:root\"` ou `\"AWS\": \"123456789012\"`",
+      "Le compte entier"
+     ],
+     [
+      "User ou Role",
+      "`\"AWS\": \"arn:aws:iam::123456789012:user/John\"`",
+      "Une identité précise"
+     ],
+     [
+      "Service AWS",
+      "`\"Service\": \"cloudfront.amazonaws.com\"`",
+      "Un service AWS"
+     ],
+     [
+      "Tout le monde",
+      "`\"AWS\": \"*\"`",
+      "Tous les principals : à n'utiliser qu'avec des Conditions strictes"
+     ]
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Exemple : bucket policy pour CloudFront",
+    "groups": [
+     {
+      "id": "cdn",
+      "label": "Appelants",
+      "kind": "generic",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "cf",
+        "label": "CloudFront",
+        "sub": "cloudfront.amazonaws.com",
+        "icon": "cloud"
+       },
+       {
+        "id": "anon",
+        "label": "Visiteur anonyme",
+        "sub": "accès direct",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "bk",
+      "label": "S3 : my-website-bucket (privé)",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "bucket",
+        "label": "my-website-bucket",
+        "sub": "images du site",
+        "icon": "storage"
+       },
+       {
+        "id": "bp",
+        "label": "Bucket policy",
+        "sub": "resource-based",
+        "icon": "policy"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "cf",
+      "to": "bucket",
+      "label": "1. s3:GetObject",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "bp",
+      "to": "bucket",
+      "label": "2. attachée au bucket",
+      "style": "dashed"
+     },
+     {
+      "id": "e3",
+      "from": "bp",
+      "to": "cf",
+      "label": "3. Principal autorisé",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "anon",
+      "to": "bucket",
+      "label": "accès direct : refusé",
+      "style": "deny"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "cf",
+       "bucket"
+      ],
+      "caption": "CloudFront demande un objet au bucket (s3:GetObject)."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "bp",
+       "bucket"
+      ],
+      "caption": "Le bucket évalue sa propre bucket policy, une resource-based policy."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "bp",
+       "cf"
+      ],
+      "caption": "La policy autorise le Principal Service cloudfront.amazonaws.com à faire s3:GetObject : l'accès est accordé."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "anon",
+       "bucket"
+      ],
+      "caption": "Un visiteur anonyme n'est dans aucune policy : refus par défaut. Aucun Role n'a été créé pour CloudFront."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Bucket policy : CloudFront peut lire les objets",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"Service\": \"cloudfront.amazonaws.com\"",
+     "      },",
+     "      \"Action\": \"s3:GetObject\",",
+     "      \"Resource\": \"arn:aws:s3:::my-website-bucket/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5
+      ],
+      "text": "Allow : on autorise",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       6,
+       8
+      ],
+      "text": "QUI : le service CloudFront (cloudfront.amazonaws.com)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       9
+      ],
+      "text": "QUOI : lire des objets",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       10
+      ],
+      "text": "SUR QUOI : tous les objets du bucket my-website-bucket",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette policy est-elle attachée à CloudFront ?",
+      "ans": false,
+      "why": "Elle est attachée au bucket S3 (la ressource), pas à CloudFront."
+     },
+     {
+      "q": "CloudFront peut-il faire s3:PutObject ?",
+      "ans": false,
+      "why": "Seul s3:GetObject est autorisé."
+     },
+     {
+      "q": "CloudFront peut-il lire my-website-bucket/logo.png ?",
+      "ans": true,
+      "why": "GetObject sur arn:aws:s3:::my-website-bucket/* est autorisé pour ce Principal."
+     },
+     {
+      "q": "Un IAM Role pour CloudFront était-il obligatoire ?",
+      "ans": false,
+      "why": "La resource-based policy sur le bucket suffit à désigner CloudFront."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Pour aller plus loin",
+    "text": "En production, on ajoute en général à cette bucket policy une Condition (par exemple aws:SourceArn avec l'ARN de la distribution CloudFront) pour que seule SA distribution puisse lire le bucket et pas toute autre distribution CloudFront. L'exemple du cours en reste à la version simple."
+   },
+   {
+    "type": "arch",
+    "title": "Cross-account : une file SQS lue depuis un autre compte",
+    "groups": [
+     {
+      "id": "A",
+      "label": "Compte A (444455556666)",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "q",
+        "label": "queue1",
+        "sub": "SQS",
+        "icon": "queue"
+       },
+       {
+        "id": "qp",
+        "label": "Queue policy",
+        "sub": "Principal = compte B",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "B",
+      "label": "Compte B (111122223333)",
+      "kind": "account",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ec2",
+        "label": "Instance EC2",
+        "sub": "consommateur",
+        "icon": "compute"
+       },
+       {
+        "id": "ip",
+        "label": "Identity policy",
+        "sub": "sqs:ReceiveMessage",
+        "icon": "policy"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "ec2",
+      "to": "q",
+      "label": "1. ReceiveMessage (poll)",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "qp",
+      "to": "q",
+      "label": "2. resource-based (côté A)",
+      "style": "dashed"
+     },
+     {
+      "id": "e3",
+      "from": "ip",
+      "to": "ec2",
+      "label": "3. identity-based (côté B)",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "ec2",
+       "q"
+      ],
+      "caption": "L'instance du compte B interroge la file du compte A pour récupérer des messages."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "qp",
+       "q"
+      ],
+      "caption": "Côté A, la queue policy doit nommer le compte B comme Principal et autoriser sqs:ReceiveMessage : c'est la resource-based policy."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "ip",
+       "ec2"
+      ],
+      "caption": "Côté B, l'identité de l'instance doit aussi avoir une identity-based policy qui l'autorise : en cross-account les DEUX côtés doivent autoriser."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Queue policy : le compte B peut recevoir les messages de queue1",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"AWS\": [",
+     "          \"111122223333\"",
+     "        ]",
+     "      },",
+     "      \"Action\": \"sqs:ReceiveMessage\",",
+     "      \"Resource\": \"arn:aws:sqs:us-east-1:444455556666:queue1\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       10
+      ],
+      "text": "QUI : le compte B (111122223333)",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       11
+      ],
+      "text": "QUOI : recevoir des messages (poll)",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       12
+      ],
+      "text": "SUR QUOI : queue1 dans le compte A (444455556666), us-east-1",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Le compte B peut-il faire sqs:SendMessage sur queue1 ?",
+      "ans": false,
+      "why": "Seul sqs:ReceiveMessage est autorisé."
+     },
+     {
+      "q": "Cette policy est-elle attachée à l'instance EC2 ?",
+      "ans": false,
+      "why": "Elle est attachée à la file queue1 du compte A (resource-based)."
+     },
+     {
+      "q": "Le compte B peut-il recevoir des messages de queue1 sans aucune identity policy côté B ?",
+      "ans": false,
+      "why": "En cross-account, le requérant doit aussi être autorisé par une identity-based policy de son propre compte."
+     }
+    ]
+   },
+   {
+    "type": "flow",
+    "title": "S3 Event Notification vers SQS",
+    "intro": "Quand un objet est uploadé dans bucket1, S3 envoie un message dans queue1 : S3 est lui-même l'appelant, donc la queue policy doit l'autoriser.",
+    "actors": [
+     {
+      "id": "user",
+      "label": "Client",
+      "sub": "upload",
+      "kind": "user"
+     },
+     {
+      "id": "s3",
+      "label": "S3 bucket1",
+      "sub": "événement",
+      "kind": "store"
+     },
+     {
+      "id": "sqs",
+      "label": "SQS queue1",
+      "sub": "queue policy",
+      "kind": "service"
+     }
+    ],
+    "steps": [
+     {
+      "from": "user",
+      "to": "s3",
+      "label": "1. Upload object",
+      "detail": "Un objet est déposé dans bucket1, ce qui déclenche une notification d'événement."
+     },
+     {
+      "from": "s3",
+      "to": "sqs",
+      "label": "2. sqs:SendMessage",
+      "detail": "S3 appelle SQS pour publier un message. La requête porte le contexte : ARN du bucket et compte propriétaire.",
+      "payload": {
+       "title": "Contexte de la requête",
+       "fields": [
+        {
+         "k": "aws:SourceArn",
+         "v": "arn:aws:s3:::bucket1",
+         "note": "Qui envoie : ce bucket précis"
+        },
+        {
+         "k": "aws:SourceAccount",
+         "v": "123456789012",
+         "note": "Compte propriétaire du bucket"
+        },
+        {
+         "k": "Action",
+         "v": "sqs:SendMessage",
+         "note": "Envoyer dans la file"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sqs",
+      "to": "sqs",
+      "label": "3. Évalue la queue policy",
+      "detail": "Le Principal AWS * est volontairement large, mais les Conditions ArnLike (SourceArn) et StringEquals (SourceAccount) restreignent à ce bucket et ce compte."
+     },
+     {
+      "from": "sqs",
+      "to": "s3",
+      "label": "4. Message accepté",
+      "detail": "Les deux conditions sont satisfaites : le message est écrit dans queue1.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Queue policy pour S3 Event Notifications",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"AWS\": \"*\"",
+     "      },",
+     "      \"Action\": \"sqs:SendMessage\",",
+     "      \"Resource\": \"arn:aws:sqs:us-east-1:444455556666:queue1\",",
+     "      \"Condition\": {",
+     "        \"ArnLike\": {",
+     "          \"aws:SourceArn\": \"arn:aws:s3:*:*:bucket1\"",
+     "        },",
+     "        \"StringEquals\": {",
+     "          \"aws:SourceAccount\": \"123456789012\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       8
+      ],
+      "text": "Principal * : n'importe qui... donc les Conditions sont indispensables",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       9
+      ],
+      "text": "Autorise l'envoi de messages",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       12
+      ],
+      "text": "SourceArn : seul le bucket1 peut envoyer",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       15
+      ],
+      "text": "SourceAccount : seul le compte propriétaire du bucket (ici 123456789012)",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Un autre bucket (autre-bucket) peut-il envoyer dans queue1 avec cette policy ?",
+      "ans": false,
+      "why": "La condition aws:SourceArn exige arn:aws:s3:*:*:bucket1."
+     },
+     {
+      "q": "Le Principal * rend-il la file publique pour tout le monde ?",
+      "ans": false,
+      "why": "Les Conditions SourceArn et SourceAccount bloquent tout appelant autre que bucket1 de ce compte."
+     },
+     {
+      "q": "bucket1 du compte propriétaire peut-il envoyer un message ?",
+      "ans": true,
+      "why": "SourceArn et SourceAccount correspondent : accès accordé."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Variante courante",
+    "text": "Dans la documentation AWS, on met souvent Principal Service s3.amazonaws.com au lieu de AWS *, avec les mêmes Conditions. L'idée du cours reste la même : on autorise l'appelant (S3) et on le restreint avec SourceArn et SourceAccount."
+   },
+   {
+    "type": "table",
+    "title": "Tous les services n'ont pas de resource-based policy",
+    "head": [
+     "Service",
+     "Nom courant de la resource-based policy"
+    ],
+    "rows": [
+     [
+      "Amazon S3",
+      "Bucket policy"
+     ],
+     [
+      "Amazon SQS",
+      "Queue policy"
+     ],
+     [
+      "Amazon SNS",
+      "Topic policy"
+     ],
+     [
+      "AWS KMS",
+      "Key policy"
+     ],
+     [
+      "AWS Lambda",
+      "Resource-based policy de la fonction"
+     ],
+     [
+      "IAM Role",
+      "Trust policy : c'est une resource-based policy attachée au Role"
+     ]
+    ],
+    "note": "Les services concernés sont nombreux mais pas tous : une instance EC2, par exemple, ne porte pas de resource-based policy."
+   },
+   {
+    "type": "compare",
+    "title": "Identity-based vs resource-based",
+    "cols": [
+     {
+      "name": "Identity-based",
+      "tag": "Qui peut faire quoi ?",
+      "points": [
+       "Attachée à un User, Group ou Role",
+       "Pas de Principal",
+       "Définit ce que l'identité peut faire",
+       "Ex. : le Role d'une EC2 autorise s3:GetObject"
+      ],
+      "use": "Pour gérer les droits d'une identité dans ton compte."
+     },
+     {
+      "name": "Resource-based",
+      "tag": "Qui peut accéder à cette ressource ?",
+      "points": [
+       "Attachée à une ressource (bucket, queue, topic...)",
+       "Contient un Principal",
+       "Définit qui peut accéder à la ressource",
+       "Ex. : bucket policy pour CloudFront"
+      ],
+      "use": "Pour ouvrir une ressource à un service AWS ou à un autre compte."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : S3 n'arrive pas à écrire dans SQS",
+    "situation": "Tu as configuré une S3 Event Notification vers queue1 mais aucun message n'arrive. Le bucket et la file sont dans le même compte. La queue policy est vide (aucun statement).",
+    "q": "Quelle correction fait le plus de sens ?",
+    "opts": [
+     {
+      "t": "Attacher une identity-based policy à l'utilisateur administrateur",
+      "ok": false,
+      "why": "Ce n'est pas l'administrateur qui envoie le message, c'est le service S3."
+     },
+     {
+      "t": "Ajouter à la queue policy un Allow sqs:SendMessage pour S3, restreint par aws:SourceArn (bucket1) et aws:SourceAccount",
+      "ok": true,
+      "why": "C'est la resource-based policy de la file qui doit autoriser l'appelant S3 ; les Conditions évitent d'ouvrir la file à n'importe quel autre bucket."
+     },
+     {
+      "t": "Rendre la file SQS publique avec Principal * sans Condition",
+      "ok": false,
+      "why": "N'importe quel compte pourrait envoyer des messages dans ta file."
+     },
+     {
+      "t": "Supprimer la notification et surveiller le bucket à la main",
+      "ok": false,
+      "why": "On contourne le problème au lieu de configurer l'autorisation."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Resource-based policy",
+    "d": "Policy attachée à une ressource AWS : elle définit qui (Principal) peut y accéder.",
+    "derja": "El liste mta3 el invités 3al ressource."
+   },
+   {
+    "t": "Principal",
+    "d": "Élément qui désigne le compte, User, Role ou service autorisé ou refusé par une resource-based policy."
+   },
+   {
+    "t": "Bucket policy",
+    "d": "Resource-based policy d'un bucket S3."
+   },
+   {
+    "t": "aws:SourceArn",
+    "d": "Clé de condition : ARN de la ressource qui déclenche un appel de service à service."
+   },
+   {
+    "t": "aws:SourceAccount",
+    "d": "Clé de condition : compte propriétaire de la ressource source de l'appel."
+   },
+   {
+    "t": "Cross-account access",
+    "d": "Accès d'un compte AWS aux ressources d'un autre compte."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Qu'est-ce qu'une resource-based policy et en quoi diffère-t-elle d'une identity-based policy ?",
+    "a": "Une resource-based policy est attachée à une ressource, par exemple un bucket S3 ou une file SQS, et définit qui peut y accéder : elle répond à « Qui peut accéder à cette ressource ? ». Elle contient un élément Principal. Une identity-based policy est attachée à un User, Group ou Role, ne contient normalement pas de Principal et répond à « Que peut faire cette identité ? ». Exemple : une bucket policy qui autorise cloudfront.amazonaws.com à faire s3:GetObject.",
+    "keys": [
+     "attachée à la ressource",
+     "Principal",
+     "qui peut accéder",
+     "bucket policy"
+    ]
+   },
+   {
+    "q": "Expliquez l'exemple CloudFront vers S3.",
+    "a": "On a un bucket S3 privé contenant les images d'un site, et CloudFront doit les lire. Plutôt que de créer un Role pour CloudFront, on place une bucket policy sur le bucket avec Principal Service cloudfront.amazonaws.com, Action s3:GetObject et Resource arn:aws:s3:::my-website-bucket/*. Quand CloudFront demande un objet, S3 évalue sa bucket policy, trouve le Principal autorisé et lit l'objet. La policy est attachée au bucket, pas à CloudFront.",
+    "keys": [
+     "bucket privé",
+     "Principal Service",
+     "s3:GetObject",
+     "sans créer de Role"
+    ]
+   },
+   {
+    "q": "Que doit-on configurer pour qu'une instance EC2 du compte B lise une file SQS du compte A ?",
+    "a": "En cross-account, les deux côtés doivent autoriser. Côté compte A, la queue policy a pour Principal le compte B et autorise sqs:ReceiveMessage sur queue1. Côté compte B, l'identité de l'instance doit avoir une identity-based policy qui autorise la requête vers cette file. Si un seul côté manque, la requête est refusée.",
+    "keys": [
+     "cross-account",
+     "queue policy",
+     "identity-based policy",
+     "les deux côtés"
+    ]
+   },
+   {
+    "q": "Tous les services AWS ont-ils des resource-based policies ?",
+    "a": "Non, seuls certains services en proposent, par exemple S3, SNS, SQS, KMS ou Lambda. D'autres, comme les instances EC2, n'en ont pas. À noter que la trust policy d'un Role est elle-même une resource-based policy attachée au Role. Pour une ressource sans resource-based policy, on passe uniquement par les identity-based policies.",
+    "keys": [
+     "S3 SNS SQS KMS Lambda",
+     "pas tous",
+     "trust policy"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Confondre l'emplacement : une bucket policy est attachée au bucket, pas à CloudFront ni à l'utilisateur.",
+   "Oublier le Principal dans une resource-based policy : sans lui, on ne sait pas qui est autorisé.",
+   "Ouvrir une ressource avec Principal * sans Conditions (SourceArn, SourceAccount...) : tout le monde peut l'utiliser.",
+   "Penser qu'une resource-based policy suffit en cross-account : le requérant a aussi besoin d'une identity-based policy dans son compte.",
+   "Lire `arn:aws:iam::123456789012:root` comme « l'utilisateur root » alors qu'il désigne le compte entier."
+  ],
+  "quiz": [
+   {
+    "q": "Sur quoi une bucket policy est-elle attachée ?",
+    "opts": [
+     "Sur l'IAM User qui accède au bucket",
+     "Sur le bucket S3 lui-même",
+     "Sur CloudFront",
+     "Sur l'Organization"
+    ],
+    "ans": 1,
+    "why": "Une resource-based policy est attachée à la ressource, ici le bucket."
+   },
+   {
+    "q": "Quel élément distingue surtout une resource-based policy d'une identity-based policy ?",
+    "opts": [
+     "Effect",
+     "Action",
+     "Resource",
+     "Principal"
+    ],
+    "ans": 3,
+    "why": "Le Principal désigne qui est autorisé ; il est normalement absent des identity-based policies."
+   },
+   {
+    "q": "Dans la queue policy pour S3 Event Notifications, à quoi servent aws:SourceArn et aws:SourceAccount ?",
+    "opts": [
+     "À limiter l'envoi au bucket et au compte voulus",
+     "À chiffrer les messages",
+     "À donner un Role à S3",
+     "À fixer la durée de la session"
+    ],
+    "ans": 0,
+    "why": "Ces conditions empêchent un autre bucket ou un autre compte de publier dans la file."
+   },
+   {
+    "q": "Quelle question une resource-based policy résout-elle ?",
+    "opts": [
+     "Que peut faire cette identité ?",
+     "Quelle est la limite maximale du compte ?",
+     "Qui peut accéder à cette ressource ?",
+     "Combien de temps dure la session ?"
+    ],
+    "ans": 2,
+    "why": "Resource-based : « Qui peut accéder à cette ressource ? », contrairement à l'identity-based (« que peut faire cette identité ? »)."
+   },
+   {
+    "q": "Quelle affirmation est correcte ?",
+    "opts": [
+     "Tous les services AWS supportent les resource-based policies",
+     "Seul S3 supporte les resource-based policies",
+     "Les resource-based policies n'existent pas pour SQS",
+     "S3, SNS, SQS, KMS et Lambda supportent des resource-based policies"
+    ],
+    "ans": 3,
+    "why": "Plusieurs services en proposent (S3, SNS, SQS, KMS, Lambda...), mais pas tous."
+   }
+  ],
+  "recap": [
+   "Resource-based policy = attachée à la ressource ; elle dit qui peut y accéder via le Principal.",
+   "Identity-based : « Que peut faire cette identité ? » ; resource-based : « Qui peut accéder à cette ressource ? ».",
+   "Bucket policy CloudFront : Principal Service cloudfront.amazonaws.com + s3:GetObject sur le bucket, sans Role.",
+   "Cross-account SQS : queue policy côté A (Principal compte B) ET identity policy côté B.",
+   "S3 vers SQS : Principal large mais Conditions aws:SourceArn et aws:SourceAccount.",
+   "Pas tous les services ont une resource-based policy (S3, SNS, SQS, KMS, Lambda oui)."
+  ]
+ },
+ {
+  "id": "ch2b-04",
+  "part": "ch2b",
+  "title": "Permissions Boundary, AWS Organizations & SCP : les plafonds",
+  "emoji": "🧢",
+  "level": 1,
+  "minutes": 17,
+  "core": true,
+  "src": "CH2 slides 58-63",
+  "hook": {
+   "fr": "Une permissions boundary et une SCP ne donnent jamais aucun droit : elles fixent le maximum qu'une identité ou un compte peut recevoir, comme un plafond de dépenses sur une carte bancaire.",
+   "derja": "Carte bancaire mta3ek fiha 5000 dinar fel compte, ama el banque 7atet plafond 500 dinar fel semaine. El flous 3andek, ama el plafond ykoul 7addek. El boundary w el SCP hakka: ma ya3tiw 7atta flous (permission), ykollek bark 'matet3adech el plafond'."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Imagine 3andek 5000 DT fel compte (hedha el identity-based policy: el flous elli 3andek el 7a9 testa3mlou). Ama el carte bancaire mta3ek 3andha plafond 500 DT fel semaine (hedha el permissions boundary), w el entreprise mta3ek 7atet plafond 3al kol el employés (hedha el SCP). Ken t7eb tkhallas 800 DT, el carte tghleb: tkhallas 500 bark. W ken el compte fargha, ma3andekch 7atta flous 7atta ken el plafond kbir. Ya3ni: plafond ≠ flous. Hedhi el 7aja elli yetgalbou fiha barcha fel examen."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : comment déléguer sans perdre le contrôle ?",
+    "md": "Imagine que tu veux laisser une équipe créer ses propres Users et Roles, mais **sans qu'ils puissent se donner trop de droits**. Une identity-based policy ne suffit pas : celui qui l'écrit peut y mettre ce qu'il veut. Il faut des **plafonds** posés par quelqu'un d'autre :\n- sur **une identité** : la **permissions boundary**\n- sur **un compte entier ou un groupe de comptes** : la **SCP** (Service Control Policy)\n\nLeur point commun : elles **ne donnent aucune permission**, elles **plafonnent** ce qu'une policy accordée par ailleurs peut produire."
+   },
+   {
+    "type": "text",
+    "title": "3) Permissions boundary",
+    "md": "**Définition :** une **permissions boundary** est attachée à un **IAM User** ou à un **IAM Role**. Elle **limite les permissions** que cette identité peut recevoir, mais **n'accorde pas de permissions** par elle-même.\n\nQuestion associée : « Quelles permissions cette identité peut-elle être autorisée à utiliser ? »\n\nLes permissions effectives sont l'**intersection** entre ce que l'identity-based policy autorise et ce que la boundary autorise."
+   },
+   {
+    "type": "policy",
+    "title": "Permissions de AppRole : S3 + EC2 + DynamoDB (identity-based)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:*\",",
+     "        \"ec2:*\",",
+     "        \"dynamodb:*\"",
+     "      ],",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       10
+      ],
+      "text": "Le Role est autorisé sur S3, EC2 et DynamoDB",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Sans boundary, ce Role peut-il faire dynamodb:PutItem ?",
+      "ans": true,
+      "why": "dynamodb:* est autorisé par son identity-based policy."
+     },
+     {
+      "q": "Cette policy contient-elle un Principal ?",
+      "ans": false,
+      "why": "C'est une identity-based policy : pas de Principal."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Permissions boundary AppRoleBoundary : S3 + EC2 seulement",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:*\",",
+     "        \"ec2:*\"",
+     "      ],",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       9
+      ],
+      "text": "Plafond : seulement S3 et EC2 (pas DynamoDB)",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       5
+      ],
+      "text": "Même un Allow ici n'accorde rien : il dit seulement ce qui reste permis",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec AppRolePolicy + ce boundary, le Role peut-il faire s3:GetObject ?",
+      "ans": true,
+      "why": "S3 est autorisé par la policy ET par le boundary."
+     },
+     {
+      "q": "Avec AppRolePolicy + ce boundary, le Role peut-il faire ec2:StartInstances ?",
+      "ans": true,
+      "why": "EC2 est autorisé par les deux."
+     },
+     {
+      "q": "Avec AppRolePolicy + ce boundary, le Role peut-il faire dynamodb:PutItem ?",
+      "ans": false,
+      "why": "DynamoDB est dans la policy mais hors du plafond : refusé."
+     },
+     {
+      "q": "Un Role avec ce boundary mais sans aucune identity-based policy peut-il faire s3:GetObject ?",
+      "ans": false,
+      "why": "La boundary n'accorde rien : sans Allow dans une policy, c'est un refus implicite."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Permissions effectives du Role = intersection",
+    "head": [
+     "Service",
+     "Identity-based policy (AppRolePolicy)",
+     "Permissions boundary",
+     "Effectif"
+    ],
+    "rows": [
+     [
+      "S3",
+      "Allow",
+      "Allow",
+      "**Autorisé**"
+     ],
+     [
+      "EC2",
+      "Allow",
+      "Allow",
+      "**Autorisé**"
+     ],
+     [
+      "DynamoDB",
+      "Allow",
+      "Pas dans le plafond",
+      "**Refusé**"
+     ]
+    ],
+    "note": "Il faut un « oui » de la policy ET un « oui » du plafond."
+   },
+   {
+    "type": "text",
+    "title": "AWS Organizations et les OUs : le prérequis des SCP",
+    "md": "**Pourquoi ?** Une entreprise a souvent des dizaines de comptes (dev, prod, RH, finance...). Les gérer un par un est impossible.\n\n**Définition :** **AWS Organizations** permet de **gérer de façon centralisée plusieurs comptes AWS**. On peut :\n- organiser les comptes en **Organizational Units (OUs)**\n- appliquer des **SCP** à travers les comptes\n- gérer de façon centralisée la gouvernance et la sécurité\n\nUne **OU** est un conteneur logique qui regroupe des comptes AWS ayant des exigences communes. Une OU peut contenir d'autres OUs."
+   },
+   {
+    "type": "arch",
+    "title": "Organisation : root, management account, OUs et comptes",
+    "groups": [
+     {
+      "id": "root",
+      "label": "Root (Organization)",
+      "kind": "org",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "mgmt",
+        "label": "Management account",
+        "sub": "gère l'organisation",
+        "icon": "org"
+       }
+      ]
+     },
+     {
+      "id": "dev",
+      "label": "OU Dev",
+      "kind": "org",
+      "col": 0,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "d1",
+        "label": "Compte dev-app",
+        "sub": "Member account",
+        "icon": "cloud"
+       },
+       {
+        "id": "d2",
+        "label": "Compte dev-test",
+        "sub": "Member account",
+        "icon": "cloud"
+       }
+      ]
+     },
+     {
+      "id": "prod",
+      "label": "OU Prod",
+      "kind": "org",
+      "col": 1,
+      "row": 1,
+      "nodes": [
+       {
+        "id": "p1",
+        "label": "Compte prod-web",
+        "sub": "Member account",
+        "icon": "cloud"
+       },
+       {
+        "id": "p2",
+        "label": "Compte prod-api",
+        "sub": "Member account",
+        "icon": "cloud"
+       }
+      ]
+     },
+     {
+      "id": "hr",
+      "label": "OU HR (dans Prod)",
+      "kind": "org",
+      "col": 1,
+      "row": 2,
+      "nodes": [
+       {
+        "id": "h1",
+        "label": "Compte RH",
+        "sub": "Member account",
+        "icon": "cloud"
+       }
+      ]
+     },
+     {
+      "id": "fin",
+      "label": "OU Finance (dans Prod)",
+      "kind": "org",
+      "col": 2,
+      "row": 2,
+      "nodes": [
+       {
+        "id": "f1",
+        "label": "Compte compta",
+        "sub": "Member account",
+        "icon": "cloud"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "mgmt",
+      "to": "d1",
+      "label": "SCP sur OU Dev",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "mgmt",
+      "to": "p1",
+      "label": "SCP sur OU Prod",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "p2",
+      "to": "h1",
+      "label": "héritée par OU HR",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "p2",
+      "to": "f1",
+      "label": "héritée par OU Finance",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [],
+      "nodes": [
+       "mgmt"
+      ],
+      "caption": "Le management account crée et gère l'organisation. Il se trouve sous le Root."
+     },
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "mgmt",
+       "d1",
+       "d2"
+      ],
+      "caption": "Une SCP attachée à l'OU Dev s'applique à tous les comptes membres de cette OU."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "mgmt",
+       "p1",
+       "p2"
+      ],
+      "caption": "Une SCP attachée à l'OU Prod s'applique aux comptes de Prod..."
+     },
+     {
+      "edges": [
+       "e3",
+       "e4"
+      ],
+      "nodes": [
+       "h1",
+       "f1"
+      ],
+      "caption": "...et aussi aux OUs enfants HR et Finance : les SCP se transmettent vers le bas."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "4) Organizations SCP",
+    "md": "**Définition :** une **Service Control Policy (SCP)** est appliquée à un **compte AWS** ou à une **OU**. Elle **limite les permissions** que les identités du compte peuvent recevoir et **n'accorde pas de permissions** par elle-même.\n\nQuestion associée : « Quelles permissions les identités de ce compte peuvent-elles être autorisées à utiliser ? »\n\nPoints à connaître en plus du cours :\n- Une SCP s'**hérite** : les permissions effectives d'un compte sont ce que **toutes** les SCP du chemin (root, OUs parentes, compte) autorisent.\n- Une SCP ne s'applique **pas au management account** de l'organisation.\n- Elle limite aussi l'utilisateur root des comptes membres."
+   },
+   {
+    "type": "policy",
+    "title": "Policy de John : S3 + EC2 (identity-based)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:*\",",
+     "        \"ec2:*\"",
+     "      ],",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       9
+      ],
+      "text": "John est autorisé sur S3 et EC2",
+      "tone": "info"
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "SCP AllowOnlyS3 : seul S3 est permis dans ce compte",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:*\",",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Plafond du compte : seulement S3",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec la policy de John + cette SCP, John peut-il faire s3:GetObject ?",
+      "ans": true,
+      "why": "S3 est autorisé par sa policy et par la SCP."
+     },
+     {
+      "q": "Avec la policy de John + cette SCP, John peut-il faire ec2:StartInstances ?",
+      "ans": false,
+      "why": "EC2 est autorisé pour John mais hors du plafond de la SCP : refusé."
+     },
+     {
+      "q": "Si John n'avait aucune policy, la SCP lui donnerait-elle s3:GetObject ?",
+      "ans": false,
+      "why": "Une SCP n'accorde rien : il faut un Allow dans une identity-based ou resource-based policy."
+     },
+     {
+      "q": "La SCP s'applique-t-elle au management account ?",
+      "ans": false,
+      "why": "Les SCP n'affectent pas le management account."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "« Ils ne donnent aucune permission, ils plafonnent. » Exemples du cours : Role S3+EC2+DynamoDB avec boundary S3+EC2 donne S3+EC2 (DynamoDB refusé). User S3+EC2 avec SCP S3 only donne S3 seulement (EC2 refusé)."
+   },
+   {
+    "type": "compare",
+    "title": "Permissions boundary vs SCP",
+    "cols": [
+     {
+      "name": "Permissions boundary",
+      "tag": "Plafond d'une identité",
+      "points": [
+       "Attachée à un IAM User ou Role",
+       "Limite ce que CETTE identité peut recevoir",
+       "N'accorde rien",
+       "Posée dans le compte (délégation d'administration)"
+      ],
+      "use": "Quand tu laisses une équipe créer des Roles mais avec un maximum de droits."
+     },
+     {
+      "name": "SCP",
+      "tag": "Plafond d'un compte ou d'une OU",
+      "points": [
+       "Attachée à un compte ou une OU d'Organizations",
+       "Limite TOUTES les identités du compte",
+       "N'accorde rien",
+       "Ne s'applique pas au management account"
+      ],
+      "use": "Pour la gouvernance globale : interdire des services ou des Regions à toute l'entreprise."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : le développeur trop gourmand",
+    "situation": "Un développeur crée un Role avec une policy dynamodb:* pour son application. L'équipe sécurité veut s'assurer qu'aucun Role de ce type ne pourra jamais toucher à DynamoDB, mais sans modifier les policies une par une.",
+    "q": "Que doit-elle mettre en place ?",
+    "opts": [
+     {
+      "t": "Ajouter une identity-based policy Allow ec2:* au Role",
+      "ok": false,
+      "why": "Ajouter un Allow élargit les droits au lieu de les limiter."
+     },
+     {
+      "t": "Attacher une permissions boundary (S3 + EC2) aux Roles, ou une SCP sur l'OU qui interdit DynamoDB",
+      "ok": true,
+      "why": "Un plafond (boundary sur l'identité, SCP sur le compte ou l'OU) fait que dynamodb:* ne produira aucun accès, quoi que contienne la policy."
+     },
+     {
+      "t": "Supprimer l'IAM User du développeur",
+      "ok": false,
+      "why": "Cela n'empêche pas d'autres identités de créer le même Role."
+     },
+     {
+      "t": "Mettre une resource-based policy sur chaque table DynamoDB",
+      "ok": false,
+      "why": "Cela ne plafonne pas les identités et demande un travail ressource par ressource."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Permissions boundary",
+    "d": "Policy attachée à un IAM User ou Role qui fixe le maximum de permissions qu'il peut recevoir ; n'accorde rien.",
+    "derja": "Plafond mta3 el carte."
+   },
+   {
+    "t": "AWS Organizations",
+    "d": "Service de gestion centralisée de plusieurs comptes AWS (OUs, SCP, gouvernance)."
+   },
+   {
+    "t": "OU (Organizational Unit)",
+    "d": "Conteneur logique regroupant des comptes AWS selon des exigences communes."
+   },
+   {
+    "t": "SCP",
+    "d": "Service Control Policy : plafond de permissions appliqué à un compte ou une OU ; n'accorde rien.",
+    "derja": "Plafond mta3 el entreprise kolha."
+   },
+   {
+    "t": "Management account",
+    "d": "Compte qui gère l'organisation ; les SCP ne s'y appliquent pas."
+   },
+   {
+    "t": "Permissions effectives",
+    "d": "Ce qui reste autorisé après intersection de tous les Allow et plafonds applicables."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Quelle différence entre permissions boundary et SCP ?",
+    "a": "Les deux sont des plafonds : elles n'accordent aucune permission, elles limitent ce qui peut être accordé par ailleurs. La permissions boundary est attachée à un IAM User ou un Role et limite cette seule identité. La SCP est attachée à un compte ou une OU d'AWS Organizations et limite toutes les identités du compte. Exemple : un Role avec S3, EC2 et DynamoDB et un boundary S3 + EC2 n'a pas DynamoDB ; un User avec S3 + EC2 dans un compte dont la SCP n'autorise que S3 n'a pas EC2.",
+    "keys": [
+     "plafond",
+     "n'accordent rien",
+     "identité vs compte/OU",
+     "intersection"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'AWS Organizations et à quoi servent les OUs ?",
+    "a": "AWS Organizations permet de gérer de façon centralisée plusieurs comptes AWS : on les regroupe en Organizational Units (OUs), qui sont des conteneurs logiques selon des exigences communes (Dev, Prod, HR, Finance...), et on applique des SCP à travers ces comptes. Cela sert à centraliser la gouvernance et la sécurité. Les SCP posées sur une OU s'appliquent aux comptes qu'elle contient.",
+    "keys": [
+     "plusieurs comptes",
+     "OU",
+     "SCP",
+     "gouvernance centralisée"
+    ]
+   },
+   {
+    "q": "Une SCP autorise EC2 et un User a une policy EC2. Peut-il utiliser EC2 ? Et si le User n'a aucune policy ?",
+    "a": "Dans le premier cas oui, car les deux niveaux autorisent EC2 : la policy accorde et la SCP ne bloque pas. Dans le second cas non : une SCP n'accorde jamais de permissions, elle fixe seulement le plafond. Il faut toujours un Allow dans une identity-based ou une resource-based policy. Les permissions effectives sont l'intersection entre ce qui est accordé et ce que les plafonds autorisent.",
+    "keys": [
+     "SCP n'accorde pas",
+     "il faut un Allow",
+     "intersection"
+    ]
+   },
+   {
+    "q": "Sur qui une SCP ne s'applique-t-elle pas ?",
+    "a": "Une SCP ne s'applique pas au management account de l'organisation. Elle s'applique aux comptes membres, y compris à leur utilisateur root. C'est pourquoi on évite d'utiliser le management account pour des charges de travail.",
+    "keys": [
+     "management account",
+     "comptes membres",
+     "root"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'une permissions boundary ou une SCP donne des droits : sans Allow dans une policy, il n'y a rien à plafonner.",
+   "Oublier l'intersection : il faut un oui de la policy ET un oui de chaque plafond (boundary, SCP).",
+   "Confondre les portées : la boundary vise une identité (User ou Role), la SCP un compte ou une OU.",
+   "Penser que les SCP couvrent le management account : elles ne s'y appliquent pas.",
+   "Oublier l'héritage : une SCP sur une OU s'applique aussi à ses OUs et comptes enfants."
+  ],
+  "quiz": [
+   {
+    "q": "Un Role autorise S3 + EC2 + DynamoDB, son boundary autorise S3 + EC2. Quelles permissions effectives ?",
+    "opts": [
+     "S3 + EC2 + DynamoDB",
+     "DynamoDB seulement",
+     "S3 + EC2",
+     "Aucune"
+    ],
+    "ans": 2,
+    "why": "Intersection : ce qui est autorisé par les deux, donc S3 et EC2 ; DynamoDB dépasse le plafond."
+   },
+   {
+    "q": "Un IAM User a S3 + EC2 ; la SCP du compte n'autorise que S3. Que peut faire l'utilisateur ?",
+    "opts": [
+     "S3 + EC2",
+     "EC2 seulement",
+     "Rien du tout",
+     "S3 seulement"
+    ],
+    "ans": 3,
+    "why": "Le plafond de la SCP retire EC2 ; S3 reste autorisé."
+   },
+   {
+    "q": "Une SCP « Allow s3:* » est attachée à un compte dont les identités n'ont aucune policy. Que se passe-t-il ?",
+    "opts": [
+     "Elles peuvent accéder à S3",
+     "Elles ont tous les droits",
+     "Rien n'est accordé : la SCP ne donne aucune permission",
+     "Seul le root peut accéder à S3"
+    ],
+    "ans": 2,
+    "why": "Une SCP n'accorde rien ; sans identity-based ou resource-based policy qui autorise, c'est un refus implicite."
+   },
+   {
+    "q": "À quoi s'attache une permissions boundary ?",
+    "opts": [
+     "Un compte AWS",
+     "Un IAM User ou un Role",
+     "Un bucket S3",
+     "Une OU"
+    ],
+    "ans": 1,
+    "why": "La boundary s'attache à un User ou un Role ; la SCP s'attache à un compte ou une OU."
+   },
+   {
+    "q": "Qu'est-ce qu'une OU ?",
+    "opts": [
+     "Un type de policy IAM",
+     "Un compte root",
+     "Un conteneur logique de comptes AWS dans Organizations",
+     "Une région AWS"
+    ],
+    "ans": 2,
+    "why": "Une Organizational Unit regroupe des comptes selon des exigences communes."
+   }
+  ],
+  "recap": [
+   "Permissions boundary (User/Role) et SCP (compte/OU) ne donnent aucun droit : elles plafonnent.",
+   "Permissions effectives = intersection entre l'Allow accordé et les plafonds.",
+   "Exemple boundary : Role S3+EC2+DynamoDB, boundary S3+EC2, donc DynamoDB refusé.",
+   "Exemple SCP : User S3+EC2, SCP S3 only, donc EC2 refusé.",
+   "Organizations : Root, management account, OUs, comptes membres ; les SCP s'héritent vers le bas.",
+   "Les SCP ne s'appliquent pas au management account."
+  ]
+ },
+ {
+  "id": "ch2b-05",
+  "part": "ch2b",
+  "title": "Role assumption, cross-account AssumeRole & Session policies",
+  "emoji": "🎭",
+  "level": 2,
+  "minutes": 20,
+  "core": true,
+  "src": "CH2 slides 64-70",
+  "hook": {
+   "fr": "Pour accéder aux ressources d'un autre compte sans clé permanente, une application assume un Role : deux vérifications sont nécessaires (côté application et côté trust policy du Role), et une session policy peut encore réduire les droits de la session.",
+   "derja": "Ken 3andek application fel compte A w t7eb tod5ol 3al ressources fel compte B, ma tbaathch 'mfatih dayma' lel compte B. Teb3ath 'badge mo2a99at' bel AssumeRole. Ama lazem 2 bawabin yousmo7ou: bawab compte A ykoul 'tnajjem tod5ol', w bawab compte B ykoul 'ena n9bel'. Ken wa7ed minhom ykollek la, ma t7asselch 3al badge."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Kima inti mrawa7 men Tounes lel France: 9bal lazem tod5ol men bab el matar mta3 Tounes (el compte A ykhallik tokhrej) w ba3d tod5ol men bab france (el compte B y9belek, 3andou visa w conditions). Ken el matar mta3 Tounes ma yemchich, ma tsafer. Ken france ma ta3tikch visa, ma tod5ol. Hedha el 'deux vérifications'. W el Session Policy kima visa b'chrout: 7ata ken el pays y9belek 3al 90 jour, int 7atit 'visa 7 ayyem bark', donc ma tod5olch akther."
+   },
+   {
+    "type": "text",
+    "title": "Le problème : une application, deux comptes",
+    "md": "Une application tourne dans le **Compte A** (compte d'authentification) mais les ressources (S3, DynamoDB...) sont dans le **Compte B** (compte de workload). Créer une access key permanente du Compte B et la coller dans l'application serait dangereux.\n\n**Solution :** l'application **assume un IAM Role dans le Compte B** et reçoit des **credentials temporaires** (voir STS). On commence par la version « même compte » : le workflow du Role d'instance EC2."
+   },
+   {
+    "type": "arch",
+    "title": "IAM Role Assumption Workflow : EC2, STS, S3",
+    "groups": [
+     {
+      "id": "acc",
+      "label": "Compte AWS (ex. Dev)",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "ec2",
+        "label": "Instance EC2",
+        "sub": "Role attaché",
+        "icon": "compute"
+       },
+       {
+        "id": "role",
+        "label": "IAM Role",
+        "sub": "S3AccessRole : accès à S3",
+        "icon": "role"
+       }
+      ]
+     },
+     {
+      "id": "sts",
+      "label": "STS",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "stsn",
+        "label": "AWS STS",
+        "sub": "Security Token Service",
+        "icon": "key"
+       }
+      ]
+     },
+     {
+      "id": "s3g",
+      "label": "Ressource",
+      "kind": "generic",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "s3",
+        "label": "Amazon S3",
+        "sub": "my-secure-bucket",
+        "icon": "storage"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e0",
+      "from": "role",
+      "to": "ec2",
+      "label": "attaché à l'instance",
+      "style": "dashed"
+     },
+     {
+      "id": "e1",
+      "from": "ec2",
+      "to": "stsn",
+      "label": "1. sts:AssumeRole",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "stsn",
+      "to": "ec2",
+      "label": "2. credentials temporaires",
+      "style": "dashed"
+     },
+     {
+      "id": "e3",
+      "from": "ec2",
+      "to": "s3",
+      "label": "3. accès avec les credentials",
+      "style": "solid"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e0"
+      ],
+      "nodes": [
+       "ec2",
+       "role"
+      ],
+      "caption": "L'instance EC2 a un Role attaché (S3AccessRole) qui autorise l'accès à Amazon S3."
+     },
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "ec2",
+       "stsn"
+      ],
+      "caption": "1. Assume Role Request : l'instance utilise son Role pour appeler sts:AssumeRole."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "stsn",
+       "ec2"
+      ],
+      "caption": "2. STS valide la demande et renvoie des credentials temporaires (Access Key ID, Secret Access Key, Session Token) ; durée limitée, 1 heure par défaut."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "ec2",
+       "s3"
+      ],
+      "caption": "3. L'instance (pas STS) utilise ces credentials pour appeler les API S3 ; les droits sont ceux de la permission policy du Role."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Cross-account AssumeRole : le principe",
+    "md": "Dans le scénario cross-account, on parle de :\n- **Trusted Account** (Compte A, *Authentication Account*) : celui qui contient l'application ou l'utilisateur\n- **Trusting Account** (Compte B, *Workload Account*) : celui qui possède les ressources et le Role, et qui fait confiance au Compte A\n\nLe lien entre les deux s'appelle la **Trusted Relationship**.\n\n**Deux vérifications de permissions doivent réussir :**\n1. **Côté application (Compte A)** : l'identité est-elle autorisée à appeler `sts:AssumeRole` sur ce Role ? (identity-based policy)\n2. **Côté Role (Compte B)** : la **trust policy** du Role autorise-t-elle cette application ou ce compte à l'assumer ?\n\nSi les deux réussissent, STS renvoie des credentials temporaires ; l'application les utilise pour accéder aux ressources du Compte B, **selon la permission policy du Role**."
+   },
+   {
+    "type": "flow",
+    "title": "Cross-account AssumeRole : Compte A vers Compte B",
+    "intro": "Compte A (222233334444) = authentification. Compte B (111122223333) = workload. Le Role CrossAccountAccessRole se trouve dans B.",
+    "actors": [
+     {
+      "id": "app",
+      "label": "Application",
+      "sub": "Compte A (Authentication)",
+      "kind": "app"
+     },
+     {
+      "id": "sts",
+      "label": "AWS STS",
+      "sub": "émet les credentials",
+      "kind": "aws"
+     },
+     {
+      "id": "role",
+      "label": "Role CrossAccountAccessRole",
+      "sub": "Compte B (Workload)",
+      "kind": "key"
+     },
+     {
+      "id": "res",
+      "label": "Ressources",
+      "sub": "S3, DynamoDB... du compte B",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "app",
+      "to": "app",
+      "label": "1. Vérification côté A",
+      "detail": "L'identity-based policy de l'application doit autoriser sts:AssumeRole sur l'ARN du Role du compte B.",
+      "derja": "Bawab compte A: 'tnajjem toutlob'."
+     },
+     {
+      "from": "app",
+      "to": "sts",
+      "label": "2. sts:AssumeRole",
+      "detail": "L'application demande à STS d'assumer le Role du compte B.",
+      "payload": {
+       "title": "Requête AssumeRole",
+       "fields": [
+        {
+         "k": "RoleArn",
+         "v": "arn:aws:iam::111122223333:role/CrossAccountAccessRole",
+         "note": "Le Role du compte B"
+        },
+        {
+         "k": "RoleSessionName",
+         "v": "AppSession",
+         "note": "Nom de la session, utile pour l'audit"
+        },
+        {
+         "k": "Policy",
+         "v": "(optionnel) session policy",
+         "note": "Peut restreindre la session (voir plus bas)"
+        }
+       ]
+      }
+     },
+     {
+      "from": "sts",
+      "to": "role",
+      "label": "3. Vérification côté B",
+      "detail": "STS contrôle la trust policy du Role : le compte A (Principal) est-il autorisé à l'assumer ?",
+      "derja": "Bawab compte B: 'ena n9belek'."
+     },
+     {
+      "from": "role",
+      "to": "sts",
+      "label": "4. Trust policy OK",
+      "detail": "La trust policy du Role fait confiance au compte A : les deux vérifications sont réussies.",
+      "dashed": true,
+      "tone": "good"
+     },
+     {
+      "from": "sts",
+      "to": "app",
+      "label": "5. Credentials temporaires",
+      "detail": "STS renvoie une clé temporaire pour le Role (Access Key ID, Secret Access Key, Session Token, Expiration).",
+      "dashed": true,
+      "tone": "good",
+      "payload": {
+       "title": "Credentials temporaires",
+       "fields": [
+        {
+         "k": "AccessKeyId",
+         "v": "ASIA...",
+         "note": "Clé temporaire"
+        },
+        {
+         "k": "SessionToken",
+         "v": "IQoJb3...",
+         "note": "Jeton de session"
+        },
+        {
+         "k": "Expiration",
+         "v": "heure d'expiration",
+         "note": "Durée limitée"
+        }
+       ]
+      }
+     },
+     {
+      "from": "app",
+      "to": "res",
+      "label": "6. Appel API avec les credentials",
+      "detail": "L'application accède aux ressources du compte B avec l'identité du Role."
+     },
+     {
+      "from": "role",
+      "to": "role",
+      "label": "7. Permission policy du Role",
+      "detail": "Seules les actions autorisées par la permission policy du Role passent."
+     },
+     {
+      "from": "res",
+      "to": "app",
+      "label": "8. Réponse",
+      "detail": "Les données sont renvoyées si la permission policy l'autorise.",
+      "dashed": true,
+      "tone": "good"
+     }
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Les deux vérifications côté A et côté B",
+    "groups": [
+     {
+      "id": "A",
+      "label": "Compte A (Authentication)",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "app",
+        "label": "Application",
+        "sub": "veut accéder au compte B",
+        "icon": "compute"
+       },
+       {
+        "id": "ipol",
+        "label": "Identity policy",
+        "sub": "Allow sts:AssumeRole",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "S",
+      "label": "STS",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "sts",
+        "label": "AWS STS",
+        "sub": "credentials temporaires",
+        "icon": "key"
+       }
+      ]
+     },
+     {
+      "id": "B",
+      "label": "Compte B (Workload)",
+      "kind": "account",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "trust",
+        "label": "Trust policy",
+        "sub": "Principal = compte A",
+        "icon": "policy"
+       },
+       {
+        "id": "role",
+        "label": "CrossAccountAccessRole",
+        "sub": "IAM Role",
+        "icon": "role"
+       },
+       {
+        "id": "res",
+        "label": "Ressources",
+        "sub": "S3, DynamoDB...",
+        "icon": "storage"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e0",
+      "from": "ipol",
+      "to": "app",
+      "label": "vérification 1",
+      "style": "dashed"
+     },
+     {
+      "id": "e1",
+      "from": "app",
+      "to": "sts",
+      "label": "1. AssumeRole",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "sts",
+      "to": "trust",
+      "label": "2. vérification 2",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "trust",
+      "to": "role",
+      "label": "QUI peut assumer",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "sts",
+      "to": "app",
+      "label": "3. credentials temporaires",
+      "style": "dashed"
+     },
+     {
+      "id": "e5",
+      "from": "app",
+      "to": "res",
+      "label": "4. accès avec les credentials",
+      "style": "solid"
+     },
+     {
+      "id": "e6",
+      "from": "role",
+      "to": "res",
+      "label": "permission policy",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e0",
+       "e1"
+      ],
+      "nodes": [
+       "ipol",
+       "app",
+       "sts"
+      ],
+      "caption": "Vérification 1 (côté A) : l'identity policy de l'application autorise sts:AssumeRole, donc elle peut appeler STS."
+     },
+     {
+      "edges": [
+       "e2",
+       "e3"
+      ],
+      "nodes": [
+       "sts",
+       "trust",
+       "role"
+      ],
+      "caption": "Vérification 2 (côté B) : la trust policy du Role doit faire confiance au compte A."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "sts",
+       "app"
+      ],
+      "caption": "Les deux vérifications réussies, STS renvoie des credentials temporaires."
+     },
+     {
+      "edges": [
+       "e5",
+       "e6"
+      ],
+      "nodes": [
+       "app",
+       "role",
+       "res"
+      ],
+      "caption": "L'application accède aux ressources du compte B selon la permission policy du Role."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Vérification 1 : identity policy côté application (Compte A)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"sts:AssumeRole\",",
+     "      \"Resource\": \"arn:aws:iam::111122223333:role/CrossAccountAccessRole\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "L'application a le droit d'appeler sts:AssumeRole...",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "...mais uniquement sur ce Role du compte B (111122223333)",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Cette policy est-elle suffisante à elle seule pour obtenir les credentials ?",
+      "ans": false,
+      "why": "Il faut aussi que la trust policy du Role (compte B) fasse confiance au compte A."
+     },
+     {
+      "q": "Peut-elle servir à assumer un autre Role du compte B ?",
+      "ans": false,
+      "why": "Resource désigne uniquement CrossAccountAccessRole."
+     },
+     {
+      "q": "Cette policy est-elle attachée à l'identité de l'application du compte A ?",
+      "ans": true,
+      "why": "Oui : c'est une identity-based policy côté A."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Vérification 2 : trust policy du Role (Compte B)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"AWS\": \"arn:aws:iam::222233334444:root\"",
+     "      },",
+     "      \"Action\": \"sts:AssumeRole\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       8
+      ],
+      "text": "QUI peut assumer : le compte A (222233334444)",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       9
+      ],
+      "text": "Action autorisée : sts:AssumeRole",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Un User du compte A, sans identity policy sts:AssumeRole, peut-il assumer le Role ?",
+      "ans": false,
+      "why": "Avec Principal = root du compte, l'identité du compte A doit aussi être autorisée par sa propre identity policy."
+     },
+     {
+      "q": "Un utilisateur d'un troisième compte peut-il assumer le Role ?",
+      "ans": false,
+      "why": "Le Principal est le compte A uniquement."
+     },
+     {
+      "q": "Cette policy est-elle une resource-based policy ?",
+      "ans": true,
+      "why": "La trust policy est attachée au Role, qui est la ressource."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Permission policy du Role (ce qu'il peut faire une fois assumé)",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:GetObject\",",
+     "      \"Resource\": \"arn:aws:s3:::workload-data/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Le Role peut lire des objets...",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "...dans le bucket workload-data du compte B",
+      "tone": "info"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Attention aux numéros de compte sur la slide",
+    "text": "Sur la slide, l'ARN du Role et le Principal de la trust policy portent le même numéro de compte (111122223333), à cause d'un copier-coller. En vrai : la identity policy (compte A) cible le Role du compte B, et la trust policy (compte B) a pour Principal le compte A. Deux comptes différents ici : 222233334444 (A) et 111122223333 (B)."
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Même compte : un cas particulier",
+    "text": "Si le Role et l'appelant sont dans le même compte et que la trust policy désigne directement l'ARN d'un User ou d'un Role précis (au lieu de root du compte), la trust policy peut suffire. Si elle désigne le root du compte, l'identité doit aussi avoir sts:AssumeRole dans sa propre policy. En cross-account : les deux côtés, toujours."
+   },
+   {
+    "type": "text",
+    "title": "Session policy : restreindre une session AssumeRole",
+    "md": "**Pourquoi ?** Un Role peut avoir de larges droits (S3 + EC2 + DynamoDB), mais pour **cette** session précise on veut en donner moins, sans créer un nouveau Role.\n\n**Définition :** une **session policy** est une policy **optionnelle** transmise au moment de l'**AssumeRole** pour **restreindre** les permissions de la session temporaire. Elle **n'accorde jamais de permissions supplémentaires** : elle ne peut que réduire ce que fournit le Role.\n\n**Permissions effectives = intersection** entre la permission policy du Role et la session policy. Elle est passée via l'API, le SDK ou la CLI ; ce n'est pas une policy permanente attachée au Role."
+   },
+   {
+    "type": "policy",
+    "title": "Permission policy du Role : S3 + EC2 + DynamoDB",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:*\",",
+     "        \"ec2:*\",",
+     "        \"dynamodb:*\"",
+     "      ],",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       10
+      ],
+      "text": "Le Role autorise trois services",
+      "tone": "info"
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Session policy : S3 seulement",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:*\",",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Cette session sera limitée à S3",
+      "tone": "warn"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec le Role (S3+EC2+DynamoDB) et cette session policy, peut-on faire s3:GetObject ?",
+      "ans": true,
+      "why": "S3 est autorisé par le Role ET par la session policy."
+     },
+     {
+      "q": "Peut-on faire ec2:StartInstances pendant cette session ?",
+      "ans": false,
+      "why": "EC2 est autorisé par le Role mais pas par la session policy : refusé."
+     },
+     {
+      "q": "Peut-on faire dynamodb:GetItem pendant cette session ?",
+      "ans": false,
+      "why": "DynamoDB est hors de la session policy : refusé."
+     },
+     {
+      "q": "Si le Role n'autorisait pas S3, cette session policy donnerait-elle S3 ?",
+      "ans": false,
+      "why": "Une session policy n'accorde rien : l'intersection serait vide."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Permissions effectives de la session",
+    "head": [
+     "Service",
+     "Role (permission policy)",
+     "Session policy",
+     "Effectif"
+    ],
+    "rows": [
+     [
+      "S3",
+      "Allow",
+      "Allow",
+      "**Autorisé**"
+     ],
+     [
+      "EC2",
+      "Allow",
+      "Pas permis",
+      "**Refusé**"
+     ],
+     [
+      "DynamoDB",
+      "Allow",
+      "Pas permis",
+      "**Refusé**"
+     ]
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "Appel CLI : AssumeRole avec une session policy",
+    "raw": "aws sts assume-role --role-arn arn:aws:iam::123456789012:role/S3EC2DynamoRole --role-session-name MySession --policy file://session-policy.json",
+    "parts": [
+     {
+      "s": "aws sts assume-role",
+      "label": "Commande",
+      "note": "Appelle l'opération STS AssumeRole"
+     },
+     {
+      "s": "--role-arn",
+      "label": "Option : ARN du Role",
+      "note": "Le Role à assumer"
+     },
+     {
+      "s": "arn:aws:iam::123456789012:role/S3EC2DynamoRole",
+      "label": "ARN du Role",
+      "note": "Role du compte 123456789012 avec droits S3 + EC2 + DynamoDB"
+     },
+     {
+      "s": "--role-session-name",
+      "label": "Option : nom de session",
+      "note": "Identifie la session (visible dans les logs)"
+     },
+     {
+      "s": "MySession",
+      "label": "Nom de la session",
+      "note": "Apparaît à la fin de l'ARN de la session"
+     },
+     {
+      "s": "--policy",
+      "label": "Option : session policy",
+      "note": "La session policy inline passée à STS"
+     },
+     {
+      "s": "file://session-policy.json",
+      "label": "Fichier de la session policy",
+      "note": "JSON qui limite la session à S3 seulement"
+     }
+    ]
+   },
+   {
+    "type": "decode",
+    "title": "L'ARN de la session renvoyé par STS",
+    "raw": "arn:aws:sts::123456789012:assumed-role/S3EC2DynamoRole/MySession",
+    "parts": [
+     {
+      "s": "arn",
+      "label": "Préfixe",
+      "note": "Amazon Resource Name"
+     },
+     {
+      "s": "aws",
+      "label": "Partition",
+      "note": "Partition AWS standard"
+     },
+     {
+      "s": "sts",
+      "label": "Service",
+      "note": "STS : l'identité est une session temporaire"
+     },
+     {
+      "s": "123456789012",
+      "label": "Compte",
+      "note": "Compte du Role"
+     },
+     {
+      "s": "assumed-role",
+      "label": "Type",
+      "note": "Session d'un Role assumé"
+     },
+     {
+      "s": "S3EC2DynamoRole",
+      "label": "Nom du Role",
+      "note": "Le Role assumé"
+     },
+     {
+      "s": "MySession",
+      "label": "Nom de session",
+      "note": "Le --role-session-name fourni"
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Session policy : optionnelle, passée à l'AssumeRole (API, SDK ou CLI), restreint la session, n'accorde rien, permissions effectives = intersection Role ∩ session policy. Exemple du cours : Role S3+EC2+DynamoDB + session policy S3 only donne S3 seul."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : accès au compte B refusé malgré le bon Role",
+    "situation": "Une application du compte A appelle sts:AssumeRole sur CrossAccountAccessRole (compte B). La trust policy du Role fait bien confiance au compte A. Pourtant la réponse est AccessDenied.",
+    "q": "Quelle est la cause la plus probable ?",
+    "opts": [
+     {
+      "t": "L'identity-based policy de l'application (compte A) n'autorise pas sts:AssumeRole sur ce Role",
+      "ok": true,
+      "why": "Les deux côtés doivent autoriser : la trust policy du Role ne suffit pas, l'identité appelante doit elle aussi avoir sts:AssumeRole."
+     },
+     {
+      "t": "La permission policy du Role ne contient pas assez d'actions S3",
+      "ok": false,
+      "why": "Elle n'intervient qu'après l'obtention des credentials ; l'erreur apparaît ici à l'AssumeRole lui-même."
+     },
+     {
+      "t": "Les credentials temporaires ont expiré avant l'appel",
+      "ok": false,
+      "why": "Les credentials sont émis après la réussite de l'AssumeRole ; ici l'AssumeRole échoue avant d'en obtenir."
+     },
+     {
+      "t": "Il manque une session policy",
+      "ok": false,
+      "why": "La session policy est optionnelle et ne fait que restreindre ; son absence ne cause pas de refus."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Trusted account / Trusting account",
+    "d": "Trusted = compte de l'appelant (A). Trusting = compte du Role et des ressources (B), qui fait confiance à A."
+   },
+   {
+    "t": "Cross-account AssumeRole",
+    "d": "Assumer un Role d'un autre compte pour accéder à ses ressources avec des credentials temporaires."
+   },
+   {
+    "t": "Session policy",
+    "d": "Policy optionnelle passée à AssumeRole pour restreindre les permissions de la session ; n'accorde rien.",
+    "derja": "Visa b'chrout li t7oto inti 3al session."
+   },
+   {
+    "t": "RoleSessionName",
+    "d": "Nom donné à la session assumée, visible dans l'ARN et les logs."
+   },
+   {
+    "t": "Trusted Relationship",
+    "d": "Relation de confiance entre deux comptes, matérialisée par la trust policy du Role."
+   },
+   {
+    "t": "Authentication Account / Workload Account",
+    "d": "Compte où se trouvent les utilisateurs ou applications / compte où se trouvent les ressources AWS."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Expliquez le fonctionnement du cross-account AssumeRole.",
+    "a": "Une application du Compte A (authentication) doit accéder à des ressources du Compte B (workload). Au lieu de clés permanentes, elle assume un Role du compte B via STS. Deux vérifications doivent réussir : côté application, son identity-based policy doit autoriser sts:AssumeRole sur le Role ; côté Role, sa trust policy doit faire confiance au compte A. Alors STS renvoie des credentials temporaires et l'application accède aux ressources selon la permission policy du Role.",
+    "keys": [
+     "Compte A / Compte B",
+     "2 vérifications",
+     "sts:AssumeRole",
+     "trust policy",
+     "credentials temporaires"
+    ]
+   },
+   {
+    "q": "Quelle est la différence entre la trust policy et l'identity policy dans ce scénario ?",
+    "a": "L'identity policy est côté application, dans le compte A : elle autorise l'identité à appeler sts:AssumeRole sur l'ARN du Role. La trust policy est côté Role, dans le compte B : elle définit QUI peut assumer le Role, avec un Principal qui est le compte A. Les deux sont nécessaires en cross-account. La permission policy du Role, elle, définit ce que le Role pourra faire une fois assumé.",
+    "keys": [
+     "identity policy côté A",
+     "trust policy côté B",
+     "Principal",
+     "permission policy"
+    ]
+   },
+   {
+    "q": "Qu'est-ce qu'une session policy et en quoi diffère-t-elle d'une permissions boundary ?",
+    "a": "Une session policy est une policy optionnelle passée lors de l'AssumeRole pour restreindre les permissions de la session temporaire. Elle n'accorde jamais de permissions supplémentaires et les permissions effectives sont l'intersection entre le Role et la session policy. Une permissions boundary, elle, est attachée de façon permanente à un User ou un Role. Exemple : Role S3 + EC2 + DynamoDB et session policy S3 only : seul S3 est autorisé pendant la session.",
+    "keys": [
+     "optionnelle",
+     "passée à AssumeRole",
+     "restreint seulement",
+     "intersection"
+    ]
+   },
+   {
+    "q": "Décrivez le workflow d'un Role d'instance EC2 vers S3.",
+    "a": "Un Role comme S3AccessRole est attaché à l'instance. L'instance appelle sts:AssumeRole auprès de STS, qui valide la demande et renvoie des credentials temporaires (Access Key ID, Secret Access Key, Session Token), limités dans le temps, 1 heure par défaut. L'instance utilise ensuite ces credentials pour appeler S3, et les droits sont ceux de la permission policy du Role. Aucune clé permanente n'est stockée.",
+    "keys": [
+     "Role attaché",
+     "AssumeRole",
+     "credentials temporaires",
+     "permission policy"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire que la trust policy suffit en cross-account : l'identité du compte A doit aussi avoir sts:AssumeRole dans sa propre identity policy (sauf cas particulier du même compte).",
+   "Confondre qui utilise les credentials : STS les émet, c'est l'application qui les utilise pour appeler S3.",
+   "Penser qu'une session policy peut ajouter des droits : elle ne fait que restreindre (intersection avec le Role).",
+   "Confondre trust policy (QUI assume) et permission policy (CE QUE le Role peut faire).",
+   "Oublier que la session policy est transmise à l'appel AssumeRole (API, SDK, CLI) et n'est pas attachée au Role."
+  ],
+  "quiz": [
+   {
+    "q": "Dans le cross-account AssumeRole, combien de vérifications doivent réussir ?",
+    "opts": [
+     "Une seule, côté Role",
+     "Deux : l'identity policy de l'appelant et la trust policy du Role",
+     "Trois : y compris la session policy",
+     "Aucune, STS décide seul"
+    ],
+    "ans": 1,
+    "why": "Côté application (sts:AssumeRole autorisé) et côté Role (trust policy qui fait confiance au compte A)."
+   },
+   {
+    "q": "Que définit la trust policy d'un Role ?",
+    "opts": [
+     "Les actions que le Role peut faire",
+     "Qui peut assumer le Role",
+     "La durée de vie des credentials",
+     "La Region du Role"
+    ],
+    "ans": 1,
+    "why": "La trust policy définit QUI peut assumer le Role ; la permission policy définit ce qu'il peut faire."
+   },
+   {
+    "q": "Role S3+EC2+DynamoDB, session policy S3 only : quelles permissions effectives ?",
+    "opts": [
+     "S3 + EC2 + DynamoDB",
+     "S3 seulement",
+     "EC2 + DynamoDB",
+     "Aucune permission"
+    ],
+    "ans": 1,
+    "why": "Intersection du Role et de la session policy : seul S3 est dans les deux."
+   },
+   {
+    "q": "Comment passe-t-on une session policy à la CLI ?",
+    "opts": [
+     "En l'attachant au Role dans la console",
+     "Avec l'option --policy file://session-policy.json de aws sts assume-role",
+     "Dans la trust policy du Role",
+     "Dans la SCP de l'OU"
+    ],
+    "ans": 1,
+    "why": "La session policy est transmise au moment de l'AssumeRole, par exemple avec --policy."
+   },
+   {
+    "q": "Qui utilise les credentials temporaires pour accéder à S3 dans le workflow du Role d'instance EC2 ?",
+    "opts": [
+     "STS",
+     "Le Role lui-même",
+     "L'instance EC2",
+     "L'administrateur du compte"
+    ],
+    "ans": 2,
+    "why": "STS émet les credentials, l'instance les utilise pour appeler S3 selon la permission policy du Role."
+   }
+  ],
+  "recap": [
+   "Role d'instance EC2 : AssumeRole, credentials temporaires de STS, accès S3 avec les droits du Role.",
+   "Cross-account : le Compte A (authentication) assume un Role du Compte B (workload).",
+   "Deux vérifications : identity policy sts:AssumeRole côté A ET trust policy du Role côté B.",
+   "Une fois les credentials obtenus, les droits = permission policy du Role.",
+   "Session policy : optionnelle, passée à AssumeRole, restreint seulement, intersection Role ∩ session.",
+   "CLI : aws sts assume-role --role-arn ... --role-session-name ... --policy file://session-policy.json."
+  ]
+ },
+ {
+  "id": "ch2b-06",
+  "part": "ch2b",
+  "title": "Logique d'évaluation des politiques : pourquoi « Accès refusé » ?",
+  "emoji": "⚖️",
+  "level": 2,
+  "minutes": 22,
+  "core": true,
+  "src": "CH2 slides 71-72 + logique d'évaluation AWS",
+  "hook": {
+   "fr": "Quand plusieurs policies de types différents s'appliquent à la même requête, AWS les évalue dans un ordre précis : un Deny explicite gagne toujours, les plafonds doivent tous dire oui, et il faut au moins un Allow.",
+   "derja": "Kif fama barcha policies (identity, resource, boundary, SCP...), AWS ma ya3mlech 'moyenne'. 3andou 9awa3id: ken fama 'la' wa7da sar7a, kol chay 7aram. Ken ma fama 7atta 'na3am', 7aram. Ken fama 'na3am' w kol el plafonds y9olou 'mouch mochkla', temchi. Hedhi hiya el 'ni9ech' elli lazem tefhemha bech tfassser 'Access Denied'."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Imagine tod5ol lel ecole: el bawab (SCP) ykoul 'el yom ma3andkch el 7a9 tod5ol ken 3andek badge', el directeur (boundary) ykoul 'tod5ol ken lel cours', el prof (resource policy) ykoul 'inti fel liste'. Ken wa7ed ykoul 'la 3la tool' (Deny explicite), 7ata ken el kol 9alou na3am, ma tod5olch. W ken ma3andek 7atta 'na3am' (ma fama 7atta Allow), ma tod5olch bidha, houwa deny par défaut. Lazem 3andek 'na3am' w ma fama 7atta 'la' w kol el plafonds mawjoudin yousmo7ou."
+   },
+   {
+    "type": "text",
+    "title": "Le problème",
+    "md": "Dans la vraie vie, une seule requête peut croiser **plusieurs policies** : une identity-based policy, une bucket policy, une permissions boundary, une SCP, une session policy... Certaines autorisent, d'autres limitent, d'autres interdisent.\n\nIl faut une **règle de décision unique et prévisible**. Sans elle, impossible de comprendre pourquoi une requête est acceptée ou pourquoi on reçoit *Access Denied*."
+   },
+   {
+    "type": "steps",
+    "title": "La logique d'évaluation simplifiée (même compte)",
+    "items": [
+     {
+      "t": "1. Deny explicite ?",
+      "d": "AWS cherche dans TOUTES les policies applicables (identity, resource, boundary, SCP, session) un Deny qui correspond. S'il y en a un : DENY, fin de l'évaluation."
+     },
+     {
+      "t": "2. SCP (et RCP) d'Organizations",
+      "d": "Si le compte est dans une organisation, les SCP du chemin doivent autoriser l'action (les RCP, côté ressources, font de même). Sinon : DENY."
+     },
+     {
+      "t": "3. Resource-based policy",
+      "d": "Si elle autorise le Principal, l'accès peut être accordé directement quand le Principal est l'ARN d'un User ou d'un Role du même compte. Sinon on continue."
+     },
+     {
+      "t": "4. Identity-based policy",
+      "d": "L'identité doit avoir au moins un Allow qui correspond. Aucun Allow : refus implicite."
+     },
+     {
+      "t": "5. Permissions boundary",
+      "d": "Si l'identité en a une, elle doit autoriser l'action. Sinon : DENY."
+     },
+     {
+      "t": "6. Session policy",
+      "d": "Si la session en a une, elle doit autoriser l'action. Sinon : DENY."
+     },
+     {
+      "t": "7. Résultat",
+      "d": "Si tous les contrôles applicables sont passés : ALLOW. Sinon (aucun Allow trouvé ou plafond non respecté) : DENY par défaut."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "L'ordre exact entre identity, boundary et session",
+    "text": "Ces trois-là sont combinés par un ET logique : il faut que chacun (quand il existe) autorise. Leur ordre relatif ne change donc jamais le résultat. Ce qui compte pour l'examen : Deny explicite d'abord, SCP/RCP ensuite, puis resource-based, puis identity-based avec plafonds (boundary et session policy)."
+   },
+   {
+    "type": "flow",
+    "title": "Le chemin d'une requête dans le moteur d'évaluation",
+    "intro": "Un User du compte demande s3:GetObject sur un bucket. Suis les contrôles dans l'ordre.",
+    "actors": [
+     {
+      "id": "req",
+      "label": "Requérant",
+      "sub": "User ou Role",
+      "kind": "user"
+     },
+     {
+      "id": "eng",
+      "label": "Moteur d'évaluation",
+      "sub": "AWS",
+      "kind": "aws"
+     },
+     {
+      "id": "res",
+      "label": "Ressource",
+      "sub": "bucket S3",
+      "kind": "store"
+     }
+    ],
+    "steps": [
+     {
+      "from": "req",
+      "to": "eng",
+      "label": "1. Requête",
+      "detail": "Le moteur reçoit la requête avec son contexte : qui, quoi, quelle ressource, quelles conditions.",
+      "payload": {
+       "title": "Contexte de la requête",
+       "fields": [
+        {
+         "k": "Principal",
+         "v": "arn:aws:iam::111122223333:user/Alice",
+         "note": "QUI"
+        },
+        {
+         "k": "Action",
+         "v": "s3:GetObject",
+         "note": "QUOI"
+        },
+        {
+         "k": "Resource",
+         "v": "arn:aws:s3:::my-bucket/rapport.pdf",
+         "note": "QUELLE RESSOURCE"
+        },
+        {
+         "k": "Conditions",
+         "v": "IP, MFA, Region, heure, tags...",
+         "note": "SOUS QUELLES CONDITIONS"
+        }
+       ]
+      }
+     },
+     {
+      "from": "eng",
+      "to": "eng",
+      "label": "2. Deny explicite ?",
+      "detail": "Un seul Deny qui correspond, dans n'importe quelle policy, et la décision est DENY. C'est le contrôle le plus fort.",
+      "derja": "'La' sar7a: 7ata 100 'na3am' ma yoghlebouha."
+     },
+     {
+      "from": "eng",
+      "to": "eng",
+      "label": "3. SCP / RCP autorisent ?",
+      "detail": "Les SCP du compte et de ses OUs parentes doivent autoriser l'action. Sinon DENY : le plafond de l'organisation n'est pas respecté."
+     },
+     {
+      "from": "eng",
+      "to": "eng",
+      "label": "4. Resource-based policy",
+      "detail": "La ressource nomme-t-elle le Principal ? En même compte, un Allow pour l'ARN d'un User ou Role peut suffire. En cross-account, il est indispensable mais pas suffisant."
+     },
+     {
+      "from": "eng",
+      "to": "eng",
+      "label": "5. Identity-based policy",
+      "detail": "Y a-t-il un Allow pour cette identité ? Si ni la resource-based ni l'identity-based n'autorisent : refus implicite."
+     },
+     {
+      "from": "eng",
+      "to": "eng",
+      "label": "6. Boundary et session policy",
+      "detail": "Si l'identité a une permissions boundary et/ou la session une session policy, chacune doit autoriser. Elles plafonnent."
+     },
+     {
+      "from": "eng",
+      "to": "res",
+      "label": "7. ALLOW",
+      "detail": "Tous les contrôles applicables sont passés : la requête est exécutée.",
+      "tone": "good"
+     },
+     {
+      "from": "eng",
+      "to": "req",
+      "label": "8. Sinon : AccessDenied",
+      "detail": "À la première étape qui échoue (Deny explicite, plafond dépassé ou aucun Allow), la réponse est un refus.",
+      "dashed": true,
+      "tone": "bad"
+     }
+    ]
+   },
+   {
+    "type": "widget",
+    "name": "evalLogic",
+    "title": "Simulateur d'évaluation"
+   },
+   {
+    "type": "table",
+    "title": "Effet de chaque type de policy",
+    "head": [
+     "Type de policy",
+     "Rôle",
+     "Accorde des droits ?",
+     "Quand elle bloque"
+    ],
+    "rows": [
+     [
+      "**Identity-based**",
+      "Donne des droits à une identité",
+      "Oui",
+      "Aucun Allow applicable (refus implicite) ou un Deny explicite"
+     ],
+     [
+      "**Resource-based**",
+      "Ouvre une ressource à un Principal",
+      "Oui",
+      "Aucun Allow pour ce Principal (obligatoire en cross-account) ou un Deny explicite"
+     ],
+     [
+      "**Permissions boundary**",
+      "Plafond d'une identité",
+      "Non",
+      "Action hors du plafond du User ou du Role"
+     ],
+     [
+      "**SCP**",
+      "Plafond d'un compte ou d'une OU",
+      "Non",
+      "Action non autorisée par une SCP du chemin (ou Deny dans une SCP)"
+     ],
+     [
+      "**Session policy**",
+      "Plafond d'une session AssumeRole",
+      "Non",
+      "Action hors de la session policy"
+     ],
+     [
+      "**Deny explicite**",
+      "Interdiction, dans n'importe quelle policy",
+      "Non",
+      "Toujours : il l'emporte sur tout Allow"
+     ]
+    ],
+    "note": "Règle d'or : Deny explicite > plafonds (SCP, boundary, session) qui doivent tous autoriser > au moins un Allow (identity ou resource)."
+   },
+   {
+    "type": "table",
+    "title": "Même compte vs cross-account",
+    "head": [
+     "Situation",
+     "Ce qu'il faut",
+     "Exemple"
+    ],
+    "rows": [
+     [
+      "**Même compte**",
+      "Un Allow suffit (identity-based, ou resource-based nommant l'ARN du User ou Role), sans Deny ni plafond bloquant",
+      "Bucket policy qui nomme directement John, du même compte"
+     ],
+     [
+      "**Cross-account**",
+      "Les DEUX comptes doivent autoriser : identity-based côté requérant ET resource-based côté ressource",
+      "Alice (compte A) écrit dans un bucket du compte B"
+     ],
+     [
+      "**Cross-account via AssumeRole**",
+      "sts:AssumeRole autorisé côté A, trust policy qui fait confiance à A côté B, puis permission policy du Role",
+      "Application du compte A qui assume CrossAccountAccessRole du compte B"
+     ]
+    ]
+   },
+   {
+    "type": "arch",
+    "title": "Requête du Compte A vers le Compte B : les deux comptes doivent autoriser",
+    "groups": [
+     {
+      "id": "A",
+      "label": "Compte A (111122223333)",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "alice",
+        "label": "Alice",
+        "sub": "IAM User",
+        "icon": "user"
+       },
+       {
+        "id": "ip",
+        "label": "Identity policy",
+        "sub": "Allow s3:PutObject",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "D",
+      "label": "Décision",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "dec",
+        "label": "Les deux comptes autorisent ?",
+        "sub": "oui = Allow, non = Deny",
+        "icon": "shield"
+       }
+      ]
+     },
+     {
+      "id": "B",
+      "label": "Compte B (444455556666)",
+      "kind": "account",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "bucket",
+        "label": "my-bucket",
+        "sub": "S3",
+        "icon": "storage"
+       },
+       {
+        "id": "bp",
+        "label": "Bucket policy",
+        "sub": "Principal = Alice",
+        "icon": "policy"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "ip",
+      "to": "alice",
+      "label": "1. autorise côté A",
+      "style": "dashed"
+     },
+     {
+      "id": "e2",
+      "from": "alice",
+      "to": "dec",
+      "label": "2. s3:PutObject",
+      "style": "solid"
+     },
+     {
+      "id": "e3",
+      "from": "bp",
+      "to": "bucket",
+      "label": "3. autorise côté B",
+      "style": "dashed"
+     },
+     {
+      "id": "e4",
+      "from": "dec",
+      "to": "bucket",
+      "label": "4. Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e5",
+      "from": "dec",
+      "to": "alice",
+      "label": "sinon Deny",
+      "style": "deny"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1",
+       "e2"
+      ],
+      "nodes": [
+       "ip",
+       "alice",
+       "dec"
+      ],
+      "caption": "Alice a une identity-based policy qui autorise s3:PutObject sur my-bucket."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "bp",
+       "bucket"
+      ],
+      "caption": "Dans le compte B, la bucket policy autorise le Principal Alice du compte A à faire s3:PutObject."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "dec",
+       "bucket"
+      ],
+      "caption": "Les deux comptes autorisent : ALLOW, la requête est exécutée."
+     },
+     {
+      "edges": [
+       "e5"
+      ],
+      "nodes": [
+       "dec",
+       "alice"
+      ],
+      "caption": "Si l'un des deux côtés manque, la réponse est DENY."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Compte A : identity-based policy d'Alice",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:PutObject\",",
+     "      \"Resource\": \"arn:aws:s3:::my-bucket/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6
+      ],
+      "text": "Côté A : Alice a le droit d'écrire",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       7
+      ],
+      "text": "Dans my-bucket (qui est dans le compte B)",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec uniquement cette policy (et aucune bucket policy côté B), Alice peut-elle écrire ?",
+      "ans": false,
+      "why": "En cross-account, la resource-based policy du compte B doit aussi autoriser."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Compte B : bucket policy qui autorise Alice",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Principal\": {",
+     "        \"AWS\": \"arn:aws:iam::111122223333:user/Alice\"",
+     "      },",
+     "      \"Action\": \"s3:PutObject\",",
+     "      \"Resource\": \"arn:aws:s3:::my-bucket/*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       8
+      ],
+      "text": "QUI : Alice, du compte A",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       9
+      ],
+      "text": "QUOI : s3:PutObject",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Avec uniquement cette bucket policy (et aucune identity policy côté A), Alice peut-elle écrire ?",
+      "ans": false,
+      "why": "En cross-account, le compte A doit aussi autoriser Alice par une identity-based policy."
+     },
+     {
+      "q": "Avec les DEUX policies (A et B), Alice peut-elle faire s3:PutObject sur my-bucket ?",
+      "ans": true,
+      "why": "Les deux comptes autorisent la requête."
+     },
+     {
+      "q": "Avec les deux policies, Alice peut-elle faire s3:DeleteObject ?",
+      "ans": false,
+      "why": "Aucune des deux policies n'autorise DeleteObject."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Décoder le message d'erreur : quel type de policy bloque ?",
+    "head": [
+     "Fragment du message AccessDenied",
+     "Cause probable"
+    ],
+    "rows": [
+     [
+      "« ...with an explicit deny in a service control policy »",
+      "Une SCP contient un Deny qui correspond"
+     ],
+     [
+      "« ...because no service control policy allows... »",
+      "Aucune SCP du chemin n'autorise l'action (plafond)"
+     ],
+     [
+      "« ...because no identity-based policy allows... »",
+      "Aucun Allow dans les identity-based policies : refus implicite"
+     ],
+     [
+      "« ...because no resource-based policy allows... »",
+      "La ressource n'autorise pas ce Principal (typique en cross-account)"
+     ],
+     [
+      "« ...because no permissions boundary allows... »",
+      "L'action dépasse le plafond de la permissions boundary"
+     ]
+    ],
+    "note": "Les messages AWS récents précisent souvent le type de policy en cause : lis-les avant de modifier quoi que ce soit."
+   },
+   {
+    "type": "steps",
+    "title": "Checklist de troubleshooting : pourquoi Accès refusé ?",
+    "items": [
+     {
+      "t": "Lis le message d'erreur",
+      "d": "Il indique souvent si c'est un Deny explicite, une SCP, un boundary, ou l'absence d'Allow."
+     },
+     {
+      "t": "Cherche un Deny explicite",
+      "d": "Dans les identity policies, la resource policy, la SCP, la boundary, la session policy."
+     },
+     {
+      "t": "Vérifie les SCP et les plafonds",
+      "d": "L'action est-elle autorisée par les SCP du compte ET par la permissions boundary ET par la session policy ?"
+     },
+     {
+      "t": "Vérifie qu'un Allow existe",
+      "d": "Identity-based pour le Principal, ou resource-based pour ce Principal."
+     },
+     {
+      "t": "En cross-account, vérifie les deux côtés",
+      "d": "Identity policy côté requérant ET resource policy côté ressource."
+     },
+     {
+      "t": "Regarde les Conditions",
+      "d": "MFA, IP source, Region, heure, tags : une Condition fausse annule le statement."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "tip",
+    "title": "Outils pour diagnostiquer",
+    "text": "L'IAM Policy Simulator permet de tester une action contre les policies d'une identité. Les logs CloudTrail montrent la requête refusée avec le contexte. Ces outils évitent le « je modifie au hasard jusqu'à ce que ça marche »."
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "Retiens trois phrases : (1) un Deny explicite gagne toujours ; (2) boundary, SCP et session policy plafonnent, il faut un oui de chacune quand elle existe ; (3) il faut au moins un Allow (identity ou resource-based), sinon refus par défaut. En cross-account, les deux comptes doivent autoriser."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas 1 : l'administrateur bloqué par l'organisation",
+    "situation": "Un développeur a une identity-based policy Allow s3:* sur *. L'OU de son compte porte une SCP qui n'autorise que les actions ec2:*. Il essaie s3:PutObject.",
+    "q": "Pourquoi reçoit-il Access Denied ?",
+    "opts": [
+     {
+      "t": "Sa policy est mal écrite : s3:* n'existe pas",
+      "ok": false,
+      "why": "s3:* est une syntaxe valide ; le problème vient d'ailleurs."
+     },
+     {
+      "t": "La SCP de l'OU n'autorise pas S3 : le plafond n'est pas respecté",
+      "ok": true,
+      "why": "Il faut un oui de la policy ET de la SCP. La SCP autorise seulement EC2, donc S3 dépasse le plafond."
+     },
+     {
+      "t": "Il manque une resource-based policy sur le bucket",
+      "ok": false,
+      "why": "En même compte, une identity-based policy suffit si aucun plafond ne bloque."
+     },
+     {
+      "t": "Il faut d'abord assumer un Role",
+      "ok": false,
+      "why": "Ce n'est pas requis ici : la requête échoue à cause du plafond d'Organizations."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas 2 : Alice du compte A et le bucket du compte B",
+    "situation": "La bucket policy du compte B autorise le Principal Alice (compte A) à faire s3:PutObject. Alice n'a aucune identity-based policy S3 dans son compte A. Elle essaie d'écrire dans le bucket.",
+    "q": "Que se passe-t-il ?",
+    "opts": [
+     {
+      "t": "Accès accordé : la bucket policy suffit",
+      "ok": false,
+      "why": "En cross-account, la resource-based policy seule ne suffit pas."
+     },
+     {
+      "t": "Accès accordé car Alice est dans la même organisation AWS",
+      "ok": false,
+      "why": "L'appartenance à une organisation ne remplace pas les policies."
+     },
+     {
+      "t": "Accès refusé : il manque une identity-based policy côté compte A",
+      "ok": true,
+      "why": "Les deux comptes doivent autoriser : le compte A n'a rien accordé à Alice, donc refus implicite."
+     },
+     {
+      "t": "Accès refusé uniquement si le bucket est chiffré",
+      "ok": false,
+      "why": "Le chiffrement n'a pas de rapport avec ce refus de base."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas 3 : le même compte et la bucket policy",
+    "situation": "Dans un seul compte, la bucket policy autorise directement l'ARN du User John à faire s3:GetObject. John n'a aucune identity-based policy, aucune boundary, aucune SCP bloquante.",
+    "q": "John peut-il lire un objet ?",
+    "opts": [
+     {
+      "t": "Oui : même compte et Principal nommant son ARN, la resource-based policy peut suffire",
+      "ok": true,
+      "why": "En même compte, un Allow de la resource-based policy qui nomme l'ARN du User suffit s'il n'y a pas de Deny ou de plafond bloquant."
+     },
+     {
+      "t": "Non : une identity-based policy est toujours obligatoire",
+      "ok": false,
+      "why": "En même compte, ce n'est pas obligatoire quand la resource-based policy nomme directement l'ARN du User ou du Role."
+     },
+     {
+      "t": "Non : une resource-based policy n'accorde jamais de droits",
+      "ok": false,
+      "why": "Les resource-based policies accordent des droits, comme les identity-based."
+     },
+     {
+      "t": "Oui, mais seulement avec MFA",
+      "ok": false,
+      "why": "Aucune Condition MFA n'est présente dans ce cas."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas 4 : AdministratorAccess et Deny explicite",
+    "situation": "Marie a une identity-based policy Allow * sur *. Une SCP de son OU contient Deny ec2:RunInstances. Elle lance une instance EC2.",
+    "q": "Que se passe-t-il ?",
+    "opts": [
+     {
+      "t": "Accès refusé : le Deny explicite l'emporte sur son Allow *",
+      "ok": true,
+      "why": "Un Deny explicite gagne toujours, même sur un Allow total."
+     },
+     {
+      "t": "Accès accordé : Allow * est le plus large donc le plus fort",
+      "ok": false,
+      "why": "La largeur d'un Allow ne compte pas face à un Deny explicite."
+     },
+     {
+      "t": "Accès accordé car la SCP ne s'applique pas aux administrateurs",
+      "ok": false,
+      "why": "Les SCP s'appliquent à toutes les identités du compte membre."
+     },
+     {
+      "t": "Ça dépend de l'ordre des policies",
+      "ok": false,
+      "why": "L'ordre n'a pas d'importance : le Deny explicite est évalué d'abord."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas 5 : DynamoDB refusé malgré le Allow",
+    "situation": "Un Role a une identity-based policy Allow dynamodb:*. Il possède aussi une permissions boundary qui n'autorise que S3 et EC2. L'application essaie dynamodb:PutItem.",
+    "q": "Quelle est la cause du refus ?",
+    "opts": [
+     {
+      "t": "Un Deny explicite caché dans la policy",
+      "ok": false,
+      "why": "Aucun Deny n'est mentionné ; c'est un plafond qui bloque."
+     },
+     {
+      "t": "La session policy manque",
+      "ok": false,
+      "why": "La session policy est optionnelle ; son absence n'est pas bloquante."
+     },
+     {
+      "t": "Il faut une resource-based policy sur la table",
+      "ok": false,
+      "why": "En même compte, une identity-based policy suffit si aucun plafond ne bloque."
+     },
+     {
+      "t": "DynamoDB est hors du plafond de la permissions boundary",
+      "ok": true,
+      "why": "La policy accorde mais le plafond n'autorise pas DynamoDB : l'intersection est vide pour ce service."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "Explicit deny",
+    "d": "Un statement Deny qui correspond à la requête : il l'emporte sur tout Allow.",
+    "derja": "El 'la' elli yghleb kol chay."
+   },
+   {
+    "t": "Implicit deny",
+    "d": "Refus par défaut quand aucun Allow n'existe."
+   },
+   {
+    "t": "Permissions effectives",
+    "d": "Résultat de l'évaluation : Allow seulement si les plafonds et au moins un Allow le permettent."
+   },
+   {
+    "t": "RCP",
+    "d": "Resource Control Policy : plafond d'Organizations appliqué aux ressources (côté ressource), complément des SCP."
+   },
+   {
+    "t": "Cross-account evaluation",
+    "d": "Évaluation d'une requête entre deux comptes : les deux comptes doivent autoriser."
+   },
+   {
+    "t": "IAM Policy Simulator",
+    "d": "Outil qui teste si une action est autorisée pour une identité selon ses policies."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Comment AWS évalue-t-il une requête quand plusieurs policies s'appliquent ?",
+    "a": "AWS part d'un refus par défaut. D'abord, il cherche un Deny explicite dans toutes les policies : s'il en trouve un, la requête est refusée. Ensuite les plafonds doivent autoriser : SCP et RCP d'Organizations, permissions boundary et session policy quand elles existent. Enfin il faut au moins un Allow, dans une identity-based ou une resource-based policy. Si tout est satisfait, la décision est Allow.",
+    "keys": [
+     "deny explicite d'abord",
+     "SCP boundary session = plafonds",
+     "au moins un Allow",
+     "refus par défaut"
+    ]
+   },
+   {
+    "q": "Que faut-il pour qu'une requête cross-account soit autorisée ?",
+    "a": "Les deux comptes doivent autoriser la requête. Dans le compte du requérant, une identity-based policy doit l'autoriser à faire la requête vers la ressource du compte B. Dans le compte B, la resource-based policy doit autoriser le requérant du compte A. Par exemple, Alice du compte A et un bucket du compte B : il faut un Allow s3:PutObject dans la policy d'Alice et dans la bucket policy. Si un côté manque, c'est un Deny.",
+    "keys": [
+     "deux comptes",
+     "identity-based côté A",
+     "resource-based côté B",
+     "Alice s3:PutObject"
+    ]
+   },
+   {
+    "q": "Un utilisateur a Allow * mais la requête est refusée. Pourquoi ?",
+    "a": "Plusieurs causes possibles. Un Deny explicite quelque part, par exemple dans une SCP, l'emporte toujours sur un Allow, même total. Ou un plafond ne laisse pas passer l'action : SCP, permissions boundary ou session policy. Ou une Condition (MFA, IP, Region...) n'est pas satisfaite. Je lis le message d'erreur, qui précise souvent le type de policy en cause, puis j'utilise le Policy Simulator.",
+    "keys": [
+     "Deny explicite",
+     "SCP boundary session",
+     "Conditions",
+     "message d'erreur"
+    ]
+   },
+   {
+    "q": "Une resource-based policy peut-elle suffire à autoriser un accès ?",
+    "a": "Oui dans certains cas. Dans le même compte, si la resource-based policy nomme l'ARN d'un User ou d'un Role comme Principal, un Allow peut suffire sans identity-based policy. Si le Principal est le root du compte, l'identité doit en plus avoir son propre Allow. En cross-account, elle ne suffit jamais seule : le compte du requérant doit aussi autoriser. Dans tous les cas, un Deny explicite ou un plafond bloquant l'emporte.",
+    "keys": [
+     "même compte",
+     "Principal ARN User/Role",
+     "cross-account : insuffisant",
+     "Deny explicite"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire qu'un Allow gagne contre un Deny : le Deny explicite l'emporte toujours, quelle que soit la largeur de l'Allow.",
+   "Oublier qu'en cross-account les deux comptes doivent autoriser (identity-based côté requérant ET resource-based côté ressource).",
+   "Imaginer que boundary, SCP ou session policy « ajoutent » des droits : ce sont des plafonds, il faut un oui de chacune.",
+   "Oublier que les SCP ne s'appliquent pas au management account.",
+   "Chercher le problème dans la mauvaise policy : lis d'abord le message AccessDenied, il indique souvent le type en cause.",
+   "Ignorer les Conditions (MFA, IP, Region, tags) : une Condition fausse rend le statement inopérant."
+  ],
+  "quiz": [
+   {
+    "q": "Quelle est la priorité absolue dans l'évaluation ?",
+    "opts": [
+     "Le Allow le plus large",
+     "Le Deny explicite",
+     "La resource-based policy",
+     "L'ordre des statements"
+    ],
+    "ans": 1,
+    "why": "Un Deny explicite dans n'importe quelle policy l'emporte sur tout le reste."
+   },
+   {
+    "q": "Alice (compte A) veut écrire dans un bucket du compte B. Que faut-il ?",
+    "opts": [
+     "Seulement une bucket policy côté B",
+     "Seulement une identity policy côté A",
+     "Une identity policy côté A ET une bucket policy côté B",
+     "Une SCP côté A"
+    ],
+    "ans": 2,
+    "why": "En cross-account, les deux comptes doivent autoriser la requête."
+   },
+   {
+    "q": "Une SCP n'autorise que EC2. Un User a Allow s3:*. Résultat pour s3:GetObject ?",
+    "opts": [
+     "Autorisé",
+     "Refusé : S3 dépasse le plafond de la SCP",
+     "Autorisé uniquement avec MFA",
+     "Refusé seulement pour le root"
+    ],
+    "ans": 1,
+    "why": "Il faut un oui de la policy ET de la SCP ; la SCP n'autorise pas S3."
+   },
+   {
+    "q": "Aucune policy n'autorise ni n'interdit une action. Quel est le résultat ?",
+    "opts": [
+     "Deny par défaut (implicit deny)",
+     "Allow par défaut",
+     "Ça dépend de la Region",
+     "Allow si l'utilisateur est administrateur"
+    ],
+    "ans": 0,
+    "why": "Sans Allow, le résultat est le refus par défaut."
+   },
+   {
+    "q": "Même compte, bucket policy nommant l'ARN du User John (GetObject), John sans aucune policy. Résultat ?",
+    "opts": [
+     "Refusé, une identity-based policy est toujours obligatoire",
+     "Refusé, les bucket policies ne donnent pas de droits",
+     "Autorisé uniquement avec une SCP",
+     "Autorisé, la resource-based policy peut suffire dans ce cas"
+    ],
+    "ans": 3,
+    "why": "En même compte, une resource-based policy nommant l'ARN du User peut suffire s'il n'y a ni Deny ni plafond bloquant."
+   }
+  ],
+  "recap": [
+   "Refus par défaut ; il faut au moins un Allow (identity-based ou resource-based).",
+   "Un Deny explicite gagne toujours, dans n'importe quelle policy.",
+   "SCP/RCP, permissions boundary et session policy sont des plafonds : il faut un oui de chacune quand elle existe.",
+   "Même compte : un Allow suffit ; cross-account : les DEUX comptes doivent autoriser.",
+   "Lis le message AccessDenied : il indique le type de policy en cause. Teste avec le Policy Simulator.",
+   "Si tu bloques sur un cas : Deny explicite ? plafonds ? Allow ? conditions ?"
+  ]
+ },
+ {
+  "id": "ch2b-07",
+  "part": "ch2b",
+  "title": "RBAC vs ABAC : contrôle d'accès par rôle ou par attributs (tags)",
+  "emoji": "🏷️",
+  "level": 2,
+  "minutes": 20,
+  "core": true,
+  "src": "CH2 slides 73-79",
+  "hook": {
+   "fr": "RBAC donne des droits selon la fonction (une policy par rôle) ; ABAC compare des tags entre le principal et la ressource, ce qui permet de n'écrire qu'une policy qui s'adapte seule quand l'entreprise grandit.",
+   "derja": "RBAC: kol fonction 3andha carte (carte Developer, carte Admin...). ABAC: carte wa7da w ta9ra l'etiquette: 'Team = Payments' 3al badge w 'Team = Payments' 3al bureau, ken yetchabhou, tod5ol. Bureau jdid? Zid l'etiquette w khlas, ma t3awedch tekteb policy jdida."
+  },
+  "blocks": [
+   {
+    "type": "derja",
+    "title": "Fhem bel derja",
+    "text": "Kima fel mariage: fama 'tables' mou7addada (table el 3a2ila, table el 2as7ab...). RBAC ya3ni kol role 3andou table fix: ken yjik wa7ed jdid, ta3tih table. Ama ken tzid 50 table, lazem tbaddel el plan mta3 el 9a3a. ABAC ya3ni kol wa7ed 3andou etiquette 3al bracelet (Team=Payments) w kol table 3andha nafs el etiquette: el serveur ya9ra el bracelet w ywassal lel table mtabda. Table jdida? Tkteb 3aliha l'etiquette w ma tbaddelch el serveur."
+   },
+   {
+    "type": "text",
+    "title": "RBAC : accès selon la fonction",
+    "md": "**Définition :** le **Role-Based Access Control (RBAC)** accorde des permissions en fonction du **rôle ou de la fonction professionnelle** d'un utilisateur. Les permissions sont **organisées par fonction** (Developer, Admin, Auditor...).\n\nDans IAM, il est généralement implémenté avec des **identity-based policies**. Exemple : un utilisateur assigné au rôle Developer reçoit les permissions définies pour les développeurs.\n\n**Défi :** quand les ressources et les équipes se multiplient, les policies et les rôles doivent être **mis à jour fréquemment** (un nouveau bucket, un nouveau projet = une nouvelle ligne de policy)."
+   },
+   {
+    "type": "policy",
+    "title": "Exemple RBAC : policy du rôle Developer",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Sid\": \"DevArtifacts\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"s3:GetObject\",",
+     "        \"s3:PutObject\"",
+     "      ],",
+     "      \"Resource\": \"arn:aws:s3:::dev-artifacts/*\"",
+     "    },",
+     "    {",
+     "      \"Sid\": \"DevReadEc2\",",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"ec2:DescribeInstances\",",
+     "      \"Resource\": \"*\"",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5,
+       11
+      ],
+      "text": "Les développeurs lisent et écrivent dans le bucket dev-artifacts...",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       14,
+       17
+      ],
+      "text": "...et peuvent seulement consulter les instances EC2",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Un utilisateur Developer peut-il lire dev-artifacts/app.zip ?",
+      "ans": true,
+      "why": "GetObject sur dev-artifacts/* est autorisé."
+     },
+     {
+      "q": "Un Developer peut-il lire un nouveau bucket marketing-data ?",
+      "ans": false,
+      "why": "Il faudrait mettre à jour la policy : c'est la limite du RBAC."
+     },
+     {
+      "q": "Un Developer peut-il démarrer une instance EC2 ?",
+      "ans": false,
+      "why": "Seul ec2:DescribeInstances est autorisé."
+     }
+    ]
+   },
+   {
+    "type": "text",
+    "title": "Prérequis : les Conditions IAM (Condition & StringEquals)",
+    "md": "**Pourquoi ?** Parfois il ne suffit pas de dire QUI/QUOI/QUELLE RESSOURCE : il faut dire **dans quelles conditions** la règle s'applique.\n\nL'élément **`Condition`** est optionnel. Il est construit en trois niveaux :\n- l'**opérateur de condition** (ex. `StringEquals`, qui compare deux chaînes ; il en existe d'autres comme `StringLike`, `ArnLike`, `IpAddress`, `Bool`...)\n- la **clé de condition** (ex. `aws:username`, `aws:SourceIp`)\n- la **valeur** attendue\n\nSi la condition est vraie, le statement s'applique ; sinon il est ignoré."
+   },
+   {
+    "type": "decode",
+    "title": "Anatomie d'un bloc Condition",
+    "raw": "\"Condition\": {\n  \"StringEquals\": {\n    \"aws:username\": \"johndoe\"\n  }\n}",
+    "parts": [
+     {
+      "s": "Condition",
+      "label": "Élément Condition",
+      "note": "Optionnel : conditions de mise en vigueur de la policy"
+     },
+     {
+      "s": "StringEquals",
+      "label": "Opérateur",
+      "note": "Compare la clé et la valeur par égalité exacte de chaînes"
+     },
+     {
+      "s": "aws:username",
+      "label": "Clé de condition",
+      "note": "Nom d'utilisateur de l'appelant"
+     },
+     {
+      "s": "johndoe",
+      "label": "Valeur attendue",
+      "note": "Le statement ne s'applique que si l'utilisateur s'appelle johndoe"
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Les clés de tags à connaître",
+    "head": [
+     "Clé / syntaxe",
+     "Ce que ça représente",
+     "Exemple"
+    ],
+    "rows": [
+     [
+      "`aws:PrincipalTag/<clé>`",
+      "Tag attaché à l'IAM User ou Role qui fait la requête",
+      "`aws:PrincipalTag/Team` = Payments (tag d'Alice)"
+     ],
+     [
+      "`aws:ResourceTag/<clé>`",
+      "Tag présent sur la ressource AWS visée",
+      "`aws:ResourceTag/Team` = Payments (tag du bucket)"
+     ],
+     [
+      "`${aws:PrincipalTag/<clé>}`",
+      "Variable de policy : remplacée à l'évaluation par la valeur du tag du principal",
+      "`${aws:PrincipalTag/AccessProject}`"
+     ],
+     [
+      "`${aws:username}`",
+      "Variable de policy : nom de l'utilisateur appelant",
+      "Tag Owner de la ressource = nom de l'utilisateur"
+     ]
+    ],
+    "note": "Parfois on voit une clé spécifique à un service comme ec2:ResourceTag/<clé>. Le support de aws:ResourceTag varie selon le service et l'action : vérifie la doc du service."
+   },
+   {
+    "type": "text",
+    "title": "ABAC : accès selon les attributs",
+    "md": "**Définition :** l'**Attribute-Based Access Control (ABAC)** accorde des permissions selon les **attributs du principal et/ou de la ressource**, c'est-à-dire des **tags**.\n\n- Les policies comparent les **tags du principal** avec les **tags de la ressource**\n- Pas besoin d'une policy distincte par équipe ou par ressource\n- Les **nouvelles ressources** héritent automatiquement de l'accès si elles sont **correctement taguées**\n- L'ABAC utilise des **Conditions** pour comparer les attributs."
+   },
+   {
+    "type": "arch",
+    "title": "Exemple : accès par équipe aux buckets S3",
+    "groups": [
+     {
+      "id": "users",
+      "label": "Utilisateurs taggés",
+      "kind": "account",
+      "col": 0,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "alice",
+        "label": "Alice",
+        "sub": "Team = Payments",
+        "icon": "user"
+       },
+       {
+        "id": "bob",
+        "label": "Bob",
+        "sub": "Team = Marketing",
+        "icon": "user"
+       }
+      ]
+     },
+     {
+      "id": "pol",
+      "label": "Une seule policy ABAC",
+      "kind": "generic",
+      "col": 1,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "abac",
+        "label": "PrincipalTag/Team = ResourceTag/Team",
+        "sub": "StringEquals",
+        "icon": "policy"
+       }
+      ]
+     },
+     {
+      "id": "bk",
+      "label": "Buckets taggés",
+      "kind": "account",
+      "col": 2,
+      "row": 0,
+      "nodes": [
+       {
+        "id": "pay",
+        "label": "payments-data",
+        "sub": "Team = Payments",
+        "icon": "storage"
+       },
+       {
+        "id": "mkt",
+        "label": "marketing-data",
+        "sub": "Team = Marketing",
+        "icon": "storage"
+       },
+       {
+        "id": "paynew",
+        "label": "payments-new-data",
+        "sub": "Team = Payments (nouveau)",
+        "icon": "storage"
+       }
+      ]
+     }
+    ],
+    "edges": [
+     {
+      "id": "e1",
+      "from": "alice",
+      "to": "pay",
+      "label": "tags égaux : Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e2",
+      "from": "alice",
+      "to": "mkt",
+      "label": "tags différents : Deny",
+      "style": "deny"
+     },
+     {
+      "id": "e3",
+      "from": "alice",
+      "to": "paynew",
+      "label": "nouveau bucket : Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e4",
+      "from": "bob",
+      "to": "mkt",
+      "label": "tags égaux : Allow",
+      "style": "solid"
+     },
+     {
+      "id": "e5",
+      "from": "abac",
+      "to": "pay",
+      "label": "évalue",
+      "style": "dashed"
+     }
+    ],
+    "steps": [
+     {
+      "edges": [
+       "e1"
+      ],
+      "nodes": [
+       "alice",
+       "pay"
+      ],
+      "caption": "Alice (Team = Payments) accède à payments-data (Team = Payments) : même attribut, donc Allow."
+     },
+     {
+      "edges": [
+       "e2"
+      ],
+      "nodes": [
+       "alice",
+       "mkt"
+      ],
+      "caption": "Alice accède à marketing-data (Team = Marketing) : tags différents, aucun Allow ne s'applique, donc refus."
+     },
+     {
+      "edges": [
+       "e4"
+      ],
+      "nodes": [
+       "bob",
+       "mkt"
+      ],
+      "caption": "Bob (Marketing) accède à marketing-data : même attribut, Allow, avec la même policy."
+     },
+     {
+      "edges": [
+       "e3"
+      ],
+      "nodes": [
+       "alice",
+       "paynew"
+      ],
+      "caption": "Demain, un nouveau bucket payments-new-data est créé et simplement taggé Team = Payments : Alice y accède sans aucune nouvelle policy."
+     }
+    ]
+   },
+   {
+    "type": "policy",
+    "title": "Policy ABAC : le tag Team du principal doit égaler celui de la ressource",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": \"s3:*\",",
+     "      \"Resource\": \"arn:aws:s3:::*\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:PrincipalTag/Team\": \"${aws:ResourceTag/Team}\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       5
+      ],
+      "text": "Allow...",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       8,
+       10
+      ],
+      "text": "Condition ABAC : l'accès n'est donné que si les deux tags Team sont identiques",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       10
+      ],
+      "text": "Clé : tag Team de l'utilisateur ou du Role qui fait la requête, comparé à ${aws:ResourceTag/Team}, le tag Team de la ressource",
+      "tone": "info"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "Alice (Team = Payments) peut-elle accéder à payments-data (Team = Payments) ?",
+      "ans": true,
+      "why": "Les deux tags sont identiques : la condition est vraie."
+     },
+     {
+      "q": "Alice peut-elle accéder à marketing-data (Team = Marketing) ?",
+      "ans": false,
+      "why": "Les tags sont différents : la condition est fausse, donc refus implicite."
+     },
+     {
+      "q": "Alice peut-elle accéder au nouveau bucket payments-new-data tagué Team = Payments ?",
+      "ans": true,
+      "why": "Même tag que le principal : aucune modification de policy n'est nécessaire."
+     },
+     {
+      "q": "Un utilisateur sans tag Team peut-il accéder à payments-data ?",
+      "ans": false,
+      "why": "Sans tag, la condition ne peut pas être vraie : refus implicite."
+     }
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "info",
+    "title": "Policy conceptuelle",
+    "text": "La policy du cours (s3:* sur arn:aws:s3:::*) est un exemple pédagogique. En production on restreint les actions au nécessaire (principe du moindre privilège) et on vérifie que le service et l'action supportent bien les clés de tags."
+   },
+   {
+    "type": "text",
+    "title": "Deuxième exemple : projets et propriétaires sur EC2",
+    "md": "Utilisateurs **User A**, **User B** et **User C**. User C porte le tag `AccessProject = StarProject`. Une instance EC2 est taguée `Owner = UserC` et `AccessProject = StarProject`.\n\nLa policy permet `ec2:StartInstances` et `ec2:StopInstances` seulement quand :\n- le tag **Owner** de l'instance est égal au **nom de l'utilisateur** qui appelle,\n- ET le tag **AccessProject** de l'instance est égal au tag **AccessProject** de l'utilisateur.\n\nRésultat : **User C** est autorisé ; **User A** et **User B** (autres tags) sont refusés. (Dans la slide on lit « User C » : un nom d'utilisateur IAM ne contient pas d'espace, on écrit donc UserC.)"
+   },
+   {
+    "type": "policy",
+    "title": "Policy ABAC EC2 : propriétaire et projet",
+    "lines": [
+     "{",
+     "  \"Version\": \"2012-10-17\",",
+     "  \"Statement\": [",
+     "    {",
+     "      \"Effect\": \"Allow\",",
+     "      \"Action\": [",
+     "        \"ec2:StartInstances\",",
+     "        \"ec2:StopInstances\"",
+     "      ],",
+     "      \"Resource\": \"arn:aws:ec2:*:123456789012:instance/*\",",
+     "      \"Condition\": {",
+     "        \"StringEquals\": {",
+     "          \"aws:ResourceTag/Owner\": \"${aws:username}\",",
+     "          \"aws:ResourceTag/AccessProject\": \"${aws:PrincipalTag/AccessProject}\"",
+     "        }",
+     "      }",
+     "    }",
+     "  ]",
+     "}"
+    ],
+    "notes": [
+     {
+      "lines": [
+       6,
+       9
+      ],
+      "text": "Actions limitées au démarrage et à l'arrêt",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       10
+      ],
+      "text": "Toutes les instances du compte 123456789012, filtrées par la Condition",
+      "tone": "info"
+     },
+     {
+      "lines": [
+       11,
+       14
+      ],
+      "text": "Les deux conditions doivent être vraies ensemble",
+      "tone": "warn"
+     },
+     {
+      "lines": [
+       13
+      ],
+      "text": "Owner de l'instance = nom de l'utilisateur appelant",
+      "tone": "good"
+     },
+     {
+      "lines": [
+       14
+      ],
+      "text": "AccessProject de l'instance = AccessProject de l'utilisateur",
+      "tone": "good"
+     }
+    ],
+    "tryit": [
+     {
+      "q": "UserC (AccessProject = StarProject) peut-il faire ec2:StopInstances sur l'instance Owner = UserC, AccessProject = StarProject ?",
+      "ans": true,
+      "why": "Les deux conditions sont vraies."
+     },
+     {
+      "q": "UserA, avec un autre tag AccessProject, peut-il démarrer cette instance ?",
+      "ans": false,
+      "why": "Ni Owner ni AccessProject ne correspondent : refus implicite."
+     },
+     {
+      "q": "UserC peut-il faire ec2:TerminateInstances sur cette instance ?",
+      "ans": false,
+      "why": "TerminateInstances n'est pas dans la liste des actions."
+     },
+     {
+      "q": "UserC peut-il stopper une instance Owner = UserC mais AccessProject = AutreProjet ?",
+      "ans": false,
+      "why": "Le tag AccessProject de l'instance ne correspond pas à celui de l'utilisateur."
+     }
+    ]
+   },
+   {
+    "type": "widget",
+    "name": "abacPlay",
+    "title": "Joue avec les tags"
+   },
+   {
+    "type": "compare",
+    "title": "RBAC vs ABAC",
+    "cols": [
+     {
+      "name": "RBAC",
+      "tag": "Par fonction",
+      "points": [
+       "Permissions organisées par fonction (Developer, Admin...)",
+       "Implémenté avec des identity-based policies",
+       "Une policy ou un Role par fonction",
+       "Nouvelles ressources ou équipes : policies à mettre à jour souvent"
+      ],
+      "use": "Petites structures ou rôles stables et bien définis."
+     },
+     {
+      "name": "ABAC",
+      "tag": "Par attributs (tags)",
+      "points": [
+       "Décision selon les tags du principal et de la ressource",
+       "Utilise Condition, StringEquals, aws:PrincipalTag, aws:ResourceTag",
+       "Une seule policy pour plusieurs équipes",
+       "Les nouvelles ressources taguées héritent de l'accès"
+      ],
+      "use": "Environnements qui grandissent vite, beaucoup d'équipes ou de projets."
+     }
+    ]
+   },
+   {
+    "type": "table",
+    "title": "Quand utiliser quoi ?",
+    "head": [
+     "Critère",
+     "RBAC",
+     "ABAC"
+    ],
+    "rows": [
+     [
+      "Granularité",
+      "Par fonction",
+      "Par équipe, projet, propriétaire (n'importe quel tag)"
+     ],
+     [
+      "Nouvelle ressource",
+      "Souvent modifier la policy",
+      "Juste ajouter le bon tag"
+     ],
+     [
+      "Nombre de policies",
+      "Une par fonction, qui peut grandir",
+      "Peu de policies génériques"
+     ],
+     [
+      "Risque principal",
+      "Prolifération de policies et de Roles",
+      "Tags mal gérés ou modifiables par n'importe qui"
+     ]
+    ]
+   },
+   {
+    "type": "callout",
+    "tone": "warn",
+    "title": "Sécurité des tags",
+    "text": "En ABAC, les tags SONT les permissions. Si un utilisateur peut modifier ses propres tags ou ceux d'une ressource, il peut se donner accès à ce qu'il veut. Il faut donc contrôler qui a le droit de poser et de modifier les tags (par exemple via des policies sur les actions de tagging)."
+   },
+   {
+    "type": "callout",
+    "tone": "exam",
+    "title": "Tombe à l'examen",
+    "text": "« Pourquoi l'ABAC est-il utile ? » Réponse type : une seule policy compare Team du principal avec Team de la ressource ; demain, un nouveau bucket payments-new-data n'a besoin que du tag Team = Payments, sans nouvelle policy, car Alice (Team = Payments) y accède déjà."
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : un nouveau bucket pour l'équipe Payments",
+    "situation": "L'entreprise utilise la policy ABAC Team. Alice est taguée Team = Payments. Un administrateur crée le bucket payments-new-data. Il n'ajoute aucune policy IAM.",
+    "q": "Que doit-il faire pour qu'Alice puisse l'utiliser ?",
+    "opts": [
+     {
+      "t": "Écrire une nouvelle identity-based policy dédiée au bucket",
+      "ok": false,
+      "why": "C'est justement ce que l'ABAC évite."
+     },
+     {
+      "t": "Taguer le bucket avec Team = Payments",
+      "ok": true,
+      "why": "Le tag du bucket correspond au tag d'Alice : la règle ABAC existante l'autorise automatiquement."
+     },
+     {
+      "t": "Ajouter Alice au groupe Administrators",
+      "ok": false,
+      "why": "On donne bien trop de droits au lieu de laisser la policy ABAC faire son travail."
+     },
+     {
+      "t": "Rendre le bucket public",
+      "ok": false,
+      "why": "On supprime le contrôle d'accès, ce qui est dangereux."
+     }
+    ]
+   },
+   {
+    "type": "scenario",
+    "title": "Cas : choisir entre RBAC et ABAC",
+    "situation": "Une entreprise va passer de 3 à 40 équipes et crée plusieurs buckets par équipe chaque semaine. L'équipe cloud veut éviter de réécrire des policies à chaque nouveau bucket.",
+    "q": "Quel modèle choisir ?",
+    "opts": [
+     {
+      "t": "RBAC pur : une policy par équipe et par bucket",
+      "ok": false,
+      "why": "Les policies et rôles devraient être mis à jour sans arrêt."
+     },
+     {
+      "t": "Ouvrir tous les buckets à tous les employés",
+      "ok": false,
+      "why": "Viole le moindre privilège."
+     },
+     {
+      "t": "ABAC : tags Team sur les identités et sur les ressources, une policy générique",
+      "ok": true,
+      "why": "Les nouveaux buckets taggés héritent de l'accès sans modifier de policy."
+     },
+     {
+      "t": "Une SCP qui autorise S3",
+      "ok": false,
+      "why": "Une SCP n'accorde aucun droit et ne règle pas la gestion équipe par équipe."
+     }
+    ]
+   }
+  ],
+  "terms": [
+   {
+    "t": "RBAC",
+    "d": "Role-Based Access Control : permissions organisées par rôle ou fonction, via des identity-based policies.",
+    "derja": "Carte 3la 7asb el khidma."
+   },
+   {
+    "t": "ABAC",
+    "d": "Attribute-Based Access Control : permissions décidées en comparant les tags du principal et de la ressource.",
+    "derja": "Carte tebda ta9ra l'etiquette."
+   },
+   {
+    "t": "Condition",
+    "d": "Élément optionnel d'une policy : opérateur + clé + valeur, qui définit quand la règle s'applique."
+   },
+   {
+    "t": "StringEquals",
+    "d": "Opérateur de condition : égalité exacte entre une clé de condition et une valeur."
+   },
+   {
+    "t": "aws:PrincipalTag",
+    "d": "Clé de condition : tag de l'utilisateur ou du Role qui fait la requête."
+   },
+   {
+    "t": "aws:ResourceTag",
+    "d": "Clé de condition : tag de la ressource visée."
+   },
+   {
+    "t": "Policy variable",
+    "d": "Valeur dynamique comme ${aws:username} ou ${aws:PrincipalTag/Team}, remplacée à l'évaluation."
+   }
+  ],
+  "oral": [
+   {
+    "q": "Quelle est la différence entre RBAC et ABAC ?",
+    "a": "Le RBAC accorde des permissions selon le rôle ou la fonction d'un utilisateur, généralement via des identity-based policies organisées par fonction. Son défi : quand les équipes et les ressources augmentent, il faut mettre à jour les policies souvent. L'ABAC accorde des permissions selon les attributs, c'est-à-dire les tags du principal et de la ressource, avec des Conditions. Une seule policy peut couvrir plusieurs équipes et les nouvelles ressources taguées héritent de l'accès.",
+    "keys": [
+     "fonction vs attributs",
+     "identity-based policies",
+     "tags",
+     "Conditions",
+     "scalabilité"
+    ]
+   },
+   {
+    "q": "Expliquez l'exemple d'ABAC avec les équipes Payments, Marketing et Engineering.",
+    "a": "On tague les utilisateurs, Alice Team = Payments et Bob Team = Marketing, et les buckets, payments-data Team = Payments et marketing-data Team = Marketing. Une seule policy autorise l'accès quand aws:PrincipalTag/Team est égal à ${aws:ResourceTag/Team}. Alice accède à payments-data mais pas à marketing-data. Si on crée payments-new-data et qu'on le tague Team = Payments, Alice y accède sans nouvelle policy.",
+    "keys": [
+     "PrincipalTag/Team",
+     "ResourceTag/Team",
+     "une seule policy",
+     "payments-new-data"
+    ]
+   },
+   {
+    "q": "À quoi sert l'élément Condition et comment est-il structuré ?",
+    "a": "La Condition est optionnelle et précise sous quelles conditions la policy est en vigueur : MFA, IP, Region, heure, tags. Elle contient un opérateur comme StringEquals, une clé de condition comme aws:username ou aws:PrincipalTag/Team, et une valeur. Si la condition est vraie, le statement s'applique ; sinon il est ignoré. C'est le mécanisme sur lequel repose l'ABAC.",
+    "keys": [
+     "opérateur + clé + valeur",
+     "StringEquals",
+     "optionnel",
+     "ABAC"
+    ]
+   },
+   {
+    "q": "Quel est le principal risque de l'ABAC ?",
+    "a": "En ABAC les tags déterminent les permissions : si des utilisateurs peuvent créer ou modifier librement des tags sur eux-mêmes ou sur les ressources, ils peuvent se donner accès à ce qu'ils veulent. Il faut donc contrôler strictement qui peut tagger. Il faut aussi que tous les principals et ressources soient correctement tagués : sans tag, la condition est fausse et l'accès refusé.",
+    "keys": [
+     "contrôler les tags",
+     "tags modifiables",
+     "tags manquants = refus"
+    ]
+   }
+  ],
+  "pitfalls": [
+   "Croire que l'ABAC remplace les policies : il faut toujours une policy Allow avec une Condition de tags.",
+   "Oublier que sans tag correspondant, la condition est fausse et l'accès est refusé (implicit deny).",
+   "Laisser des utilisateurs modifier leurs propres tags : ils peuvent s'attribuer des accès.",
+   "Confondre aws:PrincipalTag (tag du principal) et aws:ResourceTag (tag de la ressource).",
+   "Penser que RBAC et ABAC sont exclusifs : on les combine souvent, par exemple des Roles par fonction plus des conditions de tags."
+  ],
+  "quiz": [
+   {
+    "q": "En RBAC, les permissions sont organisées par :",
+    "opts": [
+     "Attributs",
+     "Tags de ressources",
+     "Région",
+     "Fonction ou rôle professionnel"
+    ],
+    "ans": 3,
+    "why": "RBAC = permissions par rôle ou fonction, généralement via des identity-based policies."
+   },
+   {
+    "q": "Dans la policy ABAC, que compare StringEquals ?",
+    "opts": [
+     "Le nom du bucket et la Region",
+     "aws:PrincipalTag/Team et ${aws:ResourceTag/Team}",
+     "La date et l'IP source",
+     "Le Role et la SCP"
+    ],
+    "ans": 1,
+    "why": "La condition compare le tag Team du principal et celui de la ressource."
+   },
+   {
+    "q": "L'entreprise crée payments-new-data. Que faut-il pour qu'Alice (Team = Payments) y accède ?",
+    "opts": [
+     "Créer une nouvelle policy pour ce bucket",
+     "Taguer le bucket Team = Payments",
+     "Ajouter Alice dans un autre groupe",
+     "Modifier la SCP"
+    ],
+    "ans": 1,
+    "why": "La policy ABAC existante autorise l'accès dès que les tags sont égaux."
+   },
+   {
+    "q": "Dans l'exemple EC2, quelle condition porte sur le nom de l'utilisateur ?",
+    "opts": [
+     "aws:ResourceTag/AccessProject = ${aws:PrincipalTag/AccessProject}",
+     "aws:ResourceTag/Owner = ${aws:username}",
+     "aws:SourceArn",
+     "aws:PrincipalTag/Team"
+    ],
+    "ans": 1,
+    "why": "Le tag Owner de l'instance est comparé au nom de l'utilisateur appelant."
+   },
+   {
+    "q": "Quel est le principal avantage de l'ABAC face au RBAC dans un environnement qui grandit ?",
+    "opts": [
+     "Il évite d'utiliser des Conditions",
+     "Il donne plus de permissions",
+     "Il remplace les SCP",
+     "Il évite de créer une policy pour chaque équipe ou ressource"
+    ],
+    "ans": 3,
+    "why": "Une policy générique basée sur les tags s'adapte aux nouvelles équipes et ressources."
+   }
+  ],
+  "recap": [
+   "RBAC : permissions par fonction, via identity-based policies ; il faut mettre à jour quand ça grandit.",
+   "Condition = opérateur + clé + valeur ; StringEquals compare deux chaînes.",
+   "ABAC : compare aws:PrincipalTag et aws:ResourceTag (tags) dans une Condition.",
+   "Une policy générique + des tags corrects : un nouveau bucket taggé Team = Payments est accessible sans nouvelle policy.",
+   "Sans tag correspondant : refus ; il faut contrôler qui peut modifier les tags.",
+   "Exemple EC2 : StartInstances/StopInstances si Owner = username ET AccessProject = tag du principal."
+  ]
+ }
+]

@@ -1,0 +1,2093 @@
+[
+ {
+  "k": "iam",
+  "name": "AWS IAM",
+  "full": "AWS Identity and Access Management",
+  "cat": "Identité & accès",
+  "tagline": "Le service qui décide qui peut faire quoi sur quelles ressources.",
+  "role": "Service global et gratuit qui gère les identités (users, groups, roles) et leurs permissions (policies) dans un compte AWS. Chaque appel d'API passe par IAM : authentification, puis autorisation.",
+  "why": [
+   "Applique le moindre privilège : chaque identité n'a que les actions nécessaires.",
+   "Refus par défaut : sans Allow explicite, aucune action n'est autorisée.",
+   "Les roles remplacent les clés permanentes par des identifiants temporaires.",
+   "Toute action est traçable dans CloudTrail, avec l'identité qui l'a faite."
+  ],
+  "how": "Une requête arrive avec une identité (principal). IAM l'authentifie, puis évalue les policies applicables : un Deny explicite l'emporte toujours, sinon il faut au moins un Allow.",
+  "when": [
+   "Donner à une instance EC2 l'accès à un bucket S3 via un role",
+   "Créer un group Developers avec des permissions limitées",
+   "Exiger le MFA pour les actions sensibles grâce à une condition de policy"
+  ],
+  "notwhen": "IAM gère les identités d'un compte AWS. Pour les utilisateurs finaux d'une application, utilise Cognito ; pour les employés sur plusieurs comptes, IAM Identity Center.",
+  "derja": "IAM houwa kima el bouwab mta3 imara : yet2aked chkoun enti, w ba3d ychouf chnowa 3andek el 7a9 todkhel lih. Ken ma3andekch tasrih s7i7, el bab yeb9a msakker.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Principal"
+   },
+   {
+    "k": "iam",
+    "t": "Évalue les policies"
+   },
+   {
+    "k": "s3",
+    "t": "Allow ou Deny"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sso",
+    "d": "Identity Center centralise l'accès des employés sur plusieurs comptes ; IAM gère les identités locales d'un compte."
+   },
+   {
+    "k": "cognito",
+    "d": "Cognito authentifie les utilisateurs d'une application, pas les administrateurs AWS."
+   }
+  ],
+  "exam": [
+   "Par défaut tout est refusé (deny implicite) ; un Deny explicite l'emporte toujours sur un Allow.",
+   "Le compte root a tous les droits : MFA obligatoire, aucune clé d'accès, usage exceptionnel.",
+   "IAM est un service global, non lié à une Region.",
+   "Un group contient des users (pas d'autres groups) et ne peut pas être Principal d'une resource-based policy."
+  ],
+  "related": [
+   "sts",
+   "role",
+   "permissions",
+   "orgs",
+   "cloudtrail"
+  ],
+  "match": [
+   "IAM",
+   "Identity and Access Management"
+  ]
+ },
+ {
+  "k": "sts",
+  "name": "AWS STS",
+  "full": "AWS Security Token Service",
+  "cat": "Identité & accès",
+  "tagline": "L'émetteur d'identifiants temporaires.",
+  "role": "Service qui délivre des identifiants de sécurité temporaires (Access Key ID, Secret Access Key, Session Token, expiration) à une entité de confiance. Il est derrière AssumeRole et la fédération d'identité.",
+  "why": [
+   "Évite de distribuer des clés permanentes à des applications ou des humains.",
+   "Les identifiants expirent seuls : une fuite a un impact limité dans le temps.",
+   "Rend possibles l'accès cross-account et la fédération (SAML, OIDC).",
+   "Une session peut être restreinte davantage grâce à une session policy."
+  ],
+  "how": "L'appelant demande par exemple AssumeRole. STS vérifie la trust policy du role, puis renvoie des identifiants à durée limitée (1 heure par défaut, ajustable jusqu'à la durée maximale de session du role).",
+  "when": [
+   "Un compte A assume un role dans le compte B",
+   "Un employé se connecte via SAML puis obtient une session AWS",
+   "Une application mobile obtient un accès AWS via web identity federation (souvent avec Cognito)"
+  ],
+  "notwhen": "STS ne donne pas de permissions : elles viennent des policies du role. Ce n'est pas non plus un service d'authentification d'utilisateurs finaux.",
+  "derja": "STS kima ticket mta3 el parking : yekhdem l-wa9t el m7added bark. Ki yfout el wa9t, ma3ad yenfa3ch, w ken tdha3 menek, el dharar yeb9a sghir.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Entité de confiance"
+   },
+   {
+    "k": "sts",
+    "t": "AssumeRole"
+   },
+   {
+    "k": "role",
+    "t": "Role cible"
+   },
+   {
+    "k": "s3",
+    "t": "Appel avec credentials temporaires"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cognito",
+    "d": "Un Identity Pool appelle STS à ta place pour les utilisateurs d'applications ; appeler STS directement convient aux workloads et à la fédération d'entreprise."
+   }
+  ],
+  "exam": [
+   "API à connaître : AssumeRole, AssumeRoleWithSAML, AssumeRoleWithWebIdentity, GetSessionToken.",
+   "Les identifiants contiennent un Session Token et une expiration, contrairement aux clés IAM permanentes.",
+   "sts:GetCallerIdentity (« qui suis-je ? ») ne nécessite aucune permission.",
+   "Une session policy passée à AssumeRole peut restreindre la session, jamais l'élargir."
+  ],
+  "related": [
+   "iam",
+   "role",
+   "tempcred",
+   "saml",
+   "cognito"
+  ],
+  "match": [
+   "STS",
+   "Security Token Service",
+   "AssumeRole"
+  ]
+ },
+ {
+  "k": "role",
+  "name": "IAM Role",
+  "full": "Rôle IAM (identité assumable)",
+  "cat": "Concept",
+  "tagline": "Une identité sans mot de passe qu'on endosse temporairement.",
+  "role": "Identité IAM dotée de permissions, non liée de façon permanente à une personne : une entité de confiance (service, user, autre compte) l'assume pour obtenir des identifiants temporaires. Elle comporte une trust policy et des permission policies.",
+  "why": [
+   "Pas de clé permanente à stocker, faire tourner ou perdre.",
+   "Sépare QUI peut l'assumer (trust policy) de CE QU'il peut faire (permissions).",
+   "Permet à un service (EC2, Lambda) d'agir sans secret dans le code.",
+   "Rend possibles l'accès cross-account et la fédération."
+  ],
+  "how": "L'appelant demande AssumeRole à STS ; la trust policy est vérifiée ; il reçoit des credentials temporaires aux permissions du role. Pour EC2, le role est attaché via un instance profile.",
+  "when": [
+   "Role d'instance EC2 pour lire un bucket S3",
+   "Role d'exécution d'une fonction Lambda",
+   "Role cross-account pour un compte d'audit",
+   "Role assumé après connexion SAML (fédération)"
+  ],
+  "notwhen": "Pour une personne qui travaille chaque jour sur plusieurs comptes, IAM Identity Center est plus pratique que d'assumer des roles à la main.",
+  "derja": "Role kima el blousa mta3 el khedma : ma tet3alla9ch b chakhs mo3ayyen, ay wa7ed eli 3andou el 7a9 yelbesha, yekhdem biha, w ki ykammel yna77iha.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Instance EC2"
+   },
+   {
+    "k": "role",
+    "t": "Role attaché (instance profile)"
+   },
+   {
+    "k": "sts",
+    "t": "Credentials temporaires"
+   },
+   {
+    "k": "s3",
+    "t": "Lecture du bucket"
+   }
+  ],
+  "vs": [
+   {
+    "k": "users",
+    "d": "Un IAM user a des credentials permanents et une identité fixe ; un role n'a que des credentials temporaires."
+   }
+  ],
+  "exam": [
+   "Un role contient deux éléments : trust policy (qui l'assume) et permission policies (ce qu'il peut faire).",
+   "Un role n'a ni mot de passe ni clés d'accès permanentes.",
+   "Un service-linked role est prédéfini par un service AWS : tu ne modifies pas ses permissions.",
+   "Pour attacher un role à EC2, on passe par un instance profile."
+  ],
+  "related": [
+   "iam",
+   "sts",
+   "tempcred",
+   "saml",
+   "ec2"
+  ],
+  "match": [
+   "IAM Role",
+   "Trust Policy",
+   "AssumeRole"
+  ]
+ },
+ {
+  "k": "permissions",
+  "name": "Permissions & policies",
+  "full": "Policies IAM (documents de permissions)",
+  "cat": "Concept",
+  "tagline": "Les règles JSON qui disent Allow ou Deny.",
+  "role": "Une policy est un document JSON d'instructions (Effect Allow/Deny, Action, Resource, Condition). Les permissions effectives résultent de plusieurs types de policies : identity-based, resource-based, permissions boundary, SCP et session policy.",
+  "why": [
+   "Traduit le moindre privilège en règles précises et vérifiables.",
+   "Les conditions (MFA, IP source, tags) rendent l'accès contextuel.",
+   "Plusieurs couches (SCP, boundary) plafonnent ce qu'un administrateur peut accorder.",
+   "Une même policy peut être réutilisée sur plusieurs identités."
+  ],
+  "how": "Refus implicite par défaut. Toutes les policies applicables sont évaluées : un Deny explicite l'emporte ; sinon il faut un Allow, et les plafonds (SCP, permissions boundary, session policy) ne doivent pas le bloquer.",
+  "when": [
+   "Policy identity-based attachée à un group",
+   "Bucket policy S3 (resource-based) pour un accès cross-account",
+   "SCP interdisant une Region à toute une OU",
+   "Condition aws:MultiFactorAuthPresent pour exiger le MFA"
+  ],
+  "notwhen": "Une SCP ou une permissions boundary n'accorde jamais de permission : elle ne fait que limiter le maximum possible.",
+  "derja": "Policy kima el reglement mta3 7ouma : Allow ya3ni masmou7, Deny ya3ni mamnou3. Ken famma mamnou3 wa7da, tghleb 3al masmou7. W ken ma 9altech masmou7, yeb9a mamnou3.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Principal"
+   },
+   {
+    "k": "permissions",
+    "t": "Policies évaluées"
+   },
+   {
+    "k": "iam",
+    "t": "Décision"
+   },
+   {
+    "k": "s3",
+    "t": "Allow ou Deny"
+   }
+  ],
+  "exam": [
+   "Cinq types : identity-based, resource-based, permissions boundary, SCP, session policy.",
+   "Ordre mental : Deny explicite d'abord, puis Allow, sinon deny implicite.",
+   "Une SCP ne s'applique pas au management account de l'Organization.",
+   "L'élément Principal n'existe que dans les resource-based policies et les trust policies."
+  ],
+  "related": [
+   "iam",
+   "role",
+   "orgs",
+   "s3",
+   "accessanalyzer"
+  ],
+  "match": [
+   "Policy",
+   "Permissions Boundary",
+   "Identity-Based"
+  ]
+ },
+ {
+  "k": "mfa",
+  "name": "MFA",
+  "full": "Authentification multifacteur (MFA)",
+  "cat": "Concept",
+  "tagline": "Un deuxième verrou : ce que tu possèdes, en plus du mot de passe.",
+  "role": "Mécanisme qui exige au moins deux preuves d'identité : un secret (mot de passe) et un élément de possession (application TOTP, clé de sécurité FIDO, token matériel). AWS l'applique au root, aux IAM users et via des conditions de policy.",
+  "why": [
+   "Un mot de passe volé ne suffit plus pour se connecter.",
+   "Protège en priorité le compte root, qui a tous les droits.",
+   "Une policy peut l'exiger pour les actions sensibles.",
+   "Les clés FIDO résistent au phishing, contrairement à un simple code."
+  ],
+  "how": "Après le mot de passe, AWS demande un code à usage unique ou une validation par clé FIDO. Dans une policy, la condition aws:MultiFactorAuthPresent teste si la session a été authentifiée avec MFA.",
+  "when": [
+   "Activer le MFA sur le root dès la création du compte",
+   "Exiger le MFA avant d'assumer un role d'administration",
+   "MFA Delete sur un bucket S3 versionné"
+  ],
+  "notwhen": "Le MFA protège la connexion interactive ; il ne protège pas des clés d'accès permanentes volées. Préfère des credentials temporaires.",
+  "derja": "MFA kima el 9ofl el zouz : el mot de passe wa7do ma ykafich, lazem tawri el telephone walla el cle mta3ek zeda. Hata ken wa7ed sra9 el mot de passe, ma yodkholch.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Mot de passe"
+   },
+   {
+    "k": "mfa",
+    "t": "Code ou clé FIDO"
+   },
+   {
+    "k": "iam",
+    "t": "Session authentifiée"
+   },
+   {
+    "k": "console",
+    "t": "Console AWS"
+   }
+  ],
+  "exam": [
+   "Types : application virtuelle (TOTP), clé de sécurité FIDO, token matériel.",
+   "Condition de policy à connaître : aws:MultiFactorAuthPresent.",
+   "MFA Delete (S3 versioning) ne peut être activé que par le root.",
+   "Activer le MFA du root est l'une des premières actions de sécurité d'un nouveau compte."
+  ],
+  "related": [
+   "iam",
+   "sts",
+   "role",
+   "s3",
+   "sso"
+  ],
+  "match": [
+   "MFA",
+   "Multi-Factor"
+  ]
+ },
+ {
+  "k": "tempcred",
+  "name": "Identifiants temporaires",
+  "full": "Temporary security credentials",
+  "cat": "Concept",
+  "tagline": "Des clés qui expirent toutes seules.",
+  "role": "Trio d'identifiants émis par STS : Access Key ID, Secret Access Key et Session Token, avec une date d'expiration. L'Access Key ID d'une session temporaire commence par ASIA.",
+  "why": [
+   "Une fuite a un impact limité : les identifiants deviennent invalides à l'expiration.",
+   "Rien à faire tourner ni à stocker durablement dans le code.",
+   "Les permissions de la session peuvent être réduites par une session policy.",
+   "Les sessions d'un role compromis peuvent être révoquées."
+  ],
+  "how": "STS, ou un service qui s'en sert (role d'instance EC2, Lambda, Identity Center), fournit ces credentials. Les SDK les renouvellent automatiquement ; chaque appel d'API doit inclure le Session Token.",
+  "when": [
+   "Application sur EC2 ou Lambda via un role",
+   "Développeur connecté par IAM Identity Center",
+   "Compte B accédant à une ressource du compte A"
+  ],
+  "notwhen": "Ils expirent : le code doit gérer le renouvellement (les SDK le font). Ne les copie jamais dans un fichier de configuration durable.",
+  "derja": "Credentials temporaires kima carte mta3 hotel : tekhdem lil sejour el m7added bark, w ki yekhlas, tweli blasa. Ken tdhi3, el mochkla sghira.",
+  "use": [
+   {
+    "k": "role",
+    "t": "Role assumé"
+   },
+   {
+    "k": "sts",
+    "t": "Émet les credentials"
+   },
+   {
+    "k": "tempcred",
+    "t": "Key + Secret + Token"
+   },
+   {
+    "k": "s3",
+    "t": "Appel d'API signé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "longcred",
+    "d": "Les clés IAM permanentes n'expirent pas et n'ont pas de Session Token ; les temporaires expirent."
+   }
+  ],
+  "exam": [
+   "Contenu : Access Key ID, Secret Access Key, Session Token, expiration.",
+   "Bonne pratique AWS : préférer des credentials temporaires aux clés permanentes.",
+   "AssumeRole : 1 h par défaut ; la durée maximale (jusqu'à 12 h) se règle sur le role.",
+   "Sans le Session Token, les identifiants temporaires sont rejetés."
+  ],
+  "related": [
+   "sts",
+   "role",
+   "longcred",
+   "iam",
+   "sso"
+  ],
+  "match": [
+   "temporary credentials",
+   "Session Token"
+  ]
+ },
+ {
+  "k": "longcred",
+  "name": "Clés d'accès permanentes",
+  "full": "Long-term credentials (IAM access keys)",
+  "cat": "Concept",
+  "tagline": "Les clés qui n'expirent jamais : le risque à éviter.",
+  "role": "Identifiants à longue durée de vie : mot de passe d'un IAM user et paire Access Key ID / Secret Access Key (l'ID commence par AKIA). Ils restent valides jusqu'à désactivation ou suppression.",
+  "why": [
+   "Existent pour les cas où aucun role ni fédération n'est possible.",
+   "Leur danger : une fuite (dépôt Git, logs, image) donne un accès durable.",
+   "Rotation régulière et suppression des clés inutilisées limitent le risque."
+  ],
+  "how": "Un IAM user peut avoir jusqu'à deux access keys, ce qui permet une rotation sans coupure : créer la nouvelle, basculer l'application, désactiver puis supprimer l'ancienne.",
+  "when": [
+   "Outil tiers qui ne supporte que des clés d'accès",
+   "Script sur une machine hors AWS sans fédération possible (à limiter strictement)"
+  ],
+  "notwhen": "Jamais pour le root, ni dans le code source, ni pour des workloads AWS (EC2, Lambda) : utilise des roles et des credentials temporaires.",
+  "derja": "Clé permanente kima mfatah mta3 dar 9dima : yekhdem dima 7atta ken tdhi3. Ken wa7ed 3mal copy w 7attou fi GitHub, ye9der yodkhol kol nhar. Donc ghayer el mfatah w ma tkhallihch ma3ad.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Script ou application"
+   },
+   {
+    "k": "longcred",
+    "t": "Access Key AKIA..."
+   },
+   {
+    "k": "iam",
+    "t": "Authentifie l'IAM user"
+   },
+   {
+    "k": "s3",
+    "t": "Accès aux données"
+   }
+  ],
+  "vs": [
+   {
+    "k": "tempcred",
+    "d": "Les credentials temporaires expirent seuls ; les clés permanentes restent valides tant qu'on ne les supprime pas."
+   }
+  ],
+  "exam": [
+   "La règle AWS Config access-keys-rotated signale les clés trop anciennes.",
+   "Le credential report IAM liste l'état des mots de passe, clés d'accès et MFA.",
+   "Clé exposée : la désactiver, la supprimer, puis auditer CloudTrail.",
+   "Le compte root ne doit avoir aucune clé d'accès."
+  ],
+  "related": [
+   "iam",
+   "tempcred",
+   "sts",
+   "mfa",
+   "cloudtrail"
+  ],
+  "match": [
+   "Access Key",
+   "long-term"
+  ]
+ },
+ {
+  "k": "accessanalyzer",
+  "name": "IAM Access Analyzer",
+  "full": "IAM Access Analyzer",
+  "cat": "Concept",
+  "tagline": "Le détecteur de ressources partagées avec l'extérieur.",
+  "role": "Fonction d'IAM qui analyse les policies de tes ressources pour trouver celles accessibles depuis l'extérieur de ta zone de confiance (compte ou Organization). Elle valide aussi des policies et en génère à partir de l'activité CloudTrail.",
+  "why": [
+   "Révèle un bucket S3 ou un role accessible par un compte inconnu.",
+   "Aide à réduire les permissions au strict nécessaire (policy generation).",
+   "Valide les policies avant déploiement : erreurs et avertissements de sécurité."
+  ],
+  "how": "Tu crées un analyzer avec une zone de confiance. Il raisonne sur les policies et produit un finding pour chaque accès hors de cette zone. La génération de policy lit jusqu'à 90 jours de CloudTrail.",
+  "when": [
+   "Vérifier qu'aucun bucket S3 n'est partagé avec un compte externe",
+   "Générer une policy à moindre privilège pour un role existant",
+   "Valider une policy avant de la déployer"
+  ],
+  "notwhen": "Il analyse les policies, pas le trafic : il ne détecte pas une attaque en cours (c'est le rôle de GuardDuty).",
+  "derja": "Access Analyzer kima wa7ed ya3mel tafa99od 3al abwab : yetfa99ed chkoun men barra 3andou mfatah mta3 el bucket walla el role mta3ek.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Ressource (bucket, role, clé KMS)"
+   },
+   {
+    "k": "accessanalyzer",
+    "t": "Analyse vs zone de confiance"
+   },
+   {
+    "k": "finding",
+    "t": "Finding : accès externe"
+   },
+   {
+    "k": "securityhub",
+    "t": "Vue centralisée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "guardduty",
+    "d": "GuardDuty détecte des comportements suspects en cours ; Access Analyzer détecte des accès externes permis par les policies."
+   }
+  ],
+  "exam": [
+   "Zone de confiance = un compte AWS ou une Organization.",
+   "Ressources analysées : S3, roles IAM, clés KMS, Lambda, SQS, secrets Secrets Manager.",
+   "Policy validation (erreurs, suggestions) et policy generation (basée sur CloudTrail, jusqu'à 90 jours).",
+   "Un accès hors zone de confiance génère un finding."
+  ],
+  "related": [
+   "iam",
+   "s3",
+   "kms",
+   "cloudtrail",
+   "securityhub"
+  ],
+  "match": [
+   "Access Analyzer",
+   "Zone of Trust"
+  ]
+ },
+ {
+  "k": "saml",
+  "name": "SAML 2.0",
+  "full": "Security Assertion Markup Language 2.0",
+  "cat": "Concept",
+  "tagline": "Le passeport XML délivré par l'entreprise pour entrer dans AWS.",
+  "role": "Standard ouvert de fédération : un Identity Provider (ADFS, Okta, Microsoft Entra ID...) authentifie l'utilisateur et envoie à AWS une assertion XML signée. AWS la valide grâce à un SAML provider IAM et ouvre une session sur un role.",
+  "why": [
+   "Pas besoin de créer un IAM user par employé.",
+   "Une seule identité d'entreprise : désactiver l'employé coupe aussi l'accès AWS.",
+   "MFA et règles de mot de passe restent gérés par l'IdP."
+  ],
+  "how": "L'utilisateur s'authentifie sur l'IdP, qui renvoie une assertion SAML contenant le role à utiliser. Le navigateur la présente à AWS, qui appelle AssumeRoleWithSAML et ouvre la console ou délivre des credentials temporaires.",
+  "when": [
+   "Employés d'une entreprise avec ADFS accédant à la console AWS",
+   "Client VPN avec authentification SAML 2.0",
+   "IAM Identity Center connecté à un IdP externe"
+  ],
+  "notwhen": "Pour les utilisateurs finaux d'une application web ou mobile, OIDC via Cognito est généralement plus adapté que SAML.",
+  "derja": "SAML kima el carte d'identité mta3 chirka : el IdP houwa el commissariat, yo9olek 'hedha fulen, thi9a'. AWS ma ye3rafch el moussta3mel, bark yo9ra el warqa el moukhtouma w yet2aked menha.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Employé"
+   },
+   {
+    "k": "saml",
+    "t": "IdP : assertion SAML"
+   },
+   {
+    "k": "sts",
+    "t": "AssumeRoleWithSAML"
+   },
+   {
+    "k": "console",
+    "t": "Console AWS"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cognito",
+    "d": "Cognito cible les utilisateurs d'applications (OIDC, social login) ; SAML cible les employés via leur IdP d'entreprise."
+   }
+  ],
+  "exam": [
+   "Il faut établir la confiance IdP et AWS : SAML provider IAM, puis role avec trust policy.",
+   "Appel STS associé : AssumeRoleWithSAML.",
+   "Pour Client VPN, un seul IdP SAML à la fois.",
+   "SAML sert surtout à la fédération de la workforce."
+  ],
+  "related": [
+   "sts",
+   "role",
+   "sso",
+   "iam",
+   "directory"
+  ],
+  "match": [
+   "SAML",
+   "ADFS",
+   "Identity Provider"
+  ]
+ },
+ {
+  "k": "sso",
+  "name": "IAM Identity Center",
+  "full": "AWS IAM Identity Center (ex AWS SSO)",
+  "cat": "Identité & accès",
+  "tagline": "Une seule connexion pour tous tes comptes AWS et applications.",
+  "role": "Service de gestion centralisée de l'accès workforce à plusieurs comptes AWS (via Organizations) et applications. Les utilisateurs viennent d'un annuaire intégré, d'Active Directory ou d'un IdP externe ; les accès sont définis par des permission sets.",
+  "why": [
+   "Remplace une multitude d'IAM users par une identité centrale.",
+   "Donne des credentials temporaires à chaque session, sans clés permanentes.",
+   "Un permission set réutilisable applique le même accès à plusieurs comptes.",
+   "Se branche sur l'IdP existant (SAML 2.0, provisioning SCIM)."
+  ],
+  "how": "L'administrateur crée users et groups, définit des permission sets et les assigne à des comptes. Identity Center provisionne un role correspondant dans chaque compte assigné ; l'utilisateur choisit son compte sur le portail d'accès et reçoit des credentials temporaires.",
+  "when": [
+   "Équipe cloud qui accède à plusieurs comptes d'une Organization",
+   "Connecter Okta ou Entra ID pour toute l'entreprise",
+   "Connexion en ligne de commande avec aws sso login"
+  ],
+  "notwhen": "Il cible les employés. Pour les utilisateurs d'une application grand public, utilise Cognito.",
+  "derja": "Identity Center kima el badge wa7ed yfta7 kol el abwab mta3 el chirka : tconnecti merra wa7da w todkhol l kol el comptes eli 3andek 7a9 fihom.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Employé"
+   },
+   {
+    "k": "sso",
+    "t": "Portail Identity Center"
+   },
+   {
+    "k": "role",
+    "t": "Permission set (role)"
+   },
+   {
+    "k": "orgs",
+    "t": "Comptes membres"
+   }
+  ],
+  "vs": [
+   {
+    "k": "iam",
+    "d": "IAM users : identités locales à un compte ; Identity Center : identité centrale pour plusieurs comptes."
+   }
+  ],
+  "exam": [
+   "Sources d'identité : annuaire intégré, Active Directory, IdP externe.",
+   "Permission set : ensemble de policies assigné à un user ou group sur un compte.",
+   "Anciennement nommé AWS Single Sign-On.",
+   "Fonctionne avec AWS Organizations."
+  ],
+  "related": [
+   "iam",
+   "orgs",
+   "saml",
+   "directory",
+   "sts"
+  ],
+  "match": [
+   "IAM Identity Center",
+   "AWS SSO",
+   "Single Sign-On",
+   "Permission Set"
+  ]
+ },
+ {
+  "k": "cognito",
+  "name": "Amazon Cognito",
+  "full": "Amazon Cognito",
+  "cat": "Identité & accès",
+  "tagline": "L'authentification pour les utilisateurs de tes applications.",
+  "role": "Service managé et serverless d'identité pour applications web et mobiles. User Pool : annuaire, connexion et jetons JWT. Identity Pool : échange une identité contre des identifiants AWS temporaires.",
+  "why": [
+   "Évite de développer inscription, connexion, reset de mot de passe et MFA.",
+   "Fédération avec Google, Facebook, Apple, SAML et OIDC.",
+   "Un Identity Pool donne un accès AWS temporaire, sans clé dans l'application.",
+   "S'intègre à API Gateway et ALB pour protéger les API."
+  ],
+  "how": "L'utilisateur se connecte au User Pool (ou via un IdP externe) et reçoit des JWT. Pour accéder directement à des ressources AWS, il échange son identité contre des credentials temporaires auprès de l'Identity Pool.",
+  "when": [
+   "Application mobile avec inscription et connexion",
+   "Protéger une API Gateway avec un authorizer Cognito",
+   "Permettre à un utilisateur d'uploader dans S3 avec des credentials temporaires"
+  ],
+  "notwhen": "Pas pour les employés et administrateurs AWS : utilise IAM Identity Center.",
+  "derja": "Cognito kima el réceptionniste mta3 el hotel mta3 el app mta3ek : yseggel el clients, yet2aked men el mot de passe, w ye3tihom badge (JWT). El identity pool ye3tihom cle temporaire bech yodkholou l AWS.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Utilisateur de l'app"
+   },
+   {
+    "k": "cognito",
+    "t": "User Pool : connexion + JWT"
+   },
+   {
+    "k": "sts",
+    "t": "Identity Pool : credentials temporaires"
+   },
+   {
+    "k": "s3",
+    "t": "Accès AWS"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sso",
+    "d": "Identity Center est pour les employés (workforce) ; Cognito pour les clients de ton application."
+   }
+  ],
+  "exam": [
+   "User Pool = authentification (JWT) ; Identity Pool = identifiants AWS temporaires.",
+   "Un Identity Pool peut aussi accepter des invités (unauthenticated).",
+   "Un User Pool peut être protégé par AWS WAF.",
+   "Un Identity Pool évite d'appeler STS directement depuis l'application."
+  ],
+  "related": [
+   "sts",
+   "iam",
+   "apigw",
+   "waf",
+   "saml"
+  ],
+  "match": [
+   "Cognito",
+   "User Pool",
+   "Identity Pool"
+  ]
+ },
+ {
+  "k": "directory",
+  "name": "AWS Directory Service",
+  "full": "AWS Directory Service",
+  "cat": "Identité & accès",
+  "tagline": "Des annuaires Active Directory gérés par AWS.",
+  "role": "Famille de services pour utiliser un annuaire (LDAP, Active Directory) dans AWS. Options principales : AWS Managed Microsoft AD (un vrai AD managé) et AD Connector (proxy vers un AD existant).",
+  "why": [
+   "Les serveurs Windows et services AWS rejoignent un domaine sans gérer de contrôleurs de domaine.",
+   "L'AD d'entreprise reste la source unique d'identité.",
+   "Authentification Kerberos, LDAP et GPO pour les workloads Windows (Managed AD)."
+  ],
+  "how": "Selon le besoin, AWS héberge un annuaire dans ton VPC (Managed Microsoft AD) ou relaie simplement les requêtes vers ton AD sur site (AD Connector).",
+  "when": [
+   "Joindre des instances EC2 Windows à un domaine",
+   "Authentifier les utilisateurs d'AWS Client VPN contre Active Directory",
+   "Utiliser l'AD d'entreprise comme source d'identité d'Identity Center"
+  ],
+  "notwhen": "Pour de simples utilisateurs d'application, Cognito suffit ; un annuaire managé n'est utile que si tu as besoin d'Active Directory.",
+  "derja": "Directory Service kima el registre mta3 el baladiya : liste wa7da lel employés, w el serveurs w el ordinateurs yarjou3lha bech ye3rfou chkoun chkoun.",
+  "use": [
+   {
+    "k": "building",
+    "t": "AD d'entreprise"
+   },
+   {
+    "k": "directory",
+    "t": "Directory Service"
+   },
+   {
+    "k": "ec2",
+    "t": "Serveurs Windows"
+   },
+   {
+    "k": "clientvpn",
+    "t": "Client VPN"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cognito",
+    "d": "Cognito gère les utilisateurs d'applications ; Directory Service gère un annuaire d'entreprise Active Directory."
+   }
+  ],
+  "exam": [
+   "Managed Microsoft AD : vrai AD hébergé, relation d'approbation possible avec l'AD sur site.",
+   "AD Connector : proxy, il ne stocke pas l'annuaire dans AWS.",
+   "Client VPN peut authentifier via Managed AD ou un AD sur site (via AD Connector).",
+   "Peut servir de source d'identité à IAM Identity Center."
+  ],
+  "related": [
+   "managedad",
+   "sso",
+   "saml",
+   "ec2",
+   "clientvpn"
+  ],
+  "match": [
+   "Directory Service",
+   "Active Directory",
+   "AD Connector"
+  ]
+ },
+ {
+  "k": "managedad",
+  "name": "AWS Managed Microsoft AD",
+  "full": "AWS Directory Service for Microsoft Active Directory",
+  "cat": "Identité & accès",
+  "tagline": "Un vrai Active Directory, exploité par AWS.",
+  "role": "Annuaire Microsoft Active Directory réel, hébergé par AWS sur des contrôleurs de domaine répartis sur au moins deux AZ. Il prend en charge LDAP, Kerberos, GPO et les relations d'approbation (trust) avec un AD sur site.",
+  "why": [
+   "Haute disponibilité, supervision et correctifs assurés par AWS.",
+   "Une trust avec l'AD d'entreprise : l'utilisateur garde un seul compte.",
+   "Compatible avec les applications Windows et services AWS qui exigent un domaine."
+  ],
+  "how": "AWS déploie les contrôleurs de domaine dans ton VPC. Tu gères utilisateurs, groups et GPO avec les outils Active Directory habituels ; une trust peut lier ton AD sur site.",
+  "when": [
+   "Instances EC2 Windows jointes au domaine",
+   "Authentification Windows pour RDS for SQL Server",
+   "Source d'identité pour IAM Identity Center ou Client VPN"
+  ],
+  "notwhen": "Si tu veux seulement relayer vers un AD sur site sans héberger d'annuaire dans AWS, AD Connector est plus simple.",
+  "derja": "Managed AD kima ma3ak Active Directory jehez : AWS ykhdem 3al serveurs w el sauvegarde, w enti tkhdem ghir 3al users w el groupes.",
+  "use": [
+   {
+    "k": "building",
+    "t": "AD sur site"
+   },
+   {
+    "k": "managedad",
+    "t": "Trust vers Managed AD"
+   },
+   {
+    "k": "ec2",
+    "t": "EC2 Windows dans le domaine"
+   },
+   {
+    "k": "rds",
+    "t": "RDS for SQL Server"
+   }
+  ],
+  "vs": [
+   {
+    "k": "directory",
+    "d": "AD Connector redirige vers ton AD existant et n'héberge aucun annuaire dans AWS."
+   }
+  ],
+  "exam": [
+   "Responsabilité partagée : AWS gère les contrôleurs de domaine, toi les objets AD.",
+   "Trust one-way ou two-way avec un AD sur site.",
+   "Client VPN : Managed AD ou AD sur site via AD Connector.",
+   "Source d'identité possible pour IAM Identity Center."
+  ],
+  "related": [
+   "directory",
+   "sso",
+   "saml",
+   "ec2",
+   "vpc"
+  ],
+  "match": [
+   "Managed Microsoft AD",
+   "Active Directory"
+  ]
+ },
+ {
+  "k": "orgs",
+  "name": "AWS Organizations",
+  "full": "AWS Organizations",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Gérer plusieurs comptes AWS comme une seule entreprise.",
+  "role": "Service qui regroupe plusieurs comptes AWS dans une hiérarchie (racine, OUs) avec facturation consolidée et gouvernance centralisée. Les Service Control Policies (SCP) fixent le maximum de permissions des comptes membres.",
+  "why": [
+   "Isole prod, dev et sécurité dans des comptes séparés : le rayon d'impact diminue.",
+   "Les SCP posent des garde-fous obligatoires, même pour un administrateur du compte.",
+   "Active des services de sécurité à l'échelle de toute l'organisation.",
+   "Facturation consolidée et création centralisée des comptes."
+  ],
+  "how": "Un management account crée l'organisation, des OUs et des comptes membres. Les SCP attachées à la racine, à une OU ou à un compte définissent ce qui peut être autorisé ; les policies IAM n'accordent que dans ce plafond.",
+  "when": [
+   "Interdire l'usage de certaines Regions pour toutes les OUs de production",
+   "Empêcher la désactivation de CloudTrail dans tous les comptes",
+   "Déléguer GuardDuty ou Security Hub à un compte de sécurité"
+  ],
+  "notwhen": "Une SCP n'accorde jamais de droits : sans policy IAM qui autorise l'action, le compte reste bloqué.",
+  "derja": "Organizations kima el wizara mta3 el dakhlia w el wilayet : dawla wa7da kbira, kol compte kima dar, w el SCP kima el 9anoun el 3am eli yetbaq 3al kol, 7atta 3al admin mta3 el dar.",
+  "use": [
+   {
+    "k": "orgs",
+    "t": "Organization (SCP)"
+   },
+   {
+    "k": "building",
+    "t": "OU Production"
+   },
+   {
+    "k": "user",
+    "t": "Compte membre"
+   },
+   {
+    "k": "iam",
+    "t": "Policies IAM dans le plafond"
+   }
+  ],
+  "exam": [
+   "Une SCP limite, elle n'accorde pas : permissions effectives = SCP ∩ policies IAM.",
+   "Les SCP ne s'appliquent pas au management account.",
+   "Les SCP n'affectent pas les service-linked roles.",
+   "Organizations sert de base à Identity Center, Security Hub, GuardDuty et Firewall Manager multi-comptes."
+  ],
+  "related": [
+   "iam",
+   "sso",
+   "firewallmgr",
+   "ram",
+   "securityhub"
+  ],
+  "match": [
+   "Organizations",
+   "SCP",
+   "OU"
+  ]
+ },
+ {
+  "k": "kms",
+  "name": "AWS KMS",
+  "full": "AWS Key Management Service",
+  "cat": "Protection des données",
+  "tagline": "Le coffre-fort des clés de chiffrement.",
+  "role": "Service managé qui crée, stocke et contrôle les clés de chiffrement (KMS keys) et exécute les opérations cryptographiques. La clé ne sort jamais de KMS en clair ; l'accès passe par key policy et IAM, et chaque usage est journalisé dans CloudTrail.",
+  "why": [
+   "Contrôle précis de qui peut chiffrer ou déchiffrer, via key policy et grants.",
+   "Intégré à S3, EBS, RDS, Lambda, Secrets Manager : chiffrement en quelques clics.",
+   "Chaque utilisation de clé est tracée dans CloudTrail.",
+   "Rotation automatique possible des clés."
+  ],
+  "how": "Une KMS key chiffre directement de petites données (jusqu'à 4 Ko). Pour de gros volumes, KMS génère une data key (envelope encryption) : la data key chiffre les données, la KMS key chiffre la data key.",
+  "when": [
+   "Chiffrer des objets S3 ou des volumes EBS avec une clé que tu contrôles",
+   "Chiffrer une base RDS",
+   "Séparer les rôles : l'administrateur de la clé n'est pas son utilisateur"
+  ],
+  "notwhen": "Si une exigence impose un HSM dédié dont toi seul contrôles les clés, regarde CloudHSM.",
+  "derja": "KMS kima el coffre fort mta3 el banque : el mfatah ma yokhroj mel coffre. Enti ta3mel talab lil banque 'chaffer' walla 'fak', w el banque tseggel kol 7araka.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Objet à chiffrer"
+   },
+   {
+    "k": "kms",
+    "t": "GenerateDataKey"
+   },
+   {
+    "k": "datakey",
+    "t": "Data key"
+   },
+   {
+    "k": "encdata",
+    "t": "Objet chiffré"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudhsm",
+    "d": "CloudHSM : HSM dédié dont tu gères seul les clés ; KMS : service managé par AWS."
+   }
+  ],
+  "exam": [
+   "Types de clés : AWS managed, customer managed, AWS owned.",
+   "La key policy est le point de contrôle principal : IAM seul ne suffit pas si elle ne l'autorise pas.",
+   "KMS est régional : une clé est liée à une Region.",
+   "Chiffrement direct limité à 4 Ko : au-delà, envelope encryption avec une data key."
+  ],
+  "related": [
+   "datakey",
+   "cloudhsm",
+   "secrets",
+   "s3",
+   "cloudtrail"
+  ],
+  "match": [
+   "KMS",
+   "Key Management"
+  ]
+ },
+ {
+  "k": "datakey",
+  "name": "Data key",
+  "full": "Clé de données (envelope encryption)",
+  "cat": "Concept",
+  "tagline": "La clé jetable qui chiffre vraiment tes données.",
+  "role": "Clé symétrique générée par KMS pour chiffrer localement les données. KMS en renvoie deux copies : une en clair (à utiliser puis effacer de la mémoire) et une chiffrée par la KMS key (à stocker avec les données).",
+  "why": [
+   "KMS ne chiffre directement que de petites données ; la data key traite de gros volumes.",
+   "Seule la copie chiffrée est conservée : sans accès à KMS, les données restent illisibles.",
+   "Une clé distincte par objet limite l'impact d'une compromission."
+  ],
+  "how": "GenerateDataKey renvoie la clé en clair et chiffrée. On chiffre les données avec la clé en clair puis on l'efface, et on stocke données chiffrées plus data key chiffrée. Pour déchiffrer : Decrypt sur la data key chiffrée, puis déchiffrement local.",
+  "when": [
+   "S3 SSE-KMS : une data key par objet",
+   "Secrets Manager : une data key unique par valeur de secret",
+   "Chiffrement côté client de gros fichiers"
+  ],
+  "notwhen": "Pour une petite donnée (jusqu'à 4 Ko), l'API Encrypt de KMS suffit, sans data key.",
+  "derja": "Data key kima mfatah mta3 el valise : tsakker bih el valise (el données), w el mfatah nafsou t7ottou fi sandou9 sghir yetsakker bil mfatah el kbir mta3 el banque (KMS).",
+  "use": [
+   {
+    "k": "kms",
+    "t": "GenerateDataKey"
+   },
+   {
+    "k": "datakey",
+    "t": "Clé en clair + clé chiffrée"
+   },
+   {
+    "k": "encdata",
+    "t": "Données chiffrées localement"
+   },
+   {
+    "k": "s3",
+    "t": "Stockage : données + clé chiffrée"
+   }
+  ],
+  "exam": [
+   "Envelope encryption : la data key chiffre les données, la KMS key chiffre la data key.",
+   "GenerateDataKey renvoie plaintext et ciphertext ; GenerateDataKeyWithoutPlaintext renvoie seulement la version chiffrée.",
+   "Le chiffrement côté client peut aussi utiliser des data keys.",
+   "Secrets Manager chiffre chaque version de secret avec une data key unique."
+  ],
+  "related": [
+   "kms",
+   "secrets",
+   "s3",
+   "ebs",
+   "cloudhsm"
+  ],
+  "match": [
+   "Data key",
+   "Envelope Encryption"
+  ]
+ },
+ {
+  "k": "cloudhsm",
+  "name": "AWS CloudHSM",
+  "full": "AWS CloudHSM",
+  "cat": "Protection des données",
+  "tagline": "Ton propre boîtier de chiffrement dédié dans AWS.",
+  "role": "Service qui fournit des HSM (Hardware Security Modules) dédiés à locataire unique dans ton VPC. Tu gères entièrement les clés et les utilisateurs du HSM ; AWS n'a pas accès à tes clés. Matériel résistant à l'effraction, FIPS 140 niveau 3.",
+  "why": [
+   "Contrôle exclusif des clés : AWS ne peut pas les utiliser.",
+   "Répond aux exigences réglementaires ou contractuelles de HSM dédié.",
+   "Prend en charge chiffrement symétrique et asymétrique (clés SSL/TLS)."
+  ],
+  "how": "Tu crées un cluster de HSM (idéalement sur plusieurs AZ) dans ton VPC. L'application parle au HSM via le logiciel client CloudHSM (PKCS#11, JCE, CNG/KSP). AWS gère le matériel, pas les clés.",
+  "when": [
+   "Décharger les clés privées SSL/TLS d'un serveur web",
+   "Protéger la clé privée d'une autorité de certification",
+   "Respecter une exigence de contrôle exclusif des clés"
+  ],
+  "notwhen": "Plus de gestion que KMS et pas de free tier : si KMS suffit, KMS est plus simple.",
+  "derja": "CloudHSM kima ken tekri coffre fort khass bik : barra mel banque, el mfatah ma3ak enti bark, w 7atta AWS ma ya3mel fih chay.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Application + client HSM"
+   },
+   {
+    "k": "cloudhsm",
+    "t": "HSM dédié (ton VPC)"
+   },
+   {
+    "k": "padlock",
+    "t": "Clés que toi seul contrôles"
+   }
+  ],
+  "vs": [
+   {
+    "k": "kms",
+    "d": "KMS : logiciel managé, intégration native aux services AWS ; CloudHSM : matériel dédié, clés gérées par toi."
+   }
+  ],
+  "exam": [
+   "KMS = logiciel géré par AWS ; CloudHSM = matériel dédié, tu gères tes clés.",
+   "CloudHSM : FIPS 140-2 Level 3 selon le cours, matériel tamper resistant.",
+   "Le client CloudHSM est obligatoire pour y accéder.",
+   "AWS ne peut pas récupérer tes clés : sauvegardes et identifiants sont ta responsabilité."
+  ],
+  "related": [
+   "kms",
+   "ec2",
+   "vpc",
+   "secrets",
+   "ca"
+  ],
+  "match": [
+   "CloudHSM",
+   "HSM"
+  ]
+ },
+ {
+  "k": "secrets",
+  "name": "AWS Secrets Manager",
+  "full": "AWS Secrets Manager",
+  "cat": "Protection des données",
+  "tagline": "Un coffre pour mots de passe et jetons, avec rotation automatique.",
+  "role": "Service qui stocke, chiffre (KMS) et fait tourner automatiquement des secrets : mots de passe de base de données, clés d'API, jetons. Les applications les récupèrent par appel d'API, contrôlé par IAM.",
+  "why": [
+   "Plus de mot de passe en clair dans le code ou les variables d'environnement.",
+   "Rotation automatique via Lambda, intégrée à RDS et Aurora.",
+   "Accès fin par IAM et resource policy, tracé dans CloudTrail.",
+   "Réplication multi-Region pour la reprise après sinistre."
+  ],
+  "how": "Le secret est chiffré avec une KMS key (data key unique par version). L'application, avec les droits IAM sur le secret et sur la clé KMS, appelle GetSecretValue.",
+  "when": [
+   "Mot de passe de base RDS avec rotation tous les X jours",
+   "Clé d'API tierce utilisée par une fonction Lambda",
+   "Secret répliqué dans une seconde Region"
+  ],
+  "notwhen": "Pour une configuration non secrète ou sans rotation, SSM Parameter Store peut suffire et coûte moins.",
+  "derja": "Secrets Manager kima el khazna mta3 el dar : el mot de passe ma ykounch ma7tout fi el code, w el khazna tbaddel el mot de passe wa7dha men wa9t lil wa9t.",
+  "use": [
+   {
+    "k": "lambda",
+    "t": "Application"
+   },
+   {
+    "k": "secrets",
+    "t": "GetSecretValue"
+   },
+   {
+    "k": "kms",
+    "t": "Déchiffrement (clé KMS)"
+   },
+   {
+    "k": "rds",
+    "t": "Connexion à la base"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ssm",
+    "d": "Parameter Store : paramètres simples, moins cher, rotation non intégrée ; Secrets Manager : rotation automatique."
+   }
+  ],
+  "exam": [
+   "Rotation forcée tous les X jours, mots de passe générés via Lambda.",
+   "Secrets chiffrés avec KMS (clés symétriques uniquement).",
+   "Il faut les droits sur le secret ET sur la clé KMS.",
+   "Les réplicas multi-Region peuvent être promus en secrets autonomes."
+  ],
+  "related": [
+   "kms",
+   "datakey",
+   "rds",
+   "lambda",
+   "ssm"
+  ],
+  "match": [
+   "Secrets Manager",
+   "Secret"
+  ]
+ },
+ {
+  "k": "acm",
+  "name": "AWS Certificate Manager",
+  "full": "AWS Certificate Manager (ACM)",
+  "cat": "Protection des données",
+  "tagline": "Des certificats TLS gérés et renouvelés automatiquement.",
+  "role": "Service qui demande, gère et renouvelle des certificats TLS/SSL pour chiffrer le trafic HTTPS. Les certificats publics ACM se déploient sur les services intégrés (ELB, CloudFront, API Gateway).",
+  "why": [
+   "Chiffrement en transit : HTTPS entre le client et le service.",
+   "Renouvellement automatique : plus d'expiration oubliée qui coupe le site.",
+   "La clé privée reste protégée par le service, jamais manipulée à la main.",
+   "Les certificats publics pour services intégrés n'ont pas de frais."
+  ],
+  "how": "Tu demandes un certificat pour un domaine, tu le valides (DNS ou e-mail), puis tu l'attaches à un load balancer, CloudFront ou API Gateway. ACM le renouvelle automatiquement.",
+  "when": [
+   "HTTPS sur un Application Load Balancer",
+   "Domaine personnalisé d'une API Gateway",
+   "Certificat serveur importé pour Client VPN"
+  ],
+  "notwhen": "Un certificat public ACM standard ne s'installe pas sur une instance EC2 : termine le TLS sur ELB ou CloudFront.",
+  "derja": "ACM kima el carte mta3 el 7anout eli tbayen lel client enti s7i7 : AWS tjaddedha wa7dha 9bal ma tfout, w el site ma yetsakker 7atta fi yom.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Navigateur"
+   },
+   {
+    "k": "acm",
+    "t": "Certificat TLS"
+   },
+   {
+    "k": "elb",
+    "t": "ALB / CloudFront"
+   },
+   {
+    "k": "ec2",
+    "t": "Application"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ca",
+    "d": "Private CA émet des certificats internes ; ACM public émet des certificats reconnus par les navigateurs."
+   }
+  ],
+  "exam": [
+   "Certificat pour CloudFront (et API edge-optimized) : région us-east-1.",
+   "Endpoint régional : certificat dans la même Region que le service.",
+   "Pour des certificats privés, utiliser AWS Private CA.",
+   "ACM sert au chiffrement en transit ; KMS au chiffrement au repos."
+  ],
+  "related": [
+   "ca",
+   "elb",
+   "cloudfront",
+   "apigw",
+   "route53"
+  ],
+  "match": [
+   "ACM",
+   "Certificate Manager",
+   "TLS"
+  ]
+ },
+ {
+  "k": "ca",
+  "name": "AWS Private CA",
+  "full": "AWS Private Certificate Authority",
+  "cat": "Protection des données",
+  "tagline": "Ta propre autorité de certification interne, managée.",
+  "role": "Service qui héberge une autorité de certification privée (racine et subordonnées) pour émettre des certificats internes : serveurs, appareils, utilisateurs, mTLS. Ces certificats ne sont reconnus que par tes propres systèmes.",
+  "why": [
+   "Certificats pour services internes sans exposer de DNS public.",
+   "Authentification mutuelle (mTLS) des clients et des services.",
+   "Plus besoin d'exploiter une CA maison : protection des clés et révocation gérées.",
+   "S'intègre à ACM pour l'émission et le renouvellement."
+  ],
+  "how": "Tu crées une CA (racine puis subordonnée), puis tu émets des certificats via ACM ou l'API. La clé privée de la CA est protégée par AWS et la révocation passe par CRL ou OCSP.",
+  "when": [
+   "Client VPN avec authentification mutuelle par certificats",
+   "mTLS entre microservices",
+   "Certificats d'appareils IoT"
+  ],
+  "notwhen": "Pour un site public, utilise un certificat public ACM : les navigateurs ne font pas confiance à une CA privée. Service payant.",
+  "derja": "Private CA kima ken ta3mel carte d'identité mta3 chirka mta3ek : mouch el dawla eli tsodorha, mais kol el moussta3melin el dekhlaniyin ye3rfou el tampon.",
+  "use": [
+   {
+    "k": "ca",
+    "t": "CA privée"
+   },
+   {
+    "k": "acm",
+    "t": "Émission et renouvellement"
+   },
+   {
+    "k": "server",
+    "t": "Service interne"
+   },
+   {
+    "k": "client",
+    "t": "Client (mTLS)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "acm",
+    "d": "ACM public : certificats pour tes domaines publics, reconnus par les navigateurs."
+   }
+  ],
+  "exam": [
+   "Private CA émet des certificats privés ; ACM public, des certificats publics.",
+   "Révocation par CRL ou OCSP.",
+   "Cas typique : authentification mutuelle (certificate-based) de Client VPN.",
+   "Hiérarchie : CA racine puis CA subordonnées."
+  ],
+  "related": [
+   "acm",
+   "clientvpn",
+   "kms",
+   "iotcore"
+  ],
+  "match": [
+   "Private CA",
+   "Certificate Authority"
+  ]
+ },
+ {
+  "k": "guardduty",
+  "name": "Amazon GuardDuty",
+  "full": "Amazon GuardDuty",
+  "cat": "Détection & monitoring",
+  "tagline": "Le détecteur de menaces qui surveille ton compte en continu.",
+  "role": "Service de détection de menaces managé : il analyse en continu CloudTrail, VPC Flow Logs et logs DNS (et d'autres sources optionnelles) avec renseignement sur les menaces, détection d'anomalies et ML, puis produit des findings.",
+  "why": [
+   "Sans agent ni changement d'architecture : activation en un clic.",
+   "Détecte clés volées, minage de crypto, scans, exfiltration et comportements anormaux.",
+   "Findings envoyés à Security Hub et EventBridge pour une réponse automatisée.",
+   "Multi-comptes via Organizations avec un compte administrateur délégué."
+  ],
+  "how": "GuardDuty lit lui-même des flux de logs indépendants (tu n'as pas à les activer), les compare à des listes de menaces et à des modèles de comportement, puis génère un finding classé par sévérité.",
+  "when": [
+   "Détecter un role utilisé depuis une IP inhabituelle",
+   "Repérer une instance EC2 qui contacte un domaine malveillant",
+   "Déclencher une Lambda de remédiation via EventBridge"
+  ],
+  "notwhen": "GuardDuty détecte, il ne bloque pas. Ce n'est pas un scanner de vulnérabilités (Inspector).",
+  "derja": "GuardDuty kima el camera w el gardien : yet2ammel kol el 7arakat, w ken chaf 7aja ghariba (wa7ed ya3mel tentative fil lil), ye3ayyet lik.",
+  "use": [
+   {
+    "k": "cloudtrail",
+    "t": "CloudTrail, Flow Logs, DNS"
+   },
+   {
+    "k": "guardduty",
+    "t": "Analyse + threat intel"
+   },
+   {
+    "k": "finding",
+    "t": "Finding (sévérité)"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Réponse automatisée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "inspector",
+    "d": "Inspector cherche des vulnérabilités ; GuardDuty cherche des comportements malveillants."
+   },
+   {
+    "k": "detective",
+    "d": "Detective sert à enquêter sur un finding ; GuardDuty le produit."
+   }
+  ],
+  "exam": [
+   "Sources de base : événements CloudTrail, VPC Flow Logs, DNS logs.",
+   "Exemple de finding : Stealth:IAMUser/CloudTrailLoggingDisabled.",
+   "Les findings supprimés (suppressed) ne sont pas envoyés à Security Hub, S3, Detective ni EventBridge.",
+   "GuardDuty envoie ses findings à Security Hub."
+  ],
+  "related": [
+   "securityhub",
+   "detective",
+   "eventbridge",
+   "cloudtrail",
+   "inspector"
+  ],
+  "match": [
+   "GuardDuty"
+  ]
+ },
+ {
+  "k": "inspector",
+  "name": "Amazon Inspector",
+  "full": "Amazon Inspector",
+  "cat": "Détection & monitoring",
+  "tagline": "Le scanner de vulnérabilités automatique.",
+  "role": "Service qui scanne en continu les instances EC2, les images de conteneurs dans ECR et les fonctions Lambda pour trouver des vulnérabilités logicielles (CVE) et des expositions réseau, avec un score de risque priorisé.",
+  "why": [
+   "Repère les paquets vulnérables avant qu'un attaquant ne les exploite.",
+   "Scan continu : relancé quand de nouveaux CVE ou de nouveaux logiciels apparaissent.",
+   "Évalue l'accessibilité réseau non voulue des instances EC2.",
+   "Findings envoyés à Security Hub et EventBridge."
+  ],
+  "how": "Inspector inventorie les logiciels (via l'agent SSM sur EC2, ou en analysant les images ECR et le code Lambda), les compare à une base de CVE et génère des findings.",
+  "when": [
+   "Scanner chaque image à son push dans ECR",
+   "Trouver les correctifs manquants sur un parc EC2",
+   "Analyser les dépendances d'une fonction Lambda"
+  ],
+  "notwhen": "Il cherche des faiblesses, pas des attaques en cours (GuardDuty) ni des données sensibles (Macie).",
+  "derja": "Inspector kima el mouhandis eli ycheck el dar : yfatech el fenetres el maksourin w el serrures el 9dom (CVE) 9bal ma ydkhol el sarraq.",
+  "use": [
+   {
+    "k": "ecr",
+    "t": "Image poussée"
+   },
+   {
+    "k": "inspector",
+    "t": "Scan CVE"
+   },
+   {
+    "k": "finding",
+    "t": "Finding priorisé"
+   },
+   {
+    "k": "securityhub",
+    "t": "Vue centralisée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "guardduty",
+    "d": "GuardDuty détecte une attaque ; Inspector repère la faiblesse qu'elle pourrait exploiter."
+   }
+  ],
+  "exam": [
+   "Cibles uniquement : EC2, images de conteneurs (ECR) et fonctions Lambda.",
+   "Évalue les vulnérabilités de paquets (base CVE) et l'accessibilité réseau (EC2).",
+   "Scan continu et déclenché par les changements.",
+   "Envoie ses findings à Security Hub et EventBridge."
+  ],
+  "related": [
+   "ecr",
+   "ec2",
+   "lambda",
+   "ssm",
+   "securityhub"
+  ],
+  "match": [
+   "Inspector",
+   "CVE"
+  ]
+ },
+ {
+  "k": "macie",
+  "name": "Amazon Macie",
+  "full": "Amazon Macie",
+  "cat": "Détection & monitoring",
+  "tagline": "Le détecteur de données sensibles dans S3.",
+  "role": "Service qui utilise du machine learning et du pattern matching pour découvrir et classer les données sensibles (PII, identifiants, données financières) dans S3, et qui évalue la sécurité des buckets (publics, non chiffrés, partagés).",
+  "why": [
+   "Révèle les données sensibles oubliées dans un bucket.",
+   "Alerte si un bucket devient public, partagé ou non chiffré.",
+   "Aide à la conformité sur les données personnelles.",
+   "Findings envoyés à Security Hub et EventBridge."
+  ],
+  "how": "Macie inventorie tes buckets, lance des jobs de découverte (ou une découverte automatisée) avec des data identifiers gérés ou personnalisés, puis génère des findings sur les données sensibles et la configuration des buckets.",
+  "when": [
+   "Vérifier qu'un bucket de logs ne contient pas de numéros de carte",
+   "Localiser les données personnelles avant un audit",
+   "Alerter quand un bucket contenant des PII devient public"
+  ],
+  "notwhen": "Macie ne couvre que S3. Il détecte les données sensibles, il ne les chiffre ni ne les masque.",
+  "derja": "Macie kima ken tfatech el bou2ra w t9olek : 'hedhi fiha cartes bancaires w CIN'. Ya3ni yo9olek win ma7touta el data sensible.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Buckets S3"
+   },
+   {
+    "k": "macie",
+    "t": "Découverte ML"
+   },
+   {
+    "k": "finding",
+    "t": "Finding"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Alerte / remédiation"
+   }
+  ],
+  "vs": [
+   {
+    "k": "guardduty",
+    "d": "GuardDuty surveille les menaces ; Macie surveille le contenu des données S3."
+   }
+  ],
+  "exam": [
+   "Macie = données sensibles dans S3 (pas les vulnérabilités ni le réseau).",
+   "Deux familles de findings : policy findings (configuration du bucket) et sensitive data findings.",
+   "Data identifiers : gérés par AWS ou personnalisés (regex).",
+   "Intégration avec Security Hub."
+  ],
+  "related": [
+   "s3",
+   "securityhub",
+   "guardduty",
+   "kms",
+   "eventbridge"
+  ],
+  "match": [
+   "Macie",
+   "PII"
+  ]
+ },
+ {
+  "k": "detective",
+  "name": "Amazon Detective",
+  "full": "Amazon Detective",
+  "cat": "Détection & monitoring",
+  "tagline": "L'enquêteur qui trouve la cause racine d'un incident.",
+  "role": "Service d'investigation qui collecte et relie automatiquement des données (CloudTrail, VPC Flow Logs, findings GuardDuty, logs EKS) dans un graphe de comportement pour comprendre qui a fait quoi, quand et depuis où.",
+  "why": [
+   "Passe d'un finding à la cause racine sans fouiller des millions de logs.",
+   "Visualise l'activité d'un role, d'une IP ou d'une instance dans le temps.",
+   "Compare avec le comportement habituel pour repérer l'anormal.",
+   "Conserve un historique exploitable pendant l'enquête."
+  ],
+  "how": "Detective ingère les sources de logs, construit un graphe entre entités (users, roles, IP, instances) et affiche des visualisations. L'analyste pivote depuis un finding vers l'activité associée.",
+  "when": [
+   "Comprendre ce qu'un role compromis a fait après un finding GuardDuty",
+   "Remonter à l'IP d'origine d'une activité suspecte",
+   "Évaluer l'étendue d'un incident"
+  ],
+  "notwhen": "Il ne détecte pas : l'alerte vient de GuardDuty, Security Hub ou Macie, et Detective sert à enquêter.",
+  "derja": "Detective kima el police scientifique : ba3d el alarme, yersem 'chkoun jé men win, w chnowa 3mal ba3d' bech tfhem el 9issa kemla.",
+  "use": [
+   {
+    "k": "guardduty",
+    "t": "Finding suspect"
+   },
+   {
+    "k": "detective",
+    "t": "Graphe de comportement"
+   },
+   {
+    "k": "user",
+    "t": "Analyste : cause racine"
+   }
+  ],
+  "vs": [
+   {
+    "k": "guardduty",
+    "d": "GuardDuty détecte et alerte ; Detective investigue et explique."
+   }
+  ],
+  "exam": [
+   "Detective = investigation ; GuardDuty = détection.",
+   "Graphe construit à partir de CloudTrail, VPC Flow Logs et des findings GuardDuty.",
+   "Utilisé après une alerte, dans la phase d'analyse de la réponse à incident.",
+   "Les findings GuardDuty supprimés ne lui sont pas envoyés."
+  ],
+  "related": [
+   "guardduty",
+   "securityhub",
+   "cloudtrail",
+   "macie"
+  ],
+  "match": [
+   "Detective"
+  ]
+ },
+ {
+  "k": "securityhub",
+  "name": "AWS Security Hub",
+  "full": "AWS Security Hub",
+  "cat": "Détection & monitoring",
+  "tagline": "Le tableau de bord central de ta posture de sécurité.",
+  "role": "Service qui agrège et priorise les findings de GuardDuty, Inspector, Macie, IAM Access Analyzer, Firewall Manager et de partenaires, et vérifie en continu la conformité à des standards (CIS AWS Foundations, PCI DSS, AWS Foundational Security Best Practices).",
+  "why": [
+   "Une seule vue multi-comptes et multi-Regions au lieu de plusieurs consoles.",
+   "Contrôles automatiques contre des standards reconnus.",
+   "Automatise la réponse : custom actions et EventBridge.",
+   "Nouveaux comptes d'une Organization détectés automatiquement."
+  ],
+  "how": "Il reçoit des findings au format standard (ASFF), exécute des contrôles de sécurité s'appuyant sur AWS Config, regroupe le tout en insights et peut déclencher des actions via EventBridge.",
+  "when": [
+   "Vue centrale des findings de tous les comptes",
+   "Mesurer la conformité à CIS ou PCI DSS",
+   "Custom action EventBridge qui lance une Lambda de remédiation"
+  ],
+  "notwhen": "Il agrège et priorise ; il ne détecte pas lui-même les menaces (GuardDuty) et ne gère pas AWS Config.",
+  "derja": "Security Hub kima tableau de bord mta3 el wali : yejma3 el rapports mta3 kol el services (GuardDuty, Inspector...) f écran wa7ed bech tchouf el 7ala el 3amma.",
+  "use": [
+   {
+    "k": "guardduty",
+    "t": "Sources de findings"
+   },
+   {
+    "k": "securityhub",
+    "t": "Agrégation + contrôles"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Custom action"
+   },
+   {
+    "k": "lambda",
+    "t": "Remédiation"
+   }
+  ],
+  "vs": [
+   {
+    "k": "guardduty",
+    "d": "GuardDuty produit des findings de menace ; Security Hub les centralise avec ceux des autres services."
+   }
+  ],
+  "exam": [
+   "AWS Config doit être activé sur tous les comptes : Security Hub ne le gère pas.",
+   "Administrateur délégué dans une Organization ; les nouveaux comptes sont détectés.",
+   "Standards pris en charge : CIS AWS Foundations, PCI DSS, AWS Foundational Security Best Practices.",
+   "Agrégation inter-Regions vers une Region unique."
+  ],
+  "related": [
+   "guardduty",
+   "inspector",
+   "macie",
+   "config",
+   "eventbridge"
+  ],
+  "match": [
+   "Security Hub",
+   "ASFF"
+  ]
+ },
+ {
+  "k": "waf",
+  "name": "AWS WAF",
+  "full": "AWS WAF (Web Application Firewall)",
+  "cat": "Réseau & edge",
+  "tagline": "Le videur HTTP qui filtre les requêtes web malveillantes.",
+  "role": "Pare-feu applicatif (couche 7) qui inspecte les requêtes HTTP(S) vers CloudFront, ALB, API Gateway, AppSync ou un Cognito User Pool, et les autorise, bloque, compte ou challenge selon des règles regroupées dans une Web ACL.",
+  "why": [
+   "Bloque injection SQL et XSS avant qu'elles atteignent l'application.",
+   "Les rate-based rules freinent le brute force et les abus par IP.",
+   "Règles managées par AWS et des partenaires : pas besoin de tout écrire.",
+   "Journalisation vers CloudWatch Logs, S3 ou Firehose pour l'analyse."
+  ],
+  "how": "Tu crées une Web ACL avec des règles (IP, en-têtes, URI, géolocalisation, regex, rate-based, règles managées), puis tu l'associes à une ressource. Chaque requête est évaluée selon l'ordre de priorité des règles.",
+  "when": [
+   "Bloquer plus de 100 requêtes en 5 minutes depuis la même IP",
+   "Autoriser l'accès à un User Pool Cognito seulement depuis certains pays",
+   "Appliquer des règles managées contre les attaques OWASP courantes"
+  ],
+  "notwhen": "WAF ne protège pas contre les DDoS de couche 3/4 (utilise Shield) ni les ressources non HTTP.",
+  "derja": "WAF kima el contrôleur 3al bab mta3 el club : yfatech el demande HTTP, ken fiha SQL injection walla bot, yerjja3ha. Mouch howa eli yo9of el hjoum el kbir mta3 DDoS réseau.",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Requête HTTP"
+   },
+   {
+    "k": "waf",
+    "t": "Web ACL : règles"
+   },
+   {
+    "k": "elb",
+    "t": "Application Load Balancer"
+   },
+   {
+    "k": "ec2",
+    "t": "Application"
+   }
+  ],
+  "vs": [
+   {
+    "k": "shield",
+    "d": "Shield protège contre les DDoS réseau/transport (L3/L4) ; WAF filtre le contenu HTTP (L7)."
+   },
+   {
+    "k": "firewallmgr",
+    "d": "Firewall Manager déploie les règles WAF sur tous les comptes."
+   }
+  ],
+  "exam": [
+   "Actions de règle : Allow, Block, Count, CAPTCHA, Challenge.",
+   "Portée : global (CloudFront) ou régionale (ALB, API Gateway, Cognito...).",
+   "Web ACL = Web Access Control List ; elle peut être réutilisée sur plusieurs ressources de même portée.",
+   "WAF = couche 7 ; Shield = couches 3/4."
+  ],
+  "related": [
+   "shield",
+   "shieldadv",
+   "firewallmgr",
+   "cloudfront",
+   "apigw"
+  ],
+  "match": [
+   "WAF",
+   "Web ACL"
+  ]
+ },
+ {
+  "k": "shield",
+  "name": "AWS Shield Standard",
+  "full": "AWS Shield Standard",
+  "cat": "Réseau & edge",
+  "tagline": "La protection DDoS de base, incluse pour tous.",
+  "role": "Protection automatique et sans frais contre les attaques DDoS courantes des couches 3 et 4 (SYN/UDP floods, attaques par réflexion). Elle est active pour tous les clients AWS, sans configuration.",
+  "why": [
+   "Aucune activation ni coût : protection par défaut de tous les clients.",
+   "Atténue en continu les attaques courantes de couches réseau et transport.",
+   "Se combine avec WAF pour couvrir aussi la couche applicative."
+  ],
+  "how": "Le trafic entrant est surveillé et nettoyé automatiquement dans l'infrastructure AWS ; il n'y a aucune règle à écrire.",
+  "when": [
+   "Protection de base d'un site derrière CloudFront ou Route 53",
+   "Socle DDoS pour toute charge de travail AWS"
+  ],
+  "notwhen": "Pour des attaques sophistiquées, applicatives ou répétées, ou pour un support dédié, passe à Shield Advanced.",
+  "derja": "Shield Standard kima el mur mta3 el dar : mawjoud mejjanan 3and kol 7ad, w yarfod el hjoum el 3adi 3al réseau (SYN flood, UDP flood).",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Trafic DDoS"
+   },
+   {
+    "k": "shield",
+    "t": "Absorbe L3/L4"
+   },
+   {
+    "k": "elb",
+    "t": "Load balancer"
+   },
+   {
+    "k": "ec2",
+    "t": "Application"
+   }
+  ],
+  "vs": [
+   {
+    "k": "shieldadv",
+    "d": "Advanced ajoute détection avancée, équipe SRT 24/7 et protection des coûts ; Standard est gratuit et automatique."
+   }
+  ],
+  "exam": [
+   "Shield Standard : gratuit, tous les clients, couches 3 et 4.",
+   "DDoS = Distributed Denial of Service : beaucoup de requêtes simultanées.",
+   "WAF n'est pas fait pour les DDoS L3/L4 : c'est le rôle de Shield.",
+   "Pour plus de protection : Shield Advanced."
+  ],
+  "related": [
+   "shieldadv",
+   "waf",
+   "cloudfront",
+   "route53",
+   "elb"
+  ],
+  "match": [
+   "Shield",
+   "DDoS"
+  ]
+ },
+ {
+  "k": "shieldadv",
+  "name": "AWS Shield Advanced",
+  "full": "AWS Shield Advanced",
+  "cat": "Réseau & edge",
+  "tagline": "La protection DDoS renforcée avec une équipe d'experts 24/7.",
+  "role": "Option payante qui ajoute à Shield Standard une atténuation avancée pour EC2/Elastic IP, ELB, CloudFront, Global Accelerator et Route 53, l'accès 24/7 à la Shield Response Team (SRT) et une protection contre les surcoûts dus aux attaques.",
+  "why": [
+   "Support d'experts pendant une attaque (SRT, 24/7).",
+   "Protège contre l'explosion des coûts liée au trafic d'attaque.",
+   "Atténuation automatique de couche 7 : crée et déploie des règles WAF.",
+   "Rapports et visibilité détaillés sur les attaques."
+  ],
+  "how": "Tu souscris et tu associes les ressources à protéger. Shield Advanced détecte les attaques, les atténue et, pour la couche applicative, crée et déploie des règles AWS WAF automatiquement.",
+  "when": [
+   "Site e-commerce régulièrement visé par des DDoS",
+   "Application critique exposée via CloudFront et ALB",
+   "Protéger plusieurs comptes avec Firewall Manager"
+  ],
+  "notwhen": "Coûteux : à réserver aux organisations fréquemment ciblées. Shield Standard suffit pour une protection de base.",
+  "derja": "Shield Advanced kima contrat securité privée 24/7 : tkhallas, w ken jat 3ajaj kbira (DDoS), famma équipe tetdakhal m3ak w AWS ma tkhalleskch el factures el zeyda.",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Attaque DDoS"
+   },
+   {
+    "k": "shieldadv",
+    "t": "Détecte + atténue"
+   },
+   {
+    "k": "waf",
+    "t": "Règles WAF créées auto"
+   },
+   {
+    "k": "elb",
+    "t": "Application protégée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "shield",
+    "d": "Shield Standard : gratuit, L3/L4 uniquement, sans équipe SRT."
+   }
+  ],
+  "exam": [
+   "Abonnement payant, bien plus cher que WAF ou Shield Standard.",
+   "Ressources protégées : EC2 (Elastic IP), ELB, CloudFront, Global Accelerator, Route 53.",
+   "Atténuation de couche 7 automatique par création de règles WAF.",
+   "Shield Advanced s'ajoute à WAF : SRT 24/7 et reporting avancé."
+  ],
+  "related": [
+   "shield",
+   "waf",
+   "firewallmgr",
+   "cloudfront",
+   "route53"
+  ],
+  "match": [
+   "Shield Advanced"
+  ]
+ },
+ {
+  "k": "firewallmgr",
+  "name": "AWS Firewall Manager",
+  "full": "AWS Firewall Manager",
+  "cat": "Réseau & edge",
+  "tagline": "Appliquer les mêmes règles de pare-feu à tous les comptes.",
+  "role": "Service de gestion centralisée qui déploie des policies de sécurité (WAF, Shield Advanced, security groups, Network Firewall, Route 53 Resolver DNS Firewall) sur les comptes et ressources d'une AWS Organization, y compris les futurs.",
+  "why": [
+   "Une policy, appliquée partout : fini la configuration compte par compte.",
+   "Nouvelles ressources et nouveaux comptes couverts automatiquement.",
+   "Détecte les ressources non conformes à la policy.",
+   "Cohérence et conformité à l'échelle de l'organisation."
+  ],
+  "how": "Un compte administrateur Firewall Manager, dans une Organization avec AWS Config activé, crée une policy ciblant des comptes, OUs ou tags. Les règles sont déployées dans chaque compte et réappliquées aux nouvelles ressources.",
+  "when": [
+   "Imposer une Web ACL WAF sur tous les ALB de l'organisation",
+   "Appliquer des security groups standard dans tous les comptes",
+   "Déployer Network Firewall sur tous les VPC"
+  ],
+  "notwhen": "Pour une seule application dans un seul compte, WAF seul est suffisant.",
+  "derja": "Firewall Manager kima el mouderr el 3am : ya3mel reglement wa7ed w yetbe9 3al kol el succursales (comptes), 7atta el jdod.",
+  "use": [
+   {
+    "k": "orgs",
+    "t": "Organization"
+   },
+   {
+    "k": "firewallmgr",
+    "t": "Policy centrale"
+   },
+   {
+    "k": "waf",
+    "t": "Web ACL dans chaque compte"
+   },
+   {
+    "k": "networkfw",
+    "t": "Pare-feu VPC"
+   }
+  ],
+  "vs": [
+   {
+    "k": "waf",
+    "d": "WAF définit les règles ; Firewall Manager les déploie en masse sur plusieurs comptes."
+   }
+  ],
+  "exam": [
+   "Nécessite AWS Organizations (et AWS Config).",
+   "Les policies sont créées au niveau Region.",
+   "Il ne remplace pas WAF : les règles se définissent dans WAF.",
+   "Types de policies : WAF, Shield Advanced, security groups, Network Firewall, DNS Firewall."
+  ],
+  "related": [
+   "orgs",
+   "waf",
+   "shieldadv",
+   "networkfw",
+   "securityhub"
+  ],
+  "match": [
+   "Firewall Manager"
+  ]
+ },
+ {
+  "k": "networkfw",
+  "name": "AWS Network Firewall",
+  "full": "AWS Network Firewall",
+  "cat": "Réseau & edge",
+  "tagline": "Le pare-feu managé qui protège tout le VPC.",
+  "role": "Pare-feu réseau managé avec inspection stateful et stateless des couches 3 à 7, filtrage par domaine et règles IPS compatibles Suricata, pour le trafic entrant, sortant et entre VPC.",
+  "why": [
+   "Inspecte le trafic Internet, VPC à VPC, Direct Connect et VPN.",
+   "Filtre les domaines sortants : limite l'exfiltration vers des sites inconnus.",
+   "Règles IPS pour détecter et bloquer des motifs d'attaque.",
+   "Gestion centralisée multi-comptes avec Firewall Manager."
+  ],
+  "how": "Tu déploies des endpoints de pare-feu dans des subnets dédiés. Les tables de routage dirigent le trafic vers l'endpoint, qui applique la firewall policy avant de le laisser passer. En interne il s'appuie sur Gateway Load Balancer.",
+  "when": [
+   "Bloquer le trafic sortant vers des domaines non autorisés",
+   "Inspecter le trafic entre deux VPC",
+   "Filtrer le trafic provenant de Direct Connect ou d'un VPN"
+  ],
+  "notwhen": "Pour un simple filtrage L3/L4 par instance, les security groups suffisent ; pour protéger une application HTTP, WAF.",
+  "derja": "Network Firewall kima el douane 3and el 7oudoud mta3 VPC : yfatech el trafic dakhel w kharej, 7atta bin VPC w VPC, w yerfod el mamnou3.",
+  "use": [
+   {
+    "k": "internet",
+    "t": "Trafic entrant"
+   },
+   {
+    "k": "networkfw",
+    "t": "Inspection L3-L7"
+   },
+   {
+    "k": "ec2",
+    "t": "Workloads du VPC"
+   }
+  ],
+  "vs": [
+   {
+    "k": "waf",
+    "d": "WAF filtre le HTTP(S) applicatif ; Network Firewall filtre le trafic réseau du VPC."
+   }
+  ],
+  "exam": [
+   "Protège le VPC entier, de la couche 3 à la couche 7.",
+   "Logs vers CloudWatch Logs, S3 ou Firehose.",
+   "Règles gérables centralement par Firewall Manager ; configuration partageable via RAM.",
+   "Utilise Gateway Load Balancer en interne."
+  ],
+  "related": [
+   "firewallmgr",
+   "waf",
+   "vpc",
+   "ram",
+   "cloudwatch"
+  ],
+  "match": [
+   "Network Firewall"
+  ]
+ },
+ {
+  "k": "artifact",
+  "name": "AWS Artifact",
+  "full": "AWS Artifact",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Le portail de documents de conformité d'AWS.",
+  "role": "Portail en libre-service qui donne accès à la demande aux rapports de conformité d'AWS établis par des auditeurs tiers (ISO, PCI, SOC) et permet d'accepter et suivre des accords comme le BAA HIPAA.",
+  "why": [
+   "Prouve aux auditeurs ce qu'AWS respecte de son côté.",
+   "Gratuit et immédiat : téléchargement direct des rapports.",
+   "Gère les accords contractuels pour un compte ou toute l'organisation."
+  ],
+  "how": "Dans la console, Artifact Reports permet de télécharger les rapports d'audit ; Artifact Agreements permet de revoir, accepter et suivre les accords.",
+  "when": [
+   "Fournir un rapport SOC ou ISO à un auditeur",
+   "Accepter le BAA HIPAA pour un compte",
+   "Appuyer un audit interne avec des preuves AWS"
+  ],
+  "notwhen": "Artifact documente la conformité d'AWS, pas la tienne : pour prouver tes propres contrôles, utilise Audit Manager.",
+  "derja": "Artifact kima el arshif mta3 el baladiya : tjib menou el chhadet w el rapports mta3 AWS (ISO, SOC, PCI) bech tori lel auditeur.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Auditeur / admin"
+   },
+   {
+    "k": "artifact",
+    "t": "Portail Artifact"
+   },
+   {
+    "k": "document",
+    "t": "Rapports ISO, SOC, PCI"
+   }
+  ],
+  "vs": [
+   {
+    "k": "auditmgr",
+    "d": "Audit Manager collecte les preuves de TON usage d'AWS ; Artifact fournit celles d'AWS."
+   }
+  ],
+  "exam": [
+   "Artifact Reports : rapports d'auditeurs tiers (ISO, PCI, SOC).",
+   "Artifact Agreements : accords comme le BAA HIPAA.",
+   "Modèle de responsabilité partagée : Artifact couvre la part d'AWS.",
+   "Le cours le qualifie de « pas vraiment un service » : c'est un portail."
+  ],
+  "related": [
+   "auditmgr",
+   "iam",
+   "orgs",
+   "securityhub"
+  ],
+  "match": [
+   "Artifact",
+   "SOC",
+   "ISO",
+   "PCI"
+  ]
+ },
+ {
+  "k": "auditmgr",
+  "name": "AWS Audit Manager",
+  "full": "AWS Audit Manager",
+  "cat": "Gouvernance & gestion",
+  "tagline": "La collecte automatique des preuves pour tes audits.",
+  "role": "Service qui automatise la collecte continue de preuves (configurations, journaux, résultats de contrôles) sur ton usage d'AWS, les relie à des frameworks de conformité (ex. PCI DSS, HIPAA, SOC 2) et génère des rapports d'évaluation pour l'auditeur.",
+  "why": [
+   "Remplace captures d'écran et tableurs par des preuves collectées automatiquement.",
+   "Contrôles préconstruits alignés sur des frameworks courants.",
+   "Preuves en continu : l'audit est prêt à tout moment.",
+   "Rapports d'évaluation partageables avec l'auditeur."
+  ],
+  "how": "Tu crées une assessment à partir d'un framework. Audit Manager collecte automatiquement les preuves (CloudTrail, AWS Config, Security Hub, appels d'API), tu peux ajouter des preuves manuelles, puis tu génères le rapport.",
+  "when": [
+   "Préparer un audit PCI DSS ou SOC 2",
+   "Suivre en continu la conformité d'un compte",
+   "Fournir à l'auditeur un dossier de preuves"
+  ],
+  "notwhen": "Il aide à préparer l'audit : il ne certifie pas ta conformité et ne corrige aucune non-conformité.",
+  "derja": "Audit Manager kima secrétaire mta3 el audit : tjam3a el preuves w tkhadhirlek el dossier, ma 3andekch bech tlawej 3al warak.",
+  "use": [
+   {
+    "k": "config",
+    "t": "Config, CloudTrail, Security Hub"
+   },
+   {
+    "k": "auditmgr",
+    "t": "Collecte des preuves"
+   },
+   {
+    "k": "document",
+    "t": "Rapport pour l'auditeur"
+   }
+  ],
+  "vs": [
+   {
+    "k": "artifact",
+    "d": "Artifact fournit les rapports de conformité d'AWS ; Audit Manager collecte les preuves de ton propre environnement."
+   }
+  ],
+  "exam": [
+   "Audit Manager = preuves de TON usage d'AWS ; Artifact = documents d'AWS.",
+   "Se base sur des frameworks préconstruits et des contrôles.",
+   "S'intègre à Security Hub et AWS Config comme sources de preuves.",
+   "Évaluations au niveau d'une Organization possibles."
+  ],
+  "related": [
+   "artifact",
+   "config",
+   "cloudtrail",
+   "securityhub",
+   "orgs"
+  ],
+  "match": [
+   "Audit Manager"
+  ]
+ },
+ {
+  "k": "ram",
+  "name": "AWS RAM",
+  "full": "AWS Resource Access Manager",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Partager des ressources entre comptes sans les copier.",
+  "role": "Service gratuit qui permet de partager des ressources AWS (sous-réseaux de VPC, Transit Gateway, règles Route 53 Resolver, configurations Network Firewall...) avec d'autres comptes ou toute une Organization, sans les dupliquer.",
+  "why": [
+   "Une seule ressource partagée au lieu de copies à maintenir.",
+   "Partage limité à l'Organization ou à des comptes précis.",
+   "Le propriétaire garde la maîtrise et peut retirer le partage.",
+   "Moins de duplication, donc moins de coûts."
+  ],
+  "how": "Le propriétaire crée un resource share (ressources et bénéficiaires). Les bénéficiaires l'acceptent (automatiquement au sein d'une Organization avec le partage activé), puis utilisent la ressource avec leurs propres permissions IAM.",
+  "when": [
+   "Compte réseau central partageant des subnets avec les comptes applicatifs",
+   "Partager un Transit Gateway entre comptes",
+   "Partager des règles de Resolver ou une configuration Network Firewall"
+  ],
+  "notwhen": "Pour S3, KMS ou SQS, l'accès cross-account passe par des resource-based policies, pas par RAM.",
+  "derja": "RAM kima ken t3ayyer el voiture lel jar : ma tbi3hach, mazelet mteek, ama el jar yarkab biha.",
+  "use": [
+   {
+    "k": "building",
+    "t": "Compte propriétaire"
+   },
+   {
+    "k": "ram",
+    "t": "Resource share"
+   },
+   {
+    "k": "building",
+    "t": "Comptes bénéficiaires"
+   }
+  ],
+  "vs": [
+   {
+    "k": "role",
+    "d": "Un role cross-account donne accès à un compte via une identité ; RAM partage la ressource elle-même."
+   }
+  ],
+  "exam": [
+   "RAM partage des ressources (Transit Gateway, config Resolver, Network Firewall) entre comptes.",
+   "Le partage avec toute l'Organization s'active depuis AWS Organizations.",
+   "Le propriétaire reste responsable de la ressource partagée.",
+   "Les bénéficiaires utilisent la ressource sans en devenir propriétaires."
+  ],
+  "related": [
+   "orgs",
+   "vpc",
+   "tgw",
+   "networkfw",
+   "iam"
+  ],
+  "match": [
+   "RAM",
+   "Resource Access Manager"
+  ]
+ },
+ {
+  "k": "signer",
+  "name": "AWS Signer",
+  "full": "AWS Signer",
+  "cat": "Outils développeur",
+  "tagline": "Le sceau numérique qui prouve qu'un code n'a pas été altéré.",
+  "role": "Service managé de signature de code : il signe numériquement des paquets de code avec des clés et certificats qu'il gère, pour garantir l'intégrité et l'origine du code avant son exécution (Lambda, IoT).",
+  "why": [
+   "Garantit que le code n'a pas été modifié depuis sa signature.",
+   "Prouve la provenance : seul un éditeur de confiance a signé.",
+   "Lambda peut refuser tout code non signé.",
+   "Une signature ou un signing profile compromis peut être révoqué."
+  ],
+  "how": "Un signing profile définit la signature. Le pipeline soumet le paquet à Signer, qui le signe avec des clés gérées. Lambda vérifie la signature au déploiement selon sa code signing configuration.",
+  "when": [
+   "Imposer que seul du code signé par ton pipeline soit déployé dans Lambda",
+   "Signer du code pour AWS IoT et Amazon FreeRTOS"
+  ],
+  "notwhen": "Pas supporté pour les fonctions Lambda en image conteneur. Signer ne recherche pas de vulnérabilités (Inspector).",
+  "derja": "Signer kima el khetm mta3 el notaire 3al code : ken el code ma3andouch el khetm walla tbaddel, Lambda yarfodhou.",
+  "use": [
+   {
+    "k": "codebuild",
+    "t": "Build du code"
+   },
+   {
+    "k": "signer",
+    "t": "Signing profile"
+   },
+   {
+    "k": "lambda",
+    "t": "Déploiement vérifié"
+   }
+  ],
+  "vs": [
+   {
+    "k": "inspector",
+    "d": "Inspector cherche des vulnérabilités dans le code ; Signer prouve son origine et son intégrité."
+   }
+  ],
+  "exam": [
+   "Signing profile ; la code signing config de Lambda peut avertir ou refuser (Warn ou Enforce).",
+   "RevokeSignature et RevokeSigningProfile : à réserver aux cas critiques, irréversible.",
+   "Intégré à ACM pour les certificats (cas IoT).",
+   "Fonctionne avec Lambda et IoT, pas avec Lambda conteneur."
+  ],
+  "related": [
+   "lambda",
+   "kms",
+   "acm",
+   "iotcore",
+   "codepipeline"
+  ],
+  "match": [
+   "Signer",
+   "Code Signing"
+  ]
+ }
+]

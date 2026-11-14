@@ -1,0 +1,1777 @@
+[
+ {
+  "id": "ch2b-01",
+  "services": [
+   "iam",
+   "sts",
+   "role",
+   "tempcred",
+   "ec2",
+   "s3"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   7,
+   12
+  ],
+  "shorten": {
+   "0": "Kif tod5ol l'immeuble, el bawab ysa2lek 4 as2ila: chkoun inti, chnoua t7eb ta3mel, fi anehi bureau, w b'anehi chrout. El jaweb dima Allow wala Deny. W bech ma n3attiw 7ata clé dayma, AWS ya3tik badge mo2a99at (STS) yetna7a wa7do."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "hub",
+     "title": "Les 4 questions posées à chaque requête AWS",
+     "center": {
+      "label": "Requête API",
+      "sub": "console, CLI, SDK : verdict Allow ou Deny",
+      "icon": "cli"
+     },
+     "spokes": [
+      {
+       "label": "QUI ?",
+       "sub": "Principal",
+       "icon": "user",
+       "tone": "info",
+       "note": "L'identité : IAM User, Role ou service AWS. Implicite dans une identity-based policy, élément Principal dans une resource-based. Ex : Role S3AccessRole."
+      },
+      {
+       "label": "QUOI ?",
+       "sub": "Action",
+       "icon": "permissions",
+       "tone": "info",
+       "note": "L'action demandée (lire, écrire, supprimer, créer). Ex : s3:GetObject."
+      },
+      {
+       "label": "QUELLE RESSOURCE ?",
+       "sub": "Resource",
+       "icon": "s3",
+       "tone": "info",
+       "note": "La ressource visée : bucket, instance EC2, table DynamoDB. Ex : arn:aws:s3:::my-bucket/*."
+      },
+      {
+       "label": "QUELLES CONDITIONS ?",
+       "sub": "Condition",
+       "icon": "mfa",
+       "tone": "warn",
+       "note": "Exigences en plus : MFA, adresse IP, Region, heure. Ex : aws:SourceIp, aws:MultiFactorAuthPresent."
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "cards",
+     "title": "5 types de policies : 2 accordent, 3 plafonnent",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "iam",
+       "t": "Identity-based",
+       "d": "Attachée à un User, Group ou Role : que peut faire cette identité ?",
+       "tone": "good"
+      },
+      {
+       "icon": "s3",
+       "t": "Resource-based",
+       "d": "Attachée à une ressource : qui peut y accéder ?",
+       "tone": "good"
+      },
+      {
+       "icon": "padlock",
+       "t": "Permissions boundary",
+       "d": "Plafond d'un User ou d'un Role. Ne donne aucun droit.",
+       "tone": "warn"
+      },
+      {
+       "icon": "orgs",
+       "t": "SCP (Organizations)",
+       "d": "Plafond d'un compte ou d'une OU. Ne donne aucun droit.",
+       "tone": "warn"
+      },
+      {
+       "icon": "tempcred",
+       "t": "Session policy",
+       "d": "Passée à l'AssumeRole : plafond de la session. Ne donne aucun droit.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "callout",
+     "tone": "exam",
+     "title": "Tombe à l'examen",
+     "text": "Seules identity-based et resource-based accordent des permissions ; boundary, SCP et session policy ne font que limiter."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "text",
+     "title": "STS en une phrase",
+     "md": "Une clé permanente qui fuit (code, log, Git) reste valable jusqu'à révocation. **AWS STS** émet des **credentials temporaires** ; **AssumeRole** est l'opération par laquelle une entité de confiance obtient ceux d'un IAM Role."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "facts",
+     "title": "Credentials temporaires : à retenir",
+     "items": [
+      {
+       "icon": "tempcred",
+       "big": "ASIA",
+       "label": "préfixe d'une clé temporaire",
+       "sub": "émise par STS"
+      },
+      {
+       "icon": "longcred",
+       "big": "AKIA",
+       "label": "préfixe d'une clé permanente",
+       "sub": "IAM User"
+      },
+      {
+       "icon": "sts",
+       "big": "4",
+       "label": "éléments renvoyés",
+       "sub": "KeyId, Secret, Token, Expiration"
+      },
+      {
+       "icon": "role",
+       "big": "1 h",
+       "label": "durée par défaut (cours)",
+       "sub": "puis expiration"
+      }
+     ]
+    }
+   },
+   {
+    "after": 6,
+    "block": {
+     "type": "compare",
+     "title": "Un Role = deux policies, deux questions",
+     "cols": [
+      {
+       "name": "Trust policy",
+       "tag": "QUI peut assumer ?",
+       "icon": "sts",
+       "points": [
+        "Resource-based policy attachée au Role",
+        "Contient un Principal",
+        "Action : sts:AssumeRole",
+        "Ne donne aucun droit sur S3, EC2..."
+       ],
+       "use": "Définit la confiance"
+      },
+      {
+       "name": "Permission policy",
+       "tag": "QUE peut faire le Role ?",
+       "icon": "permissions",
+       "points": [
+        "Identity-based policy du Role",
+        "Pas de Principal",
+        "Action et Resource : s3:GetObject, bucket",
+        "Active une fois le Role assumé"
+       ],
+       "use": "Définit les droits"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "decision",
+     "title": "Quelle identité pour quel appelant ?",
+     "root": {
+      "q": "L'appelant est une application ou un service AWS ?",
+      "yes": {
+       "a": "IAM Role",
+       "icon": "role",
+       "tone": "good",
+       "why": "Credentials temporaires STS, rien de permanent à stocker"
+      },
+      "no": {
+       "q": "C'est une personne qui a besoin d'un accès durable ?",
+       "yes": {
+        "a": "IAM User + MFA",
+        "icon": "user",
+        "tone": "neutral",
+        "why": "Identité humaine ; éviter les clés permanentes dans le code"
+       },
+       "no": {
+        "a": "IAM Role assumé",
+        "icon": "role",
+        "tone": "good",
+        "why": "Autre compte ou service : on endosse un Role"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Moteur de décision : évalue les policies et rend Allow ou Deny pour chaque requête."
+      },
+      {
+       "k": "sts",
+       "ctx": "Émet les credentials temporaires lors d'un AssumeRole, après contrôle de la trust policy."
+      },
+      {
+       "k": "role",
+       "ctx": "Identité sans propriétaire fixe : trust policy (qui) plus permission policy (quoi)."
+      },
+      {
+       "k": "tempcred",
+       "ctx": "Clé ASIA + token + expiration : remplace les clés permanentes AKIA."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Exemple d'appelant : l'instance assume un Role au lieu de stocker une clé."
+      },
+      {
+       "k": "s3",
+       "ctx": "Ressource visée par s3:GetObject dans l'exemple du bucket my-secure-bucket."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-02",
+  "services": [
+   "iam",
+   "user",
+   "users",
+   "role",
+   "s3",
+   "sqs"
+  ],
+  "drop": [
+   3,
+   6,
+   7,
+   9
+  ],
+  "shorten": {
+   "0": "Fi el club, kol 3adhou 3andou carte: carte mta3 John, carte mta3 groupe Developers, carte mta3 Role elli ay wa7ed yelbesha. El carte hedhi hiya el identity-based policy: tetsajjel 3al 7ad (identity), mouch 3al piscine.",
+   "1": "**Pourquoi ?** Il faut dire simplement « cette personne ou cette application peut faire ceci » : on attache les droits à l'**identité**.\n\n**Définition :** une **identity-based policy** s'attache à un **IAM User**, **Group** ou **Role** (seules cibles possibles) et dit **ce que cette identité peut faire**."
+  },
+  "insert": [
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Les éléments d'une policy en un coup d'oeil",
+     "rows": [
+      "Version",
+      "Id",
+      "Statement",
+      "Sid",
+      "Effect",
+      "Action",
+      "Resource",
+      "Condition",
+      "Principal"
+     ],
+     "cols": [
+      "Obligatoire ?",
+      "Rôle"
+     ],
+     "cells": [
+      [
+       "ok",
+       "2012-10-17"
+      ],
+      [
+       "no",
+       "ID de policy"
+      ],
+      [
+       "ok",
+       "les règles"
+      ],
+      [
+       "no",
+       "ID de règle"
+      ],
+      [
+       "ok",
+       "Allow / Deny"
+      ],
+      [
+       "ok",
+       "QUOI"
+      ],
+      [
+       "ok",
+       "RESSOURCE"
+      ],
+      [
+       "no",
+       "CONDITIONS"
+      ],
+      [
+       "no",
+       "QUI (resource)"
+      ]
+     ],
+     "legend": {
+      "ok": "Obligatoire (Resource : pour identity-based)",
+      "no": "Optionnel ; Principal absent en identity-based"
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "stack",
+     "title": "Priorité des décisions",
+     "side": "du plus fort au plus faible",
+     "layers": [
+      {
+       "label": "Explicit Deny",
+       "sub": "gagne toujours, même avec un Allow ailleurs",
+       "icon": "padlock",
+       "tone": "bad",
+       "tags": [
+        "Deny"
+       ]
+      },
+      {
+       "label": "Allow explicite",
+       "sub": "débloque si aucun Deny ne correspond",
+       "icon": "permissions",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      },
+      {
+       "label": "Implicit Deny",
+       "sub": "par défaut : tout ce qui n'est pas autorisé est refusé",
+       "icon": "iam",
+       "tone": "neutral",
+       "tags": [
+        "défaut"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "decision",
+     "title": "Verdict d'une requête (identity-based)",
+     "root": {
+      "q": "Un Deny explicite correspond à l'action et à la ressource ?",
+      "yes": {
+       "a": "REFUSÉ (Deny explicite)",
+       "icon": "padlock",
+       "tone": "bad",
+       "why": "Rien ne peut le contourner"
+      },
+      "no": {
+       "q": "Un Allow explicite correspond ?",
+       "yes": {
+        "a": "AUTORISÉ",
+        "icon": "permissions",
+        "tone": "good",
+        "why": "Allow explicite sans Deny"
+       },
+       "no": {
+        "a": "REFUSÉ (Implicit Deny)",
+        "icon": "padlock",
+        "tone": "neutral",
+        "why": "Aucun Allow : refus par défaut"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "matrix",
+     "title": "ACTIVITÉ slide 52 : les trois réponses sont NON",
+     "rows": [
+      "sqs:CreateQueue",
+      "sqs:DeleteQueue",
+      "ec2:DescribeInstances"
+     ],
+     "cols": [
+      "Autorisé ?",
+      "Pourquoi"
+     ],
+     "cells": [
+      [
+       "no",
+       "Deny explicite"
+      ],
+      [
+       "no",
+       "Deny > Allow"
+      ],
+      [
+       "no",
+       "Implicit Deny"
+      ]
+     ],
+     "legend": {
+      "no": "Refusé"
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Porte les identity-based policies et applique Deny explicite, Allow, puis refus implicite."
+      },
+      {
+       "k": "user",
+       "ctx": "John : identité à laquelle on peut attacher directement une policy."
+      },
+      {
+       "k": "users",
+       "ctx": "Groupe Developers : tous les membres héritent de la policy attachée au groupe."
+      },
+      {
+       "k": "role",
+       "ctx": "Identité assumée par une instance EC2 ; la policy du Role fixe ce que l'application peut faire."
+      },
+      {
+       "k": "s3",
+       "ctx": "Ressource de l'exemple : s3:GetObject sur my-bucket/*."
+      },
+      {
+       "k": "sqs",
+       "ctx": "Service de l'activité : le Deny sqs:* bloque même sqs:DeleteQueue autorisé."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-03",
+  "services": [
+   "s3",
+   "sqs",
+   "cloudfront",
+   "iam",
+   "kms",
+   "lambda"
+  ],
+  "drop": [
+   3,
+   12
+  ],
+  "shorten": {
+   "0": "Kima fi 3ors: el liste mta3 invités tkoun 3al bab. Ken esmek fel liste, tod5ol, mouch lazem carte men 3and el 9a3a. Hakka CloudFront w S3: kteb esm CloudFront fel 'liste' mta3 el bucket w khalas, bla Role.",
+   "1": "**Pourquoi ?** Un bucket **privé** doit être lu par **CloudFront** (ou par un autre compte) : plus simple de poser la règle **sur la ressource**.\n\n**Définition :** une **resource-based policy** s'attache à une **ressource AWS** et dit **qui peut y accéder**. Elle contient un **`Principal`**, absent des identity-based."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "decision",
+     "title": "Où poser la règle d'accès ?",
+     "root": {
+      "q": "L'appelant est un service AWS ou un autre compte ?",
+      "yes": {
+       "a": "Resource-based policy",
+       "icon": "s3",
+       "tone": "good",
+       "why": "Principal = service ou compte ; en cross-account, l'identité doit aussi autoriser"
+      },
+      "no": {
+       "a": "Identity-based policy",
+       "icon": "iam",
+       "tone": "info",
+       "why": "Droits d'un User, Group ou Role de ton compte"
+      }
+     }
+    }
+   },
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Les valeurs possibles de Principal",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "building",
+       "t": "Compte AWS",
+       "d": "arn:aws:iam::123456789012:root ou l'ID seul : le compte entier.",
+       "tone": "info"
+      },
+      {
+       "icon": "user",
+       "t": "User ou Role",
+       "d": "ARN précis, ex arn:aws:iam::123456789012:user/John : une identité.",
+       "tone": "info"
+      },
+      {
+       "icon": "cloudfront",
+       "t": "Service AWS",
+       "d": "\"Service\": \"cloudfront.amazonaws.com\" : un service appelant.",
+       "tone": "good"
+      },
+      {
+       "icon": "internet",
+       "t": "Tout le monde",
+       "d": "\"AWS\": \"*\" : seulement avec des Conditions strictes.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "cards",
+     "title": "Nom de la resource-based policy par service (EC2 n'en a pas)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "s3",
+       "t": "Amazon S3",
+       "d": "Bucket policy",
+       "tone": "info"
+      },
+      {
+       "icon": "sqs",
+       "t": "Amazon SQS",
+       "d": "Queue policy",
+       "tone": "info"
+      },
+      {
+       "icon": "sns",
+       "t": "Amazon SNS",
+       "d": "Topic policy",
+       "tone": "info"
+      },
+      {
+       "icon": "kms",
+       "t": "AWS KMS",
+       "d": "Key policy",
+       "tone": "info"
+      },
+      {
+       "icon": "lambda",
+       "t": "AWS Lambda",
+       "d": "Resource-based policy de la fonction",
+       "tone": "info"
+      },
+      {
+       "icon": "role",
+       "t": "IAM Role",
+       "d": "Trust policy : resource-based policy attachée au Role",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 14,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "s3",
+       "ctx": "Porte la bucket policy ; émet aussi les Event Notifications vers SQS."
+      },
+      {
+       "k": "sqs",
+       "ctx": "Porte la queue policy ; exemple de ressource lue depuis un autre compte."
+      },
+      {
+       "k": "cloudfront",
+       "ctx": "Service nommé comme Principal pour lire un bucket privé sans Role dédié."
+      },
+      {
+       "k": "iam",
+       "ctx": "Évalue identity-based et resource-based ; en cross-account les deux côtés doivent autoriser."
+      },
+      {
+       "k": "kms",
+       "ctx": "Autre service avec resource-based policy : la key policy."
+      },
+      {
+       "k": "lambda",
+       "ctx": "Fonction qui porte sa propre resource-based policy pour autoriser ses appelants."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-04",
+  "services": [
+   "iam",
+   "role",
+   "user",
+   "orgs",
+   "building",
+   "s3",
+   "ec2",
+   "dynamodb"
+  ],
+  "drop": [
+   2,
+   5,
+   6,
+   8,
+   11
+  ],
+  "shorten": {
+   "0": "Imagine 3andek 5000 DT fel compte (identity-based policy). El carte bancaire 3andha plafond 500 DT fel semaine (permissions boundary), w el entreprise 7atet plafond 3al kol el employés (SCP). T7eb tkhallas 800 DT? Tkhallas 500 bark. Plafond ≠ flous: ken el compte fargha, el plafond ma yfidch.",
+   "1": "Tu veux laisser une équipe créer ses Users et Roles **sans qu'elle s'attribue trop de droits**. Une identity-based policy ne suffit pas : son auteur y met ce qu'il veut. Il faut des **plafonds posés par quelqu'un d'autre**, et qui **n'accordent rien** : la **permissions boundary** (une identité) et la **SCP** (un compte ou une OU)."
+  },
+  "insert": [
+   {
+    "after": -1,
+    "block": {
+     "type": "stack",
+     "title": "Les plafonds s'empilent : permissions effectives = intersection",
+     "side": "du plus externe au plus interne",
+     "layers": [
+      {
+       "label": "SCP (Organizations)",
+       "sub": "plafond du compte ou de l'OU",
+       "icon": "orgs",
+       "tone": "warn",
+       "tags": [
+        "n'accorde rien"
+       ]
+      },
+      {
+       "label": "Permissions boundary",
+       "sub": "plafond d'un IAM User ou Role",
+       "icon": "padlock",
+       "tone": "warn",
+       "tags": [
+        "n'accorde rien"
+       ]
+      },
+      {
+       "label": "Identity-based policy",
+       "sub": "accorde les droits",
+       "icon": "iam",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      },
+      {
+       "label": "Permissions effectives",
+       "sub": "seulement ce que TOUT le monde autorise",
+       "icon": "role",
+       "tone": "info",
+       "tags": [
+        "intersection"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "matrix",
+     "title": "Role AppRole : policy ∩ boundary",
+     "rows": [
+      "S3",
+      "EC2",
+      "DynamoDB"
+     ],
+     "cols": [
+      "Identity policy",
+      "Boundary",
+      "Effectif"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé",
+      "no": "Refusé / hors plafond"
+     }
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "tree",
+     "title": "Hiérarchie AWS Organizations",
+     "root": {
+      "label": "Root",
+      "icon": "orgs",
+      "children": [
+       {
+        "label": "Management account",
+        "icon": "building"
+       },
+       {
+        "label": "OU Dev",
+        "icon": "building",
+        "children": [
+         {
+          "label": "dev-app",
+          "icon": "user"
+         },
+         {
+          "label": "dev-test",
+          "icon": "user"
+         }
+        ]
+       },
+       {
+        "label": "OU Prod",
+        "icon": "building",
+        "children": [
+         {
+          "label": "prod-web",
+          "icon": "user"
+         },
+         {
+          "label": "prod-api",
+          "icon": "user"
+         },
+         {
+          "label": "OU HR",
+          "icon": "building",
+          "children": [
+           {
+            "label": "Compte RH",
+            "icon": "user"
+           }
+          ]
+         },
+         {
+          "label": "OU Finance",
+          "icon": "building",
+          "children": [
+           {
+            "label": "Compte compta",
+            "icon": "user"
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     }
+    }
+   },
+   {
+    "after": 7,
+    "block": {
+     "type": "cards",
+     "title": "SCP : 4 points à connaître",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "orgs",
+       "t": "Attachée à un compte ou une OU",
+       "d": "Limite ce que les identités du compte peuvent recevoir.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "N'accorde aucune permission",
+       "d": "Elle plafonne ; il faut encore un Allow par ailleurs.",
+       "tone": "warn"
+      },
+      {
+       "icon": "building",
+       "t": "Héritée vers le bas",
+       "d": "Permissions effectives = ce que toutes les SCP du chemin autorisent.",
+       "tone": "info"
+      },
+      {
+       "icon": "user",
+       "t": "Exceptions",
+       "d": "Ne s'applique pas au management account ; limite le root des comptes membres.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "matrix",
+     "title": "User John : policy ∩ SCP du compte",
+     "rows": [
+      "S3",
+      "EC2"
+     ],
+     "cols": [
+      "Policy de John",
+      "SCP AllowOnlyS3",
+      "Effectif"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé",
+      "no": "Refusé / hors plafond"
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "decision",
+     "title": "Quel plafond poser ?",
+     "root": {
+      "q": "Plafonner tous les comptes d'une OU ou d'un compte ?",
+      "yes": {
+       "a": "SCP",
+       "icon": "orgs",
+       "tone": "warn",
+       "why": "Gouvernance globale via Organizations"
+      },
+      "no": {
+       "q": "Plafonner une identité IAM précise (délégation) ?",
+       "yes": {
+        "a": "Permissions boundary",
+        "icon": "padlock",
+        "tone": "warn",
+        "why": "Limite ce qu'un User ou Role peut recevoir"
+       },
+       "no": {
+        "a": "Identity-based policy seule",
+        "icon": "iam",
+        "tone": "info",
+        "why": "Pas de plafond nécessaire"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "orgs",
+       "ctx": "Regroupe les comptes en OUs et porte les SCP héritées vers le bas."
+      },
+      {
+       "k": "iam",
+       "ctx": "Porte la permissions boundary et l'identity-based policy ; calcule l'intersection."
+      },
+      {
+       "k": "role",
+       "ctx": "AppRole : identité dont la boundary retire DynamoDB malgré l'Allow."
+      },
+      {
+       "k": "user",
+       "ctx": "John : User dont la SCP du compte retire EC2 malgré son Allow."
+      },
+      {
+       "k": "s3",
+       "ctx": "Service autorisé par la policy, la boundary et la SCP dans les exemples."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Service refusé à John car absent de la SCP AllowOnlyS3."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-05",
+  "services": [
+   "sts",
+   "role",
+   "iam",
+   "ec2",
+   "s3",
+   "building",
+   "cli"
+  ],
+  "drop": [
+   1,
+   3,
+   10,
+   11,
+   14,
+   17
+  ],
+  "shorten": {
+   "0": "Tounes → France: lazem tod5ol men bab el matar mta3 Tounes (compte A ykhallik tokhrej) w ba3d bab France (compte B y9belek, 3andou visa). Ken wa7ed ma yemchich, ma tsafer: hedhi el 'deux vérifications'. W el Session Policy kima visa 7 ayyem bark: tzid tnajjem 9a9al, jamais akther.",
+   "1": "L'application est dans le **Compte A**, les ressources (S3, DynamoDB) dans le **Compte B**. Pas de clé permanente : l'application **assume un Role du Compte B** et reçoit des **credentials temporaires**. On commence par la version « même compte »."
+  },
+  "insert": [
+   {
+    "after": 2,
+    "block": {
+     "type": "compare",
+     "title": "Trusted account vs Trusting account",
+     "cols": [
+      {
+       "name": "Compte A : Trusted",
+       "tag": "Authentication Account",
+       "icon": "user",
+       "points": [
+        "Contient l'application ou l'utilisateur",
+        "Identity policy : Allow sts:AssumeRole",
+        "Appelle STS"
+       ],
+       "use": "Vérification 1"
+      },
+      {
+       "name": "Compte B : Trusting",
+       "tag": "Workload Account",
+       "icon": "building",
+       "points": [
+        "Possède le Role et les ressources",
+        "Trust policy : Principal = compte A",
+        "Permission policy du Role"
+       ],
+       "use": "Vérification 2"
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "matrix",
+     "title": "Qui doit autoriser sts:AssumeRole ?",
+     "rows": [
+      "Cross-account",
+      "Même compte, trust = ARN précis",
+      "Même compte, trust = root"
+     ],
+     "cols": [
+      "Trust policy du Role",
+      "Identity policy de l'appelant"
+     ],
+     "cells": [
+      [
+       "requise",
+       "requise"
+      ],
+      [
+       "suffit",
+       "facultative"
+      ],
+      [
+       "requise",
+       "requise"
+      ]
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "stack",
+     "title": "Permissions de la session = Role ∩ session policy",
+     "side": "du plus large au plus étroit",
+     "layers": [
+      {
+       "label": "Permission policy du Role",
+       "sub": "accorde : S3 + EC2 + DynamoDB",
+       "icon": "role",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      },
+      {
+       "label": "Session policy",
+       "sub": "optionnelle, passée à l'AssumeRole : plafond",
+       "icon": "tempcred",
+       "tone": "warn",
+       "tags": [
+        "n'accorde rien"
+       ]
+      },
+      {
+       "label": "Permissions effectives",
+       "sub": "intersection : S3 seulement",
+       "icon": "s3",
+       "tone": "info",
+       "tags": [
+        "session"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "matrix",
+     "title": "Permissions effectives de la session",
+     "rows": [
+      "S3",
+      "EC2",
+      "DynamoDB"
+     ],
+     "cols": [
+      "Role",
+      "Session policy",
+      "Effectif"
+     ],
+     "cells": [
+      [
+       "ok",
+       "ok",
+       "ok"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "no",
+       "no"
+      ]
+     ],
+     "legend": {
+      "ok": "Autorisé",
+      "no": "Refusé / non permis"
+     }
+    }
+   },
+   {
+    "after": 16,
+    "block": {
+     "type": "cards",
+     "title": "Session policy : à retenir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "tempcred",
+       "t": "Optionnelle",
+       "d": "Passée à l'AssumeRole via l'API, le SDK ou la CLI.",
+       "tone": "info"
+      },
+      {
+       "icon": "padlock",
+       "t": "Restreint seulement",
+       "d": "N'accorde jamais de permission supplémentaire.",
+       "tone": "warn"
+      },
+      {
+       "icon": "role",
+       "t": "Non permanente",
+       "d": "Pas attachée au Role : valable pour cette session uniquement.",
+       "tone": "info"
+      },
+      {
+       "icon": "sts",
+       "t": "Role ∩ session policy",
+       "d": "Role S3+EC2+DynamoDB et session S3 only donnent S3 seul.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 17,
+    "block": {
+     "type": "decision",
+     "title": "AssumeRole refusé : que vérifier ?",
+     "root": {
+      "q": "L'identity policy du compte A autorise sts:AssumeRole sur l'ARN du Role ?",
+      "no": {
+       "a": "Ajouter l'Allow côté A",
+       "icon": "user",
+       "tone": "bad",
+       "why": "Vérification 1 échoue"
+      },
+      "yes": {
+       "q": "La trust policy du compte B nomme le compte A en Principal ?",
+       "no": {
+        "a": "Corriger la trust policy",
+        "icon": "role",
+        "tone": "bad",
+        "why": "Vérification 2 échoue"
+       },
+       "yes": {
+        "a": "Voir permission et session policy",
+        "icon": "permissions",
+        "tone": "good",
+        "why": "L'assumption passe ; reste ce que la session peut faire"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "sts",
+       "ctx": "Contrôle la trust policy et émet les credentials temporaires de la session."
+      },
+      {
+       "k": "role",
+       "ctx": "Role du compte B : trust policy (qui) et permission policy (quoi)."
+      },
+      {
+       "k": "iam",
+       "ctx": "Évalue l'identity policy côté A et la trust policy côté B."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Instance qui assume le Role attaché pour obtenir des credentials sans clé permanente."
+      },
+      {
+       "k": "s3",
+       "ctx": "Ressource du compte B lue avec les credentials du Role."
+      },
+      {
+       "k": "cli",
+       "ctx": "aws sts assume-role transmet la session policy avec --policy."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-06",
+  "services": [
+   "iam",
+   "orgs",
+   "role",
+   "s3",
+   "cloudtrail",
+   "user"
+  ],
+  "drop": [
+   2,
+   3,
+   6,
+   7,
+   11,
+   12,
+   13,
+   14
+  ],
+  "shorten": {
+   "0": "Kima fel ecole: el bawab (SCP), el directeur (boundary), el prof (resource policy). Ken wa7ed ykoul 'la 3la tool' (Deny explicite), ma tod5olch. Ken ma3andek 7atta 'na3am' (Allow), ma tod5olch bidha: deny par défaut. Lazem Allow + kol el plafonds ykoulou na3am.",
+   "1": "Une requête peut croiser **plusieurs policies** : identity-based, bucket policy, boundary, SCP, session policy. Certaines autorisent, d'autres limitent, d'autres interdisent. Il faut **une règle de décision unique** pour comprendre pourquoi on reçoit *Access Denied*."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "stack",
+     "title": "Ordre d'évaluation d'une requête (même compte)",
+     "side": "de haut en bas, à la première étape qui échoue : DENY",
+     "layers": [
+      {
+       "label": "1. Deny explicite ?",
+       "sub": "dans n'importe quelle policy : DENY, fin",
+       "icon": "padlock",
+       "tone": "bad",
+       "tags": [
+        "Deny"
+       ]
+      },
+      {
+       "label": "2. SCP / RCP d'Organizations",
+       "sub": "le plafond du compte doit autoriser",
+       "icon": "orgs",
+       "tone": "warn",
+       "tags": [
+        "plafond"
+       ]
+      },
+      {
+       "label": "3. Resource-based policy",
+       "sub": "Allow direct si Principal = ARN d'un User ou Role du même compte",
+       "icon": "s3",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      },
+      {
+       "label": "4. Identity-based policy",
+       "sub": "au moins un Allow qui correspond, sinon refus implicite",
+       "icon": "iam",
+       "tone": "good",
+       "tags": [
+        "Allow"
+       ]
+      },
+      {
+       "label": "5. Permissions boundary",
+       "sub": "si elle existe, elle doit autoriser",
+       "icon": "role",
+       "tone": "warn",
+       "tags": [
+        "plafond"
+       ]
+      },
+      {
+       "label": "6. Session policy",
+       "sub": "si elle existe, elle doit autoriser",
+       "icon": "tempcred",
+       "tone": "warn",
+       "tags": [
+        "plafond"
+       ]
+      },
+      {
+       "label": "7. Résultat",
+       "sub": "tout passe : ALLOW ; sinon DENY par défaut",
+       "icon": "permissions",
+       "tone": "info",
+       "tags": [
+        "verdict"
+       ]
+      }
+     ]
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Effet de chaque type de policy",
+     "rows": [
+      "Identity-based",
+      "Resource-based",
+      "Permissions boundary",
+      "SCP",
+      "Session policy",
+      "Deny explicite"
+     ],
+     "cols": [
+      "Accorde des droits ?",
+      "Bloque quand"
+     ],
+     "cells": [
+      [
+       "ok",
+       "aucun Allow"
+      ],
+      [
+       "ok",
+       "aucun Allow"
+      ],
+      [
+       "no",
+       "hors plafond"
+      ],
+      [
+       "no",
+       "hors plafond"
+      ],
+      [
+       "no",
+       "hors plafond"
+      ],
+      [
+       "no",
+       "toujours"
+      ]
+     ],
+     "legend": {
+      "ok": "Accorde des droits",
+      "no": "N'accorde rien"
+     }
+    }
+   },
+   {
+    "after": 5,
+    "block": {
+     "type": "matrix",
+     "title": "Même compte vs cross-account",
+     "rows": [
+      "Même compte",
+      "Cross-account",
+      "Cross-account via AssumeRole"
+     ],
+     "cols": [
+      "Identity-based",
+      "Resource-based",
+      "Trust policy"
+     ],
+     "cells": [
+      [
+       "un des deux",
+       "un des deux",
+       "na"
+      ],
+      [
+       "requise",
+       "requise",
+       "na"
+      ],
+      [
+       "requise (A)",
+       "na",
+       "requise (B)"
+      ]
+     ],
+     "legend": {
+      "na": "Non applicable"
+     }
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "cards",
+     "title": "Message AccessDenied : quel type de policy bloque ?",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "orgs",
+       "t": "explicit deny in a SCP",
+       "d": "Une SCP contient un Deny qui correspond.",
+       "tone": "bad"
+      },
+      {
+       "icon": "orgs",
+       "t": "no service control policy allows",
+       "d": "Aucune SCP du chemin n'autorise l'action : plafond.",
+       "tone": "warn"
+      },
+      {
+       "icon": "iam",
+       "t": "no identity-based policy allows",
+       "d": "Aucun Allow pour l'identité : refus implicite.",
+       "tone": "warn"
+      },
+      {
+       "icon": "s3",
+       "t": "no resource-based policy allows",
+       "d": "La ressource n'autorise pas ce Principal : typique en cross-account.",
+       "tone": "warn"
+      },
+      {
+       "icon": "padlock",
+       "t": "no permissions boundary allows",
+       "d": "L'action dépasse le plafond de la boundary.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "pipeline",
+     "title": "Checklist : pourquoi Accès refusé ?",
+     "stages": [
+      {
+       "label": "Lire le message",
+       "sub": "type de policy cité",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "Deny explicite ?",
+       "sub": "toutes les policies",
+       "icon": "padlock",
+       "tone": "bad"
+      },
+      {
+       "label": "SCP et plafonds",
+       "sub": "SCP, boundary, session",
+       "icon": "orgs",
+       "tone": "warn"
+      },
+      {
+       "label": "Un Allow existe ?",
+       "sub": "identity ou resource",
+       "icon": "iam",
+       "tone": "good"
+      },
+      {
+       "label": "Cross-account ?",
+       "sub": "les deux côtés",
+       "icon": "building",
+       "tone": "info"
+      },
+      {
+       "label": "Conditions",
+       "sub": "MFA, IP, Region, tags",
+       "icon": "mfa",
+       "tone": "warn"
+      }
+     ],
+     "caption": "Outils : IAM Policy Simulator pour tester une action ; logs CloudTrail pour voir la requête refusée et son contexte."
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "cards",
+     "title": "Trois phrases à retenir",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "Deny explicite gagne",
+       "d": "Toujours, quel que soit le nombre d'Allow ailleurs.",
+       "tone": "bad"
+      },
+      {
+       "icon": "orgs",
+       "t": "Les plafonds disent tous oui",
+       "d": "SCP, boundary et session policy : un oui de chacune quand elle existe.",
+       "tone": "warn"
+      },
+      {
+       "icon": "iam",
+       "t": "Au moins un Allow",
+       "d": "Identity ou resource-based, sinon refus par défaut.",
+       "tone": "good"
+      },
+      {
+       "icon": "building",
+       "t": "Cross-account : 2 comptes",
+       "d": "Les deux comptes doivent autoriser.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 19,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Moteur d'évaluation : Deny explicite, plafonds, puis Allow ; Policy Simulator pour tester."
+      },
+      {
+       "k": "orgs",
+       "ctx": "Ses SCP forment le plafond du compte, évalué juste après les Deny explicites."
+      },
+      {
+       "k": "role",
+       "ctx": "Identité dont la boundary et la session policy plafonnent les droits."
+      },
+      {
+       "k": "user",
+       "ctx": "Alice, requérante : l'identity-based policy est nécessaire côté A en cross-account."
+      },
+      {
+       "k": "s3",
+       "ctx": "Bucket du compte B : sa bucket policy doit nommer Alice."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise la requête refusée avec son contexte pour diagnostiquer l'AccessDenied."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch2b-07",
+  "services": [
+   "iam",
+   "user",
+   "role",
+   "s3",
+   "ec2"
+  ],
+  "drop": [
+   3,
+   5,
+   6,
+   9,
+   10,
+   14,
+   16
+  ],
+  "shorten": {
+   "0": "Kima fel mariage: RBAC = kol role 3andou table fix; 50 table jdida = tbaddel el plan. ABAC = kol wa7ed 3andou etiquette 3al bracelet (Team=Payments), el table 3andha nafs el etiquette: el serveur ya9ra w ywassal. Table jdida? Tkteb 3aliha l'etiquette w khalas.",
+   "1": "Le **RBAC** accorde des permissions selon le **rôle professionnel** (Developer, Admin, Auditor), via des **identity-based policies**. **Défi :** nouveau bucket ou nouveau projet = policies à mettre à jour souvent."
+  },
+  "insert": [
+   {
+    "after": 2,
+    "block": {
+     "type": "cards",
+     "title": "Condition : 3 niveaux",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Opérateur",
+       "d": "StringEquals compare deux chaînes ; aussi StringLike, ArnLike, IpAddress, Bool.",
+       "tone": "info"
+      },
+      {
+       "icon": "permissions",
+       "t": "Clé de condition",
+       "d": "Ex : aws:username, aws:SourceIp.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Valeur attendue",
+       "d": "Si la condition est vraie, le statement s'applique ; sinon il est ignoré.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "hub",
+     "title": "ABAC : accès selon les attributs (tags)",
+     "center": {
+      "label": "ABAC",
+      "sub": "comparer des tags",
+      "icon": "permissions"
+     },
+     "spokes": [
+      {
+       "label": "Tag du principal",
+       "sub": "aws:PrincipalTag",
+       "icon": "user",
+       "tone": "info",
+       "note": "Attribut de l'IAM User ou Role qui appelle, ex Team = Payments."
+      },
+      {
+       "label": "Tag de la ressource",
+       "sub": "aws:ResourceTag",
+       "icon": "s3",
+       "tone": "info",
+       "note": "Attribut de la ressource visée, ex Team = Payments sur un bucket."
+      },
+      {
+       "label": "Condition",
+       "sub": "StringEquals",
+       "icon": "gear",
+       "tone": "good",
+       "note": "L'ABAC utilise des Conditions pour comparer les attributs."
+      },
+      {
+       "label": "Une seule policy",
+       "sub": "pas une par équipe",
+       "icon": "document",
+       "tone": "good",
+       "note": "Policy du cours pédagogique : en production on restreint les actions au nécessaire (moindre privilège)."
+      },
+      {
+       "label": "Nouvelle ressource",
+       "sub": "un tag suffit",
+       "icon": "padlock",
+       "tone": "warn",
+       "note": "Une ressource correctement taguée hérite de l'accès automatiquement."
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Les clés de tags à connaître",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "user",
+       "t": "aws:PrincipalTag/<clé>",
+       "d": "Tag de l'IAM User ou Role qui fait la requête. Ex : Team = Payments.",
+       "tone": "info"
+      },
+      {
+       "icon": "s3",
+       "t": "aws:ResourceTag/<clé>",
+       "d": "Tag présent sur la ressource visée. Ex : Team = Payments sur le bucket.",
+       "tone": "info"
+      },
+      {
+       "icon": "iam",
+       "t": "${aws:PrincipalTag/<clé>}",
+       "d": "Variable de policy : remplacée à l'évaluation par la valeur du tag du principal.",
+       "tone": "good"
+      },
+      {
+       "icon": "user",
+       "t": "${aws:username}",
+       "d": "Variable de policy : nom de l'appelant, comparé par exemple à un tag Owner.",
+       "tone": "good"
+      },
+      {
+       "icon": "question",
+       "t": "Support par service",
+       "d": "aws:ResourceTag varie selon service et action ; clés propres possibles : ec2:ResourceTag/<clé>.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "matrix",
+     "title": "EC2 : qui peut démarrer l'instance de UserC ?",
+     "rows": [
+      "User A",
+      "User B",
+      "User C"
+     ],
+     "cols": [
+      "Owner = nom appelant",
+      "AccessProject égal",
+      "Résultat"
+     ],
+     "cells": [
+      [
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "no",
+       "no",
+       "no"
+      ],
+      [
+       "ok",
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Condition vraie / autorisé",
+      "no": "Condition fausse / refusé"
+     }
+    }
+   },
+   {
+    "after": 13,
+    "block": {
+     "type": "decision",
+     "title": "RBAC ou ABAC ?",
+     "root": {
+      "q": "Beaucoup d'équipes ou de projets, ressources créées souvent ?",
+      "yes": {
+       "a": "ABAC",
+       "icon": "permissions",
+       "tone": "good",
+       "why": "Un tag suffit ; il faut protéger le tagging"
+      },
+      "no": {
+       "q": "Fonctions stables et bien définies ?",
+       "yes": {
+        "a": "RBAC",
+        "icon": "role",
+        "tone": "info",
+        "why": "Simple : une policy par fonction"
+       },
+       "no": {
+        "a": "ABAC",
+        "icon": "permissions",
+        "tone": "good",
+        "why": "Peu de policies génériques"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 18,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Porte les policies RBAC et ABAC et évalue les Conditions sur les tags."
+      },
+      {
+       "k": "user",
+       "ctx": "Alice, taguée Team = Payments : son tag décide des buckets accessibles."
+      },
+      {
+       "k": "role",
+       "ctx": "Rôle Developer (RBAC) ou principal tagué en ABAC."
+      },
+      {
+       "k": "s3",
+       "ctx": "Buckets taggés Team : le tag de la ressource est comparé au tag du principal."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Instances taguées Owner et AccessProject pour le second exemple ABAC."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,2029 @@
+[
+ {
+  "k": "cloudtrail",
+  "name": "AWS CloudTrail",
+  "full": "AWS CloudTrail",
+  "cat": "Détection & monitoring",
+  "tagline": "La boîte noire : qui a appelé quelle API, quand et d'où.",
+  "role": "Service d'audit qui enregistre les appels d'API faits dans un compte AWS (console, CLI, SDK, autres services). Il répond à la question « qui a fait quoi, quand et depuis où ? » et sert de preuve pour la conformité et l'investigation.",
+  "why": [
+   "Traçabilité complète : chaque action sur le compte est attribuée à une identité (IAM user, rôle, service).",
+   "Première source à consulter quand une ressource est supprimée ou modifiée sans explication.",
+   "Alimente GuardDuty, Security Hub et les enquêtes forensiques avec des événements fiables.",
+   "CloudTrail Insights signale les pics d'activité inhabituels, par exemple des rafales d'actions IAM."
+  ],
+  "how": "Chaque appel d'API produit un événement. L'historique d'événements est gardé 90 jours ; un trail envoie les événements vers S3 et/ou CloudWatch Logs pour une conservation longue, y compris sur plusieurs régions ou comptes.",
+  "when": [
+   "Enquêter après une suppression de ressource ou un changement de Security Group suspect.",
+   "Prouver à un auditeur qui a modifié une policy IAM.",
+   "Centraliser les logs de tous les comptes d'une organisation dans un bucket S3 dédié.",
+   "Déclencher une alerte EventBridge quand quelqu'un désactive la journalisation."
+  ],
+  "notwhen": "Il ne bloque rien et n'enregistre pas par défaut les data events S3/Lambda (volumineux) : à activer explicitement ; pour l'état des configurations, utiliser AWS Config.",
+  "derja": "CloudTrail kima camera de surveillance fil mahal: ma tchouf-ch li kherrej, ama tchouf chkoun dkhal w chnowa 3mal w fi anehi sa3a. Ki yesra9ou 7aja, lazem tarja3 lil camera avant ma tet2echa.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Utilisateur ou rôle"
+   },
+   {
+    "k": "console",
+    "t": "Appel d'API"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Événement enregistré"
+   },
+   {
+    "k": "s3",
+    "t": "Trail vers S3 (long terme)"
+   },
+   {
+    "k": "athena",
+    "t": "Analyse SQL"
+   }
+  ],
+  "vs": [
+   {
+    "k": "config",
+    "d": "Config garde l'état des ressources dans le temps ; CloudTrail garde les actions (les appels d'API)."
+   },
+   {
+    "k": "cloudwatch",
+    "d": "CloudWatch mesure et alerte sur le fonctionnement ; CloudTrail trace les actions des identités."
+   },
+   {
+    "k": "guardduty",
+    "d": "GuardDuty analyse les événements pour détecter des menaces ; CloudTrail fournit seulement le journal brut."
+   }
+  ],
+  "exam": [
+   "Activé par défaut avec 90 jours d'historique ; au-delà, créer un trail vers S3 (puis Athena).",
+   "Management events journalisés par défaut ; data events (S3 GetObject, Lambda Invoke) non, car trop volumineux.",
+   "Si une ressource est supprimée, enquêter d'abord dans CloudTrail.",
+   "La validation d'intégrité des fichiers de log permet de détecter une altération."
+  ],
+  "related": [
+   "s3",
+   "cloudwatch",
+   "guardduty",
+   "config",
+   "eventbridge"
+  ],
+  "match": [
+   "CloudTrail"
+  ]
+ },
+ {
+  "k": "config",
+  "name": "AWS Config",
+  "full": "AWS Config",
+  "cat": "Gouvernance & gestion",
+  "tagline": "L'historique et le contrôle de conformité des configurations.",
+  "role": "Service qui enregistre l'état de configuration des ressources AWS dans le temps et l'évalue avec des règles (Config Rules). Il signale les ressources NON_COMPLIANT, sans jamais empêcher une action.",
+  "why": [
+   "Détecte les dérives de configuration : bucket devenu public, chiffrement désactivé, Security Group ouvert.",
+   "Garde la chronologie des changements d'une ressource pour l'audit et l'analyse d'incident.",
+   "Permet une remédiation automatique via des actions Systems Manager Automation.",
+   "Les agrégateurs donnent une vue de conformité multi-comptes et multi-régions."
+  ],
+  "how": "Config enregistre chaque ressource sous forme d'élément de configuration, puis évalue des règles managées (plus de 75 dans le cours) ou personnalisées (Lambda). Un résultat non conforme peut notifier ou déclencher une remédiation.",
+  "when": [
+   "Vérifier que tous les volumes EBS et buckets S3 sont chiffrés.",
+   "Détecter l'absence de MFA sur le compte root.",
+   "Prouver la conformité à un référentiel lors d'un audit.",
+   "Remonter la conformité de tous les comptes dans un compte d'audit central."
+  ],
+  "notwhen": "Config détecte et signale, il n'interdit rien : pour bloquer préventivement, utiliser des SCP ou des policies IAM.",
+  "derja": "AWS Config kima mouraqeb mta3 el 3imara: ykhzen kol ta8yir fil chkel mta3 el ressource w yguelek ki 7aja ta3mel mouch 3la 9a3ida. Ama houwa ma yaktch el ba3b, yguelek bark.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Ressource modifiée"
+   },
+   {
+    "k": "config",
+    "t": "Enregistre + évalue"
+   },
+   {
+    "k": "eventbridge",
+    "t": "NON_COMPLIANT"
+   },
+   {
+    "k": "ssm",
+    "t": "Remédiation Automation"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudtrail",
+    "d": "CloudTrail trace qui a fait l'appel ; Config montre l'état de la ressource avant et après."
+   },
+   {
+    "k": "securityhub",
+    "d": "Security Hub s'appuie sur Config pour ses contrôles et agrège les findings."
+   },
+   {
+    "k": "orgs",
+    "d": "Les SCP interdisent préventivement ; Config constate après coup."
+   }
+  ],
+  "exam": [
+   "Config Rules n'empêche pas l'action (pas de deny) : détective, pas préventif.",
+   "Règles personnalisées définies avec AWS Lambda.",
+   "Security Hub exige que AWS Config soit activé.",
+   "Les agrégateurs collectent les données de plusieurs comptes et régions."
+  ],
+  "related": [
+   "cloudtrail",
+   "securityhub",
+   "ssm",
+   "orgs",
+   "eventbridge"
+  ],
+  "match": [
+   "AWS Config",
+   "Config Rules"
+  ]
+ },
+ {
+  "k": "cloudwatch",
+  "name": "Amazon CloudWatch",
+  "full": "Amazon CloudWatch",
+  "cat": "Détection & monitoring",
+  "tagline": "Les yeux et les alarmes de ton infrastructure.",
+  "role": "Service d'observabilité qui collecte des métriques, des logs et des événements, affiche des tableaux de bord et déclenche des alarmes. Il sert à surveiller la santé et l'activité des ressources et des applications.",
+  "why": [
+   "Alarmes sur des métriques pour réagir vite à une anomalie (pic CPU, échecs de connexion).",
+   "Centralise les logs applicatifs et système, ainsi que ceux de CloudTrail ou VPC Flow Logs.",
+   "Les metric filters transforment des motifs de logs en métriques, donc en alarmes de sécurité.",
+   "Les alarmes déclenchent des actions : SNS, Auto Scaling, EventBridge ou Systems Manager."
+  ],
+  "how": "Les services publient des métriques ; l'agent CloudWatch ou les services envoient des logs vers des log groups. Des alarmes évaluent un seuil et déclenchent des actions ; Logs Insights permet d'interroger les logs.",
+  "when": [
+   "Alerter quand il y a trop d'échecs d'authentification dans un log.",
+   "Alarmer sur une tentative de désactivation de CloudTrail via un metric filter.",
+   "Surveiller CPU, mémoire (via l'agent) et erreurs d'une application.",
+   "Garder des logs applicatifs avec une durée de rétention définie."
+  ],
+  "notwhen": "CloudWatch ne dit pas qui a fait un appel d'API (voir CloudTrail) et ne détecte pas seul les menaces (voir GuardDuty).",
+  "derja": "CloudWatch kima tableau de bord mta3 el voiture: yriwik el vitesse, el essence w el temperature, w ki 7aja temchi ghalet yodhrob klaxon (alarme). Lazem tkoun mrakez 3lih bech ta3ref ki fama problem.",
+  "use": [
+   {
+    "k": "ec2",
+    "t": "Métriques + logs"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Alarme sur seuil"
+   },
+   {
+    "k": "sns",
+    "t": "Notification"
+   },
+   {
+    "k": "lambda",
+    "t": "Action automatique"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudtrail",
+    "d": "CloudTrail audite les appels d'API ; CloudWatch surveille les performances et les logs."
+   },
+   {
+    "k": "xray",
+    "d": "X-Ray suit une requête de bout en bout ; CloudWatch mesure l'état global."
+   },
+   {
+    "k": "eventbridge",
+    "d": "EventBridge route des événements vers des cibles ; CloudWatch mesure et alarme."
+   }
+  ],
+  "exam": [
+   "Les logs de CloudTrail peuvent être envoyés vers CloudWatch Logs pour créer des alarmes.",
+   "Les métriques mémoire d'EC2 demandent l'agent CloudWatch (pas de métrique native).",
+   "Les metric filters + alarmes servent à détecter des événements de sécurité dans les logs.",
+   "Rétention des log groups configurable : par défaut, jamais d'expiration."
+  ],
+  "related": [
+   "cloudtrail",
+   "sns",
+   "eventbridge",
+   "guardduty",
+   "xray"
+  ],
+  "match": [
+   "CloudWatch"
+  ]
+ },
+ {
+  "k": "ssm",
+  "name": "AWS Systems Manager",
+  "full": "AWS Systems Manager (SSM)",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Gérer et patcher ses serveurs sans ouvrir de port.",
+  "role": "Ensemble d'outils pour gérer des instances EC2 et des serveurs sur site à grande échelle : accès shell, patching, exécution de commandes, automatisation et stockage de paramètres. Il demande l'agent SSM et un rôle IAM.",
+  "why": [
+   "Session Manager donne un shell sans port SSH 22 ouvert, sans bastion et sans clé SSH.",
+   "Patch Manager automatise les correctifs de sécurité sur toute la flotte.",
+   "Les sessions sont contrôlées par IAM et peuvent être journalisées dans S3 ou CloudWatch.",
+   "Parameter Store garde la configuration, et des secrets chiffrés (SecureString, via KMS)."
+  ],
+  "how": "L'agent SSM installé sur l'instance contacte le service SSM en sortie ; l'instance doit avoir un rôle IAM adapté. On pilote ensuite Run Command, Patch Manager, Automation ou Session Manager depuis la console, la CLI ou l'API.",
+  "when": [
+   "Se connecter à une instance privée sans exposer SSH.",
+   "Appliquer les patchs mensuels sur toutes les instances d'un environnement.",
+   "Remédier automatiquement à un finding via un runbook Automation.",
+   "Récupérer une clé SSH perdue avec un runbook AWSSupport-ResetAccess."
+  ],
+  "notwhen": "Ne remplace pas Secrets Manager si tu as besoin de rotation automatique native des secrets.",
+  "derja": "Systems Manager kima telecommande universelle: men blastek tel3eb fi les serveurs lkol, ma t7tej la cle SSH la port maftou7. Ama lazem el agent w el role mawjoudin, ken la el telecommande ma tekhdem-ch.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Admin (IAM)"
+   },
+   {
+    "k": "ssm",
+    "t": "Session Manager"
+   },
+   {
+    "k": "role",
+    "t": "Rôle d'instance"
+   },
+   {
+    "k": "ec2",
+    "t": "Instance privée (agent SSM)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "secrets",
+    "d": "Secrets Manager gère la rotation native des secrets ; Parameter Store sert surtout aux configurations."
+   },
+   {
+    "k": "cloudformation",
+    "d": "CloudFormation crée l'infrastructure ; SSM gère les instances en exploitation."
+   }
+  ],
+  "exam": [
+   "L'agent SSM et un rôle IAM sont requis sur l'instance.",
+   "Session Manager évite d'ouvrir le port 22 et de gérer des clés SSH.",
+   "Patch Manager et Automation font partie de la boîte à outils SSM.",
+   "Incident Manager et AppConfig sont aussi des capacités de Systems Manager."
+  ],
+  "related": [
+   "ec2",
+   "role",
+   "kms",
+   "secrets",
+   "config"
+  ],
+  "match": [
+   "Systems Manager",
+   "SSM"
+  ]
+ },
+ {
+  "k": "controltower",
+  "name": "AWS Control Tower",
+  "full": "AWS Control Tower",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Un environnement multi-comptes sécurisé, prêt à l'emploi.",
+  "role": "Service qui met en place et gouverne un environnement AWS multi-comptes selon les bonnes pratiques (landing zone). Il s'appuie sur Organizations, Config et Service Catalog, avec des garde-fous préventifs et détectifs.",
+  "why": [
+   "Landing zone prête : comptes Log Archive et Audit, journalisation centralisée.",
+   "Les contrôles (guardrails) préventifs reposent sur des SCP et les détectifs sur AWS Config.",
+   "Account Factory standardise et automatise la création de nouveaux comptes.",
+   "Tableau de bord de conformité pour voir les violations de politique."
+  ],
+  "how": "Control Tower configure Organizations, crée les comptes de base et active des guardrails. Les préventifs (SCP) empêchent l'action ; les détectifs (Config) signalent la non-conformité. Account Factory provisionne les comptes via Service Catalog.",
+  "when": [
+   "Démarrer une entreprise multi-comptes avec une base sécurisée.",
+   "Imposer partout l'interdiction de créer des clés d'accès pour le root.",
+   "Créer rapidement de nouveaux comptes conformes pour des équipes.",
+   "Surveiller la conformité de tous les comptes depuis un tableau de bord."
+  ],
+  "notwhen": "Pour un seul compte ou un besoin de politique très sur mesure, Organizations + SCP seuls peuvent suffire.",
+  "derja": "Control Tower kima lotil jdid fih kol chay m3amer: tkhallas el 7aja el asesiya (les regles w les comptes) bil jehd el awel. Kol ma tzid departement jdid, yetsallem fih men 3and rou7ou b ne9ss el kherja.",
+  "use": [
+   {
+    "k": "controltower",
+    "t": "Landing zone"
+   },
+   {
+    "k": "orgs",
+    "t": "Organizations + SCP"
+   },
+   {
+    "k": "config",
+    "t": "Guardrails détectifs"
+   },
+   {
+    "k": "servicecatalog",
+    "t": "Account Factory"
+   }
+  ],
+  "vs": [
+   {
+    "k": "orgs",
+    "d": "Organizations fournit la hiérarchie et les SCP ; Control Tower ajoute l'orchestration et les bonnes pratiques."
+   },
+   {
+    "k": "servicecatalog",
+    "d": "Service Catalog sert de moteur de provisionnement pour Account Factory."
+   }
+  ],
+  "exam": [
+   "Control Tower tourne au-dessus d'AWS Organizations.",
+   "Guardrails préventifs = SCP ; détectifs = AWS Config.",
+   "Niveaux de guardrails : obligatoire, fortement recommandé, électif.",
+   "Account Factory utilise Service Catalog pour provisionner les comptes."
+  ],
+  "related": [
+   "orgs",
+   "config",
+   "servicecatalog",
+   "cloudtrail",
+   "iam"
+  ],
+  "match": [
+   "Control Tower",
+   "Guardrail",
+   "Landing Zone"
+  ]
+ },
+ {
+  "k": "cloudformation",
+  "name": "AWS CloudFormation",
+  "full": "AWS CloudFormation",
+  "cat": "Gouvernance & gestion",
+  "tagline": "L'infrastructure décrite dans un fichier, déployée à l'identique.",
+  "role": "Service d'infrastructure as code : on décrit des ressources AWS dans un modèle JSON ou YAML, et CloudFormation les crée, met à jour ou supprime comme une pile (stack) cohérente et reproductible.",
+  "why": [
+   "Environnements identiques et reproductibles : moins d'erreurs de configuration manuelle.",
+   "Les modèles sont versionnés et relus, donc les changements d'infrastructure sont traçables.",
+   "La détection de dérive montre les ressources modifiées à la main hors de la pile.",
+   "Permet de scanner les modèles pour la sécurité avant déploiement."
+  ],
+  "how": "Tu écris un modèle, tu crées une stack ; CloudFormation appelle les APIs avec un rôle de service. Les change sets prévisualisent les modifications ; StackSets déploie sur plusieurs comptes et régions.",
+  "when": [
+   "Déployer un VPC, un bucket chiffré et des rôles IAM de manière standardisée.",
+   "Recréer rapidement un environnement après un incident.",
+   "Déployer des règles Config ou des rôles dans tous les comptes via StackSets.",
+   "Contrôler les changements d'infrastructure avant exécution avec un change set."
+  ],
+  "notwhen": "Ne mets jamais de secrets en clair dans un modèle : utilise Secrets Manager ou Parameter Store (références dynamiques).",
+  "derja": "CloudFormation kima plan mta3 dar fil kaghet: tkteb marra wa7da w ta3mel mennou barcha dour kif kif. Ki tbaddel fil plan w mouch fil dar, tsir 3andek dérive.",
+  "use": [
+   {
+    "k": "document",
+    "t": "Modèle YAML/JSON"
+   },
+   {
+    "k": "cloudformation",
+    "t": "Stack + change set"
+   },
+   {
+    "k": "role",
+    "t": "Rôle de service"
+   },
+   {
+    "k": "vpc",
+    "t": "Ressources créées"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cdk",
+    "d": "CDK génère des modèles CloudFormation à partir d'un vrai langage de programmation."
+   },
+   {
+    "k": "servicecatalog",
+    "d": "Service Catalog expose des modèles approuvés aux utilisateurs comme produits."
+   }
+  ],
+  "exam": [
+   "Stack = ensemble de ressources géré ensemble ; change set = aperçu avant mise à jour.",
+   "StackSets déploie sur plusieurs comptes et régions.",
+   "La détection de dérive repère les changements faits hors CloudFormation.",
+   "Ne pas stocker de secrets en clair dans les templates."
+  ],
+  "related": [
+   "cdk",
+   "servicecatalog",
+   "iam",
+   "config",
+   "ssm"
+  ],
+  "match": [
+   "CloudFormation"
+  ]
+ },
+ {
+  "k": "trustedadvisor",
+  "name": "AWS Trusted Advisor",
+  "full": "AWS Trusted Advisor",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Le conseiller qui audite ton compte et propose des corrections.",
+  "role": "Service qui évalue ton compte AWS sans rien installer et émet des recommandations dans six catégories : coûts, performance, sécurité, tolérance aux pannes, limites de service et excellence opérationnelle.",
+  "why": [
+   "Repère rapidement des failles courantes : MFA root absent, security group trop ouvert, accès S3 public.",
+   "Aucune installation : vue de haut niveau immédiate sur le compte.",
+   "Propose aussi des économies et des alertes de limites de service.",
+   "Avec Business ou Enterprise Support : tous les contrôles et un accès par API (AWS Support API)."
+  ],
+  "how": "Trusted Advisor exécute des contrôles automatiques sur tes ressources et les classe par catégorie avec un statut. Les résultats se consultent dans la console ou, avec le bon plan de support, par l'API et en événements EventBridge.",
+  "when": [
+   "Faire un premier bilan de sécurité d'un compte.",
+   "Trouver des ressources sous-utilisées pour réduire la facture.",
+   "Suivre des findings dans EventBridge pour déclencher une action.",
+   "Préparer un audit Well-Architected."
+  ],
+  "notwhen": "Ce n'est pas un outil de détection de menaces en continu (GuardDuty) ni une analyse de vulnérabilités (Inspector).",
+  "derja": "Trusted Advisor kima docteur li ya3mel check-up 3al sri3: ma yt7ammel-ch kol chay ama yguelek win el khalal el kbir (MFA, port maftou7). Check-up el kemel yetlob plan support akber.",
+  "use": [
+   {
+    "k": "trustedadvisor",
+    "t": "Contrôles auto"
+   },
+   {
+    "k": "finding",
+    "t": "Recommandation"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Événement"
+   },
+   {
+    "k": "sns",
+    "t": "Alerte à l'équipe"
+   }
+  ],
+  "vs": [
+   {
+    "k": "inspector",
+    "d": "Inspector cherche des vulnérabilités logicielles ; Trusted Advisor audite la configuration générale du compte."
+   },
+   {
+    "k": "securityhub",
+    "d": "Security Hub agrège les findings de sécurité de plusieurs services et comptes."
+   }
+  ],
+  "exam": [
+   "Six catégories : coûts, performance, sécurité, tolérance aux pannes, limites de service, excellence opérationnelle.",
+   "Ensemble complet de contrôles réservé aux plans Business et Enterprise.",
+   "Accès programmatique via l'AWS Support API (plans Business/Enterprise).",
+   "Aucun agent à installer."
+  ],
+  "related": [
+   "support",
+   "securityhub",
+   "wellarch",
+   "inspector",
+   "eventbridge"
+  ],
+  "match": [
+   "Trusted Advisor"
+  ]
+ },
+ {
+  "k": "servicecatalog",
+  "name": "AWS Service Catalog",
+  "full": "AWS Service Catalog",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Un catalogue de produits approuvés, déployables en self-service.",
+  "role": "Service qui permet aux administrateurs de publier un catalogue de produits (modèles d'infrastructure approuvés) que les utilisateurs déploient eux-mêmes. Il impose des standards sans donner de droits larges.",
+  "why": [
+   "Les équipes ne déploient que des architectures validées par la sécurité.",
+   "Les contraintes de lancement utilisent un rôle dédié : l'utilisateur n'a pas besoin de droits étendus.",
+   "Standardise tags, chiffrement et configuration réseau dès la création.",
+   "Utilisé par Control Tower pour son Account Factory."
+  ],
+  "how": "Un administrateur crée des produits à partir de modèles CloudFormation, les regroupe en portfolios et les partage avec des utilisateurs ou des comptes. Ceux-ci lancent un produit, et le service le déploie avec le rôle de lancement.",
+  "when": [
+   "Offrir aux développeurs un bucket S3 préconfiguré et conforme.",
+   "Fournir des VM de test avec Security Groups restreints.",
+   "Créer des comptes standardisés (Account Factory de Control Tower).",
+   "Limiter l'usage de ressources à une liste approuvée."
+  ],
+  "notwhen": "Pour un petit projet avec un seul administrateur, déployer directement avec CloudFormation est plus simple.",
+  "derja": "Service Catalog kima menu mta3 restaurant: tekhtar mel 7ajet elli el chef (la sécurité) wafa9 3lihom, w ma tnajem-ch tjib 7aja men barra. El client ya3mel commande w ma yod5ol-ch lel koujina.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Développeur"
+   },
+   {
+    "k": "servicecatalog",
+    "t": "Produit approuvé"
+   },
+   {
+    "k": "cloudformation",
+    "t": "Stack déployée"
+   },
+   {
+    "k": "role",
+    "t": "Rôle de lancement"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudformation",
+    "d": "CloudFormation déploie des modèles ; Service Catalog en restreint l'accès via un catalogue gouverné."
+   },
+   {
+    "k": "controltower",
+    "d": "Control Tower utilise Service Catalog pour provisionner ses comptes."
+   }
+  ],
+  "exam": [
+   "Produit = modèle approuvé ; portfolio = regroupement de produits partagé avec des principals.",
+   "Les contraintes de lancement évitent de donner de larges droits aux utilisateurs.",
+   "Control Tower Account Factory repose sur Service Catalog."
+  ],
+  "related": [
+   "cloudformation",
+   "controltower",
+   "iam",
+   "orgs"
+  ],
+  "match": [
+   "Service Catalog"
+  ]
+ },
+ {
+  "k": "incidentmgr",
+  "name": "AWS Incident Manager",
+  "full": "AWS Systems Manager Incident Manager",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Coordonner la réponse à un incident : alerte, escalade, runbook.",
+  "role": "Capacité de Systems Manager pour gérer les incidents : plans de réponse, contacts d'astreinte, escalades, canaux de communication et runbooks d'automatisation, avec analyse post-incident.",
+  "why": [
+   "Réduit le délai entre la détection et l'action grâce à des plans de réponse préparés.",
+   "Les escalades garantissent que la bonne personne est alertée si la première ne répond pas.",
+   "Les runbooks Automation exécutent des étapes de remédiation reproductibles.",
+   "Les analyses post-incident alimentent l'amélioration continue."
+  ],
+  "how": "Une alarme CloudWatch ou un événement EventBridge crée un incident à partir d'un plan de réponse. Le plan alerte les contacts selon le plan d'escalade et peut lancer un runbook SSM Automation.",
+  "when": [
+   "Réagir à une alarme critique de disponibilité ou de sécurité.",
+   "Organiser une astreinte avec escalade automatique.",
+   "Lancer une procédure d'isolement d'instance via Automation.",
+   "Documenter chronologie et leçons après un incident."
+  ],
+  "notwhen": "C'est de l'organisation de la réponse ; la détection vient de GuardDuty/CloudWatch, et la forensique d'autres outils (Detective, CloudTrail). Vérifie sa disponibilité pour de nouveaux comptes.",
+  "derja": "Incident Manager kima protocole el pompiers: ki yji el indhar, kol wa7ed ya3ref chnowa ya3mel w chkoun yetsal bih. Ken el awel ma jewebch, ytsalou bil theni.",
+  "use": [
+   {
+    "k": "cloudwatch",
+    "t": "Alarme"
+   },
+   {
+    "k": "incidentmgr",
+    "t": "Incident créé"
+   },
+   {
+    "k": "sns",
+    "t": "Alerte astreinte"
+   },
+   {
+    "k": "ssm",
+    "t": "Runbook Automation"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ssm",
+    "d": "Incident Manager fait partie de Systems Manager, qui fournit les runbooks Automation."
+   },
+   {
+    "k": "detective",
+    "d": "Detective aide à investiguer la cause ; Incident Manager coordonne la réponse."
+   }
+  ],
+  "exam": [
+   "Incident Manager est une capacité de Systems Manager.",
+   "Le plan de réponse définit contacts, escalade et runbooks.",
+   "Préparer des runbooks à l'avance fait partie de la phase de préparation de la réponse à incident."
+  ],
+  "related": [
+   "ssm",
+   "cloudwatch",
+   "eventbridge",
+   "sns",
+   "chatbot"
+  ],
+  "match": [
+   "Incident Manager"
+  ]
+ },
+ {
+  "k": "chatbot",
+  "name": "AWS Chatbot",
+  "full": "AWS Chatbot (Amazon Q Developer in chat applications)",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Les alertes AWS directement dans Slack ou Teams.",
+  "role": "Service qui relie les notifications AWS (via SNS) à des canaux Slack ou Microsoft Teams, et permet d'exécuter certaines commandes AWS depuis le chat, selon les rôles IAM et garde-fous configurés.",
+  "why": [
+   "Les alertes de sécurité (GuardDuty, Security Hub, Budgets) arrivent là où l'équipe travaille.",
+   "Réaction plus rapide aux incidents grâce à la notification en temps réel.",
+   "Les droits du chat sont limités par un rôle IAM de canal et des garde-fous.",
+   "Réduit le besoin de se connecter à la console pour une simple vérification."
+  ],
+  "how": "Une alarme ou un événement publie dans un topic SNS ; Chatbot, configuré avec un canal et un rôle IAM, relaie le message. Les actions autorisées sont bornées par ce rôle et des policies de garde-fou.",
+  "when": [
+   "Recevoir les findings Security Hub dans un canal d'équipe.",
+   "Alerter quand un budget dépasse son seuil.",
+   "Consulter l'état d'une ressource via une commande en lecture seule.",
+   "Notifier un canal d'astreinte lors d'une alarme CloudWatch."
+  ],
+  "notwhen": "Ne pas donner de droits d'écriture larges au rôle du canal : le chat devient alors un accès d'administration à protéger.",
+  "derja": "Chatbot kima ba3ith el 7ay li yjib el khabar lel groupe WhatsApp mta3 el farii9: el alerte tji direct 3and el kol. Ama tfakker, kol wa7ed fil groupe ykoun 3andou nafs el droits elli tdit lel canal.",
+  "use": [
+   {
+    "k": "securityhub",
+    "t": "Finding / alarme"
+   },
+   {
+    "k": "sns",
+    "t": "Topic SNS"
+   },
+   {
+    "k": "chatbot",
+    "t": "Relais"
+   },
+   {
+    "k": "users",
+    "t": "Canal Slack/Teams"
+   }
+  ],
+  "vs": [
+   {
+    "k": "sns",
+    "d": "SNS est le canal de messagerie ; Chatbot en fait un affichage et une interaction dans le chat."
+   }
+  ],
+  "exam": [
+   "Chatbot reçoit les notifications via SNS.",
+   "Les permissions du chat sont encadrées par un rôle IAM et des garde-fous.",
+   "Canaux pris en charge : Slack et Microsoft Teams (nom récent : Amazon Q Developer in chat applications)."
+  ],
+  "related": [
+   "sns",
+   "securityhub",
+   "guardduty",
+   "cloudwatch",
+   "budgets"
+  ],
+  "match": [
+   "Chatbot"
+  ]
+ },
+ {
+  "k": "appconfig",
+  "name": "AWS AppConfig",
+  "full": "AWS AppConfig (capacité de Systems Manager)",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Changer la configuration d'une appli en toute sécurité, sans redéployer.",
+  "role": "Capacité de Systems Manager pour créer, valider et déployer progressivement des configurations applicatives et des feature flags, avec retour arrière automatique si une alarme se déclenche.",
+  "why": [
+   "Un changement de configuration erroné ne touche pas tous les utilisateurs d'un coup.",
+   "Les validateurs refusent une configuration invalide avant le déploiement.",
+   "Retour arrière automatique si une alarme CloudWatch passe en alerte.",
+   "Les feature flags activent ou coupent une fonction sans nouvelle release."
+  ],
+  "how": "Tu définis une application, un profil de configuration (avec validateurs) et une stratégie de déploiement graduelle. L'application récupère sa configuration via l'API AppConfig ou un agent/extension.",
+  "when": [
+   "Activer une fonctionnalité pour 10 % des utilisateurs, puis étendre.",
+   "Changer des limites ou des listes autorisées sans redéployer.",
+   "Déployer une configuration avec rollback sur alarme.",
+   "Couper rapidement une fonction défaillante via un feature flag."
+  ],
+  "notwhen": "Pour des secrets, préfère Secrets Manager ; pour de simples paramètres statiques, Parameter Store suffit.",
+  "derja": "AppConfig kima robinet mta3 l'ma: tafta7 chwaya chwaya w tchouf, ken fama problem tsakker 9bal ma yfiid el dar. Ma tetbaddel-ch el 7aja lkol d'un coup.",
+  "use": [
+   {
+    "k": "appconfig",
+    "t": "Profil + validateur"
+   },
+   {
+    "k": "appconfig",
+    "t": "Déploiement graduel"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Alarme surveillée"
+   },
+   {
+    "k": "lambda",
+    "t": "App récupère la config"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ssm",
+    "d": "AppConfig fait partie de Systems Manager ; Parameter Store stocke des valeurs sans déploiement progressif."
+   },
+   {
+    "k": "secrets",
+    "d": "Secrets Manager est conçu pour les secrets et leur rotation."
+   }
+  ],
+  "exam": [
+   "Capacité de Systems Manager.",
+   "Déploiement progressif + rollback automatique sur alarme CloudWatch.",
+   "Les validateurs (schéma JSON ou Lambda) contrôlent la configuration avant déploiement."
+  ],
+  "related": [
+   "ssm",
+   "cloudwatch",
+   "lambda",
+   "secrets"
+  ],
+  "match": [
+   "AppConfig"
+  ]
+ },
+ {
+  "k": "console",
+  "name": "AWS Management Console",
+  "full": "AWS Management Console",
+  "cat": "Gouvernance & gestion",
+  "tagline": "L'interface web pour piloter ses services AWS.",
+  "role": "Interface web pour gérer les services AWS. On s'y connecte avec le compte root, un utilisateur IAM, un rôle ou une identité fédérée, et chaque action est traduite en appels d'API journalisés par CloudTrail.",
+  "why": [
+   "Point d'entrée humain le plus exposé : il doit être protégé par MFA et le moindre privilège.",
+   "Les actions de console apparaissent dans CloudTrail, donc restent auditables.",
+   "L'accès fédéré (Identity Center, SAML) évite les mots de passe IAM longs.",
+   "Le compte root ne doit servir qu'aux rares tâches qui l'exigent."
+  ],
+  "how": "Tu t'authentifies (utilisateur, rôle ou fédération), AWS crée une session avec des identifiants temporaires. Chaque clic envoie des appels d'API signés, évalués par les policies IAM.",
+  "when": [
+   "Explorer et apprendre un service.",
+   "Consulter les dashboards CloudWatch, Security Hub, GuardDuty.",
+   "Configurer ponctuellement une ressource.",
+   "Utiliser le rôle de console d'un compte via fédération."
+  ],
+  "notwhen": "Pour du déploiement répétable, préfère CloudFormation, CDK ou la CLI : les clics manuels ne sont ni versionnés ni reproductibles.",
+  "derja": "El Console kima el vitrine mta3 el hanout: ysahel 3lik tchouf w tel3eb, ama kol 7aja tmess-ha tetsajjel. W el moftah mta3 el hanout (el root) ma ta3tiih-ch lil nes lkol.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Utilisateur + MFA"
+   },
+   {
+    "k": "console",
+    "t": "Console web"
+   },
+   {
+    "k": "iam",
+    "t": "Évaluation des policies"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Action journalisée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cli",
+    "d": "La CLI fait la même chose en ligne de commande, scriptable."
+   },
+   {
+    "k": "cloudshell",
+    "d": "CloudShell ouvre un terminal préauthentifié dans la console."
+   }
+  ],
+  "exam": [
+   "Activer la MFA pour root et les utilisateurs ayant accès à la console.",
+   "Les actions de console sont journalisées par CloudTrail.",
+   "Accès par utilisateur IAM, rôle ou fédération ; éviter le compte root au quotidien."
+  ],
+  "related": [
+   "iam",
+   "mfa",
+   "cloudtrail",
+   "cli",
+   "sso"
+  ],
+  "match": [
+   "Console",
+   "Management Console"
+  ]
+ },
+ {
+  "k": "health",
+  "name": "AWS Health",
+  "full": "AWS Health (Health Dashboard)",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Les événements AWS qui concernent vraiment tes ressources.",
+  "role": "Service qui informe sur les événements AWS susceptibles d'affecter tes ressources : pannes, maintenances planifiées, changements, notifications de sécurité. Il sépare l'état global des services de l'impact sur ton compte.",
+  "why": [
+   "Alerte sur des événements touchant spécifiquement tes ressources, pas seulement des pannes générales.",
+   "Notifie les risques de sécurité, par exemple une clé d'accès exposée, via des événements.",
+   "Intégré à EventBridge : réactions automatiques (ticket, notification, remédiation).",
+   "Une vue organisationnelle centralise les événements de tous les comptes."
+  ],
+  "how": "Les événements Health sont visibles dans le tableau de bord et publiés dans EventBridge. Tu crées des règles qui routent les événements vers SNS, Chatbot, Lambda ou Systems Manager.",
+  "when": [
+   "Planifier une maintenance annoncée sur des instances EC2.",
+   "Réagir à une alerte de credentials exposés.",
+   "Notifier les équipes d'un incident touchant un service utilisé.",
+   "Centraliser les événements d'une organisation."
+  ],
+  "notwhen": "Il ne détecte pas les attaques dans ton compte ; pour cela, GuardDuty et CloudTrail.",
+  "derja": "AWS Health kima el SMS mta3 STEG ou SONEDE li yguelek 3la 9at3a mta3 el ma walla dhaw 3andek enti: ma yguelkch ghi 3la chnowa el 3am, ama 3la el 7aja elli 3andek enti.",
+  "use": [
+   {
+    "k": "health",
+    "t": "Événement Health"
+   },
+   {
+    "k": "eventbridge",
+    "t": "Règle EventBridge"
+   },
+   {
+    "k": "sns",
+    "t": "Notification"
+   },
+   {
+    "k": "lambda",
+    "t": "Action automatique"
+   }
+  ],
+  "vs": [
+   {
+    "k": "trustedadvisor",
+    "d": "Trusted Advisor recommande des améliorations ; Health signale des événements AWS qui t'impactent."
+   },
+   {
+    "k": "guardduty",
+    "d": "GuardDuty détecte des menaces dans ton compte ; Health parle de l'état de la plateforme."
+   }
+  ],
+  "exam": [
+   "Distinguer l'état général des services de la vue personnalisée de ton compte.",
+   "Les événements Health s'intègrent à EventBridge pour l'automatisation.",
+   "Peut notifier d'un risque lié à des credentials exposés."
+  ],
+  "related": [
+   "eventbridge",
+   "sns",
+   "chatbot",
+   "trustedadvisor",
+   "cloudwatch"
+  ],
+  "match": [
+   "AWS Health",
+   "Health Dashboard"
+  ]
+ },
+ {
+  "k": "budgets",
+  "name": "AWS Budgets",
+  "full": "AWS Budgets",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Fixer un plafond de dépenses et recevoir l'alerte avant le dépassement.",
+  "role": "Service qui permet de définir des budgets de coûts ou d'usage, de recevoir des alertes à des seuils et de déclencher des actions (policy IAM, SCP, arrêt d'instances) quand une limite est dépassée.",
+  "why": [
+   "Une facture qui explose peut signaler un compte compromis (minage de cryptomonnaie).",
+   "Alertes par e-mail, SNS ou Chatbot avant d'atteindre le plafond.",
+   "Les actions budgétaires peuvent restreindre les permissions ou arrêter des ressources.",
+   "Budgets par compte, tag ou service pour responsabiliser les équipes."
+  ],
+  "how": "Tu crées un budget (coût, usage, Savings Plans…), fixes des seuils sur le réel ou le prévisionnel, et associes des notifications ou actions. Les alertes passent par e-mail ou SNS.",
+  "when": [
+   "Alerter à 80 % du budget mensuel d'un compte d'étudiant.",
+   "Détecter un pic de dépenses anormal.",
+   "Appliquer une policy de refus quand un budget est dépassé.",
+   "Suivre le coût par projet via des tags."
+  ],
+  "notwhen": "Un budget alerte mais ne remplace pas la détection de compromission ; il complète GuardDuty et la surveillance.",
+  "derja": "Budgets kima el plafond mta3 el credit mta3 el portable: ki yosel 80 %, yjik message qbal ma tkhalles flous ktar. W ken el facture tzid b ghalta, yimken fama chkoun dkhal lil compte mte3ek.",
+  "use": [
+   {
+    "k": "budgets",
+    "t": "Budget + seuil"
+   },
+   {
+    "k": "sns",
+    "t": "Alerte (SNS)"
+   },
+   {
+    "k": "chatbot",
+    "t": "Message dans le chat"
+   },
+   {
+    "k": "iam",
+    "t": "Action : policy de restriction"
+   }
+  ],
+  "vs": [
+   {
+    "k": "costexplorer",
+    "d": "Cost Explorer analyse l'historique ; Budgets fixe des seuils et alerte."
+   }
+  ],
+  "exam": [
+   "Budgets alerte sur dépassement réel ou prévisionnel.",
+   "Une dépense anormale peut indiquer un compte compromis.",
+   "Les actions budgétaires peuvent appliquer une policy IAM/SCP ou arrêter des instances."
+  ],
+  "related": [
+   "costexplorer",
+   "sns",
+   "chatbot",
+   "iam",
+   "orgs"
+  ],
+  "match": [
+   "Budgets"
+  ]
+ },
+ {
+  "k": "costexplorer",
+  "name": "AWS Cost Explorer",
+  "full": "AWS Cost Explorer",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Visualiser et comprendre où part l'argent.",
+  "role": "Outil de visualisation et d'analyse des coûts et de l'usage AWS dans le temps : rapports personnalisés, filtres par service, compte ou tag, prévisions et recommandations de Savings Plans.",
+  "why": [
+   "Un service inattendu qui devient coûteux peut révéler une ressource non autorisée.",
+   "Allocation des coûts par tag, compte ou service pour la gouvernance financière.",
+   "Prévisions d'usage pour anticiper le budget.",
+   "Recommandations de Savings Plans comme alternative aux Reserved Instances."
+  ],
+  "how": "Cost Explorer lit les données de facturation et d'usage de ton compte ou de ton organisation. Tu filtres, regroupes, compares des périodes, et peux passer au niveau horaire ou par ressource si activé.",
+  "when": [
+   "Identifier le service qui a causé un pic de coûts.",
+   "Comparer les dépenses mois par mois.",
+   "Préparer un budget grâce aux prévisions.",
+   "Analyser les coûts d'un projet via ses tags."
+  ],
+  "notwhen": "Il n'envoie pas d'alerte à lui seul sur un seuil : combine-le avec AWS Budgets.",
+  "derja": "Cost Explorer kima relevé mta3 el banka: tchouf win dhaou flousek, kol chhar w kol service. Ken ta7es famma 7aja ghrib, tdoukh tel9aha.",
+  "use": [
+   {
+    "k": "costexplorer",
+    "t": "Rapport coûts"
+   },
+   {
+    "k": "orgs",
+    "t": "Comptes / tags"
+   },
+   {
+    "k": "budgets",
+    "t": "Seuil / alerte"
+   }
+  ],
+  "vs": [
+   {
+    "k": "budgets",
+    "d": "Budgets déclenche des alertes et des actions ; Cost Explorer sert à l'analyse et à la prévision."
+   }
+  ],
+  "exam": [
+   "Visualise coûts et usage dans le temps, avec rapports personnalisés.",
+   "Fournit des prévisions d'usage et des recommandations de Savings Plans.",
+   "Un niveau horaire et par ressource existe en option."
+  ],
+  "related": [
+   "budgets",
+   "orgs",
+   "trustedadvisor",
+   "support"
+  ],
+  "match": [
+   "Cost Explorer"
+  ]
+ },
+ {
+  "k": "support",
+  "name": "AWS Support",
+  "full": "AWS Support (plans de support)",
+  "cat": "Gouvernance & gestion",
+  "tagline": "L'assistance d'AWS, avec des niveaux de service selon le plan.",
+  "role": "Offre d'assistance technique d'AWS par plans (Basic, Developer, Business, Enterprise). Le plan détermine les canaux de contact, les délais de réponse et l'accès aux contrôles complets de Trusted Advisor et à l'API Support.",
+  "why": [
+   "Un plan Business ou supérieur donne accès complet à Trusted Advisor et à l'API Support.",
+   "Accès à des ingénieurs AWS en cas d'incident touchant la production.",
+   "Permet d'ouvrir des cas pour des problèmes de sécurité ou de facturation.",
+   "Les plans évoluent : le niveau doit correspondre à la criticité de la charge."
+  ],
+  "how": "Tu choisis un plan de support pour ton compte. Les cas s'ouvrent depuis le Support Center ou par l'API Support (selon le plan) ; la sévérité du cas détermine le temps de réponse visé.",
+  "when": [
+   "Charge de production critique nécessitant une assistance rapide.",
+   "Besoin d'accès programmatique à Trusted Advisor.",
+   "Ouvrir un cas après un incident de sécurité ou d'abus.",
+   "Obtenir de l'aide sur une limite de service."
+  ],
+  "notwhen": "Pour un compte d'apprentissage, le plan Basic suffit ; vérifie les noms et prix des plans sur la page officielle, ils évoluent.",
+  "derja": "AWS Support kima garantie mta3 el voiture: el basic, kol 3and-ha chwaya, w kol ma tzid el plan tji el khidma asra3 w a7sen. Tkhtar 7asb 9addech tadkhal el app mta3ek mouhema.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Ouvre un cas"
+   },
+   {
+    "k": "support",
+    "t": "Plan de support"
+   },
+   {
+    "k": "trustedadvisor",
+    "t": "Contrôles complets (Business+)"
+   }
+  ],
+  "vs": [
+   {
+    "k": "trustedadvisor",
+    "d": "Trusted Advisor est l'outil de recommandations ; le plan de support détermine son niveau d'accès."
+   }
+  ],
+  "exam": [
+   "Les plans de support déterminent les contrôles Trusted Advisor accessibles.",
+   "L'API Support (AWS Support API) nécessite un plan Business ou Enterprise.",
+   "Le plan Basic est inclus pour tous les clients."
+  ],
+  "related": [
+   "trustedadvisor",
+   "health",
+   "budgets",
+   "costexplorer"
+  ],
+  "match": [
+   "AWS Support",
+   "Support Plan"
+  ]
+ },
+ {
+  "k": "cli",
+  "name": "AWS CLI",
+  "full": "AWS Command Line Interface",
+  "cat": "Outils développeur",
+  "tagline": "Piloter AWS en ligne de commande, avec des identifiants à protéger.",
+  "role": "Outil en ligne de commande qui appelle les API AWS : chaque commande est signée avec des identifiants (clés, session SSO ou rôle assumé) et soumise aux policies IAM comme n'importe quel autre appel.",
+  "why": [
+   "Automatisation et scripts reproductibles pour l'administration et la sécurité.",
+   "Les identifiants stockés localement sont une cible : mieux vaut SSO ou rôle temporaire que des clés longues.",
+   "Les appels CLI sont journalisés dans CloudTrail comme ceux de la console.",
+   "Les profils permettent de séparer comptes et rôles (par exemple lecture seule et admin)."
+  ],
+  "how": "La CLI lit les identifiants depuis des variables d'environnement, des profils (~/.aws), une session IAM Identity Center ou un rôle d'instance. Elle signe chaque requête (Signature V4) avant de l'envoyer à l'API.",
+  "when": [
+   "Scripter des audits (lister les buckets publics, les clés anciennes).",
+   "Se connecter via SSO et assumer un rôle temporaire.",
+   "Automatiser des déploiements dans un pipeline.",
+   "Interroger rapidement un service sans passer par la console."
+  ],
+  "notwhen": "Ne jamais commiter de clés d'accès dans Git ni les laisser longtemps sur un poste : préfère identifiants temporaires.",
+  "derja": "El CLI kima tekteb lil serveur bil commandes direct, bidoun interface: kol commande tetba3ath mamdha b imdha (signature). El code PIN mte3ek (access key) ma ta3tihch lil nes w ma tektebhouch fil Git.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Admin + profil"
+   },
+   {
+    "k": "cli",
+    "t": "Commande signée"
+   },
+   {
+    "k": "iam",
+    "t": "Policies évaluées"
+   },
+   {
+    "k": "cloudtrail",
+    "t": "Appel journalisé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "console",
+    "d": "La console est graphique ; la CLI est scriptable et automatisable."
+   },
+   {
+    "k": "sdk",
+    "d": "Le SDK appelle la même API depuis du code applicatif."
+   },
+   {
+    "k": "cloudshell",
+    "d": "CloudShell fournit la CLI préinstallée avec les identifiants de ta session console."
+   }
+  ],
+  "exam": [
+   "Privilégier IAM Identity Center ou un rôle assumé aux access keys longues.",
+   "Les clés d'accès ne doivent jamais être commitées dans un dépôt.",
+   "Les appels CLI sont tracés par CloudTrail.",
+   "Requêtes signées avec Signature V4."
+  ],
+  "related": [
+   "iam",
+   "sts",
+   "sso",
+   "cloudtrail",
+   "sdk"
+  ],
+  "match": [
+   "AWS CLI",
+   "CLI"
+  ]
+ },
+ {
+  "k": "sdk",
+  "name": "AWS SDK",
+  "full": "AWS Software Development Kits",
+  "cat": "Outils développeur",
+  "tagline": "Appeler AWS depuis ton code, sans clé en dur.",
+  "role": "Bibliothèques (Python, JavaScript, Java, etc.) qui permettent à une application d'appeler les API AWS. Elles signent les requêtes et récupèrent les identifiants via une chaîne de fournisseurs standard.",
+  "why": [
+   "Évite d'écrire à la main la signature et la gestion des requêtes API.",
+   "La chaîne d'identifiants permet d'utiliser un rôle IAM sans aucune clé dans le code.",
+   "Gère les nouvelles tentatives et la pagination, donc des applications plus fiables.",
+   "Un code qui utilise un rôle d'exécution reste conforme au moindre privilège."
+  ],
+  "how": "Le SDK cherche les identifiants dans l'ordre : variables d'environnement, profils/SSO, puis rôle du conteneur ou de l'instance (métadonnées). Il signe ensuite chaque appel API.",
+  "when": [
+   "Une fonction Lambda lit un objet S3 avec son rôle d'exécution.",
+   "Une application sur EC2 envoie des messages SQS.",
+   "Un script Python d'audit de sécurité parcourt les comptes.",
+   "Une application mobile utilise des identifiants temporaires via Cognito."
+  ],
+  "notwhen": "Ne jamais écrire access key et secret key dans le code ou le dépôt : utilise un rôle ou un secret géré.",
+  "derja": "El SDK kima boite a outils lel programmeur: ya3tik fonctions jehzin bech tkalem AWS. Ama el mot de passe (la clé) ma tektebhech fil code: khali el rôle ya3mel el khidma.",
+  "use": [
+   {
+    "k": "lambda",
+    "t": "Code applicatif"
+   },
+   {
+    "k": "sdk",
+    "t": "SDK + chaîne d'identifiants"
+   },
+   {
+    "k": "role",
+    "t": "Rôle d'exécution"
+   },
+   {
+    "k": "s3",
+    "t": "Appel API signé"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cli",
+    "d": "La CLI sert aux scripts et à l'administration ; le SDK s'intègre au code applicatif."
+   }
+  ],
+  "exam": [
+   "Dans le code, utiliser un rôle IAM plutôt que des access keys codées en dur.",
+   "Le SDK signe les requêtes et utilise une chaîne de fournisseurs d'identifiants.",
+   "Les appels d'un SDK sont journalisés dans CloudTrail."
+  ],
+  "related": [
+   "iam",
+   "role",
+   "sts",
+   "lambda",
+   "cli"
+  ],
+  "match": [
+   "SDK"
+  ]
+ },
+ {
+  "k": "cloudshell",
+  "name": "AWS CloudShell",
+  "full": "AWS CloudShell",
+  "cat": "Outils développeur",
+  "tagline": "Un terminal dans le navigateur, déjà authentifié.",
+  "role": "Shell gratuit lancé depuis la console AWS, avec la CLI préinstallée et les identifiants de ta session. Il évite de stocker des clés d'accès sur un poste local.",
+  "why": [
+   "Pas de clés d'accès à créer ni à conserver sur ton ordinateur.",
+   "Hérite des permissions de l'identité connectée : le moindre privilège s'applique.",
+   "Environnement prêt à l'emploi avec CLI et outils courants.",
+   "L'accès peut être contrôlé ou refusé par une policy IAM."
+  ],
+  "how": "Dans la console, tu ouvres CloudShell. Un environnement temporaire démarre avec les identifiants de ta session, et un stockage persistant est disponible dans ton répertoire personnel.",
+  "when": [
+   "Lancer une commande CLI rapide sans configuration locale.",
+   "Travailler depuis un poste partagé ou non fiable.",
+   "Tester un script d'audit avant de l'automatiser.",
+   "Dépanner une ressource pendant un incident."
+  ],
+  "notwhen": "Pour des tâches longues ou des pipelines, utilise un environnement d'automatisation dédié, pas un shell interactif.",
+  "derja": "CloudShell kima terminal fil cyber: tod5ol b session mte3ek, tekhdem, w ma yab9a 7ata clé fil pc mte3ek. Aman men ennek t5alli access key fil laptop.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Session console + MFA"
+   },
+   {
+    "k": "cloudshell",
+    "t": "Terminal navigateur"
+   },
+   {
+    "k": "cli",
+    "t": "CLI préinstallée"
+   },
+   {
+    "k": "iam",
+    "t": "Droits de ta session"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cli",
+    "d": "La CLI locale nécessite d'y gérer des identifiants ; CloudShell réutilise ta session console."
+   },
+   {
+    "k": "cloud9",
+    "d": "Cloud9 est un IDE complet dans le cloud ; CloudShell est un simple terminal."
+   }
+  ],
+  "exam": [
+   "CloudShell utilise les identifiants de l'utilisateur connecté à la console.",
+   "Aucune clé d'accès à stocker localement.",
+   "L'accès à CloudShell se contrôle avec des permissions IAM."
+  ],
+  "related": [
+   "cli",
+   "console",
+   "iam",
+   "cloud9"
+  ],
+  "match": [
+   "CloudShell"
+  ]
+ },
+ {
+  "k": "cdk",
+  "name": "AWS CDK",
+  "full": "AWS Cloud Development Kit",
+  "cat": "Outils développeur",
+  "tagline": "L'infrastructure en vrai code : Python, TypeScript, Java...",
+  "role": "Framework qui permet de définir l'infrastructure AWS dans un langage de programmation, puis de la synthétiser en modèles CloudFormation déployés via des stacks.",
+  "why": [
+   "Des constructs de haut niveau appliquent de bons réglages par défaut (chiffrement, moindre privilège).",
+   "L'infrastructure est relue, testée et versionnée comme du code.",
+   "Des outils comme cdk-nag vérifient les règles de sécurité avant déploiement.",
+   "Réduit la duplication : une construction sécurisée est réutilisée partout."
+  ],
+  "how": "Tu écris l'app CDK, la commande cdk synth génère le modèle CloudFormation, puis cdk deploy le déploie. Un bootstrap préalable crée les rôles et ressources nécessaires dans le compte.",
+  "when": [
+   "Créer un VPC, un bucket chiffré et des rôles IAM par code.",
+   "Standardiser une architecture dans plusieurs comptes.",
+   "Intégrer des tests d'infrastructure dans un pipeline.",
+   "Générer des ressources en boucle quand un modèle YAML devient lourd."
+  ],
+  "notwhen": "Si l'équipe préfère déclaratif pur, CloudFormation direct suffit ; le CDK ajoute une couche à comprendre.",
+  "derja": "CDK kima tektab el plan mta3 el dar b code ta3 programmeur: boucles w fonctions, w houwa yodhrob menha CloudFormation. A7la men ennek tektab kol 7aja bil yed.",
+  "use": [
+   {
+    "k": "document",
+    "t": "Code CDK"
+   },
+   {
+    "k": "cdk",
+    "t": "cdk synth"
+   },
+   {
+    "k": "cloudformation",
+    "t": "Modèle généré"
+   },
+   {
+    "k": "vpc",
+    "t": "Ressources déployées"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudformation",
+    "d": "CDK génère du CloudFormation ; CloudFormation est le moteur de déploiement sous-jacent."
+   }
+  ],
+  "exam": [
+   "CDK se synthétise en modèles CloudFormation.",
+   "Écrit dans un langage de programmation (TypeScript, Python, Java...).",
+   "Nécessite un bootstrap du compte/région avant le premier déploiement."
+  ],
+  "related": [
+   "cloudformation",
+   "iam",
+   "codepipeline",
+   "servicecatalog"
+  ],
+  "match": [
+   "CDK"
+  ]
+ },
+ {
+  "k": "xray",
+  "name": "AWS X-Ray",
+  "full": "AWS X-Ray",
+  "cat": "Détection & monitoring",
+  "tagline": "Suivre une requête à travers tous les services d'une application.",
+  "role": "Service de traçage distribué : il suit les requêtes de bout en bout dans une application, construit une carte des services et aide à repérer erreurs et latences. Utile pour comprendre le chemin d'une requête.",
+  "why": [
+   "Localise le service lent ou en erreur dans une architecture à plusieurs composants.",
+   "La carte des services aide à comprendre les dépendances et les flux de données.",
+   "Donne du contexte lors d'une investigation d'incident sur une application.",
+   "Le traçage doit éviter de capturer des données sensibles dans les annotations."
+  ],
+  "how": "L'application instrumentée envoie des segments de trace à X-Ray ; le service les assemble en traces et en une carte de services. Un rôle IAM doit autoriser l'envoi des données.",
+  "when": [
+   "Trouver pourquoi une API Gateway + Lambda est lente.",
+   "Visualiser les dépendances entre microservices.",
+   "Repérer un appel d'un service qui échoue.",
+   "Corréler un pic d'erreurs avec un composant précis."
+  ],
+  "notwhen": "Pour de nouvelles instrumentations, AWS oriente de plus en plus vers OpenTelemetry ; X-Ray reste le backend de traces.",
+  "derja": "X-Ray kima GPS li ytab3 el commande mta3ek men el bidaya lel nihaya: tchouf fi anehi blassa ta7bes w anehi 9ata3 ta3tel. Ama ma tektebch donnees sensibles fil traces.",
+  "use": [
+   {
+    "k": "client",
+    "t": "Requête"
+   },
+   {
+    "k": "apigw",
+    "t": "API Gateway"
+   },
+   {
+    "k": "lambda",
+    "t": "Lambda (instrumentée)"
+   },
+   {
+    "k": "xray",
+    "t": "Trace + service map"
+   }
+  ],
+  "vs": [
+   {
+    "k": "cloudwatch",
+    "d": "CloudWatch surveille métriques et logs ; X-Ray suit le trajet d'une requête."
+   },
+   {
+    "k": "otel",
+    "d": "OpenTelemetry est le standard ouvert d'instrumentation qui peut alimenter X-Ray."
+   }
+  ],
+  "exam": [
+   "Traçage distribué : service map + traces de bout en bout.",
+   "Aide à l'analyse de performance et d'erreurs, pas à l'audit d'accès.",
+   "Les données envoyées nécessitent des permissions IAM adaptées."
+  ],
+  "related": [
+   "cloudwatch",
+   "lambda",
+   "apigw",
+   "otel"
+  ],
+  "match": [
+   "X-Ray"
+  ]
+ },
+ {
+  "k": "wellarch",
+  "name": "AWS Well-Architected",
+  "full": "AWS Well-Architected Framework / Tool",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Un cadre de bonnes pratiques pour évaluer une architecture.",
+  "role": "Cadre d'AWS décrit en six piliers (excellence opérationnelle, sécurité, fiabilité, performance, optimisation des coûts, durabilité) avec un outil d'évaluation (Well-Architected Tool) qui produit des recommandations.",
+  "why": [
+   "Donne un langage commun pour revoir une architecture et prioriser les risques.",
+   "Le pilier Sécurité couvre identité, détection, protection des données et réponse aux incidents.",
+   "L'outil identifie les risques élevés et propose un plan d'amélioration.",
+   "Les lenses couvrent des cas spécifiques (par exemple serverless, SaaS)."
+  ],
+  "how": "Tu réponds à des questions par pilier dans le Well-Architected Tool ; il signale les risques et suggère des actions. Les revues se refont régulièrement.",
+  "when": [
+   "Revoir une architecture avant la mise en production.",
+   "Préparer un audit de sécurité interne.",
+   "Comparer deux conceptions selon les six piliers.",
+   "Structurer une discussion d'architecture avec l'équipe."
+  ],
+  "notwhen": "Ce n'est ni un scanner technique ni un service de détection : il fournit un cadre de revue, pas une surveillance continue.",
+  "derja": "Well-Architected kima grille mta3 el imtihan li t9ayem biha el binaya mta3ek: sitta mawadi3 (sécurité, fiabilité...) w kol wa7da fiha as2ila. Tchouf win ta3ref w win lazem ta3mel.",
+  "use": [
+   {
+    "k": "wellarch",
+    "t": "Revue par piliers"
+   },
+   {
+    "k": "finding",
+    "t": "Risques identifiés"
+   },
+   {
+    "k": "document",
+    "t": "Plan d'amélioration"
+   }
+  ],
+  "vs": [
+   {
+    "k": "trustedadvisor",
+    "d": "Trusted Advisor est automatique et technique ; Well-Architected est une revue guidée par questions."
+   }
+  ],
+  "exam": [
+   "Six piliers : excellence opérationnelle, sécurité, fiabilité, performance, coûts, durabilité.",
+   "Le Well-Architected Tool guide l'évaluation et sort des recommandations.",
+   "Principes de sécurité : traçabilité, sécurité à toutes les couches, protection des données, automatisation."
+  ],
+  "related": [
+   "trustedadvisor",
+   "resiliencehub",
+   "securityhub",
+   "fis"
+  ],
+  "match": [
+   "Well-Architected"
+  ]
+ },
+ {
+  "k": "fis",
+  "name": "AWS FIS",
+  "full": "AWS Fault Injection Service",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Provoquer des pannes contrôlées pour tester la résilience.",
+  "role": "Service d'ingénierie du chaos : il injecte des pannes contrôlées (arrêt d'instances, latence réseau, erreurs d'API) via des expériences pour vérifier qu'une application résiste.",
+  "why": [
+   "Révèle les faiblesses de résilience avant qu'un vrai incident ne les expose.",
+   "Les conditions d'arrêt (alarmes CloudWatch) stoppent l'expérience si l'impact devient trop fort.",
+   "L'expérience s'exécute avec un rôle IAM limité aux cibles prévues.",
+   "Valide que les alarmes, les runbooks et le basculement fonctionnent."
+  ],
+  "how": "Tu définis un modèle d'expérience : actions, ressources cibles, conditions d'arrêt et rôle IAM. L'exécution applique les actions, et l'équipe observe la réaction du système.",
+  "when": [
+   "Vérifier que l'application survit à la perte d'une instance.",
+   "Simuler une panne d'AZ en préproduction.",
+   "Tester les alarmes et le basculement automatique.",
+   "Entraîner l'équipe à un scénario de défaillance."
+  ],
+  "notwhen": "Pas de tests dans un environnement fragile ou sans conditions d'arrêt ; commencer par un périmètre réduit en préproduction.",
+  "derja": "FIS kima exercice d'evacuation fil madrasa: tet3ayet 3la el hrika mte3 fake bech tchouf ken el nes toukhrej bi salem. Ama lazem ta3mel stop ken ysir khatar.",
+  "use": [
+   {
+    "k": "fis",
+    "t": "Modèle d'expérience"
+   },
+   {
+    "k": "role",
+    "t": "Rôle IAM limité"
+   },
+   {
+    "k": "ec2",
+    "t": "Panne injectée (cible)"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Condition d'arrêt"
+   }
+  ],
+  "vs": [
+   {
+    "k": "resiliencehub",
+    "d": "Resilience Hub évalue la résilience par rapport à des objectifs ; FIS teste par des pannes réelles."
+   }
+  ],
+  "exam": [
+   "Ingénierie du chaos : injection de pannes contrôlées.",
+   "Les conditions d'arrêt (alarmes CloudWatch) limitent le rayon d'impact.",
+   "Un rôle IAM définit ce que l'expérience peut toucher."
+  ],
+  "related": [
+   "resiliencehub",
+   "cloudwatch",
+   "ec2",
+   "wellarch",
+   "iam"
+  ],
+  "match": [
+   "Fault Injection",
+   "FIS"
+  ]
+ },
+ {
+  "k": "resiliencehub",
+  "name": "AWS Resilience Hub",
+  "full": "AWS Resilience Hub",
+  "cat": "Gouvernance & gestion",
+  "tagline": "Mesurer si une application atteint ses objectifs RTO et RPO.",
+  "role": "Service qui évalue la résilience d'une application par rapport à une politique de résilience (objectifs RTO et RPO), propose des recommandations et suit la conformité dans le temps.",
+  "why": [
+   "Traduit des objectifs métier (RTO/RPO) en vérifications techniques.",
+   "Détecte les points de défaillance uniques dans l'architecture.",
+   "Fournit des recommandations concrètes pour combler les écarts.",
+   "S'intègre avec FIS pour tester les scénarios de panne."
+  ],
+  "how": "Tu décris l'application (ressources via CloudFormation, groupes de ressources, etc.), définis une politique de résilience, puis lances une évaluation qui compare l'architecture aux objectifs et recommande des corrections.",
+  "when": [
+   "Vérifier qu'une application respecte un RTO de 1 heure.",
+   "Valider une architecture de reprise après sinistre.",
+   "Suivre la dérive de résilience après des changements.",
+   "Préparer un plan de continuité d'activité."
+  ],
+  "notwhen": "Il évalue et recommande, il ne corrige pas lui-même ; il ne remplace pas de vrais tests de reprise.",
+  "derja": "Resilience Hub kima tabib mta3 sa7a li ya9is el 9odra mta3 el app 3la t7amol el mochkla: yqollek ken tnajem trajja3 el khidma f wa9t mou7aded wella la.",
+  "use": [
+   {
+    "k": "resiliencehub",
+    "t": "Politique RTO/RPO"
+   },
+   {
+    "k": "cloudformation",
+    "t": "Description de l'app"
+   },
+   {
+    "k": "finding",
+    "t": "Écarts et recommandations"
+   },
+   {
+    "k": "fis",
+    "t": "Test par panne injectée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "fis",
+    "d": "FIS injecte de vraies pannes ; Resilience Hub évalue la conception par rapport aux objectifs."
+   },
+   {
+    "k": "backup",
+    "d": "AWS Backup protège les données ; Resilience Hub vérifie que l'ensemble tient les objectifs."
+   }
+  ],
+  "exam": [
+   "Politique de résilience = objectifs RTO et RPO.",
+   "Fournit des recommandations et un score de résilience.",
+   "Complète FIS : l'un évalue, l'autre teste par panne."
+  ],
+  "related": [
+   "fis",
+   "wellarch",
+   "backup",
+   "drs",
+   "cloudformation"
+  ],
+  "match": [
+   "Resilience Hub"
+  ]
+ },
+ {
+  "k": "otel",
+  "name": "OpenTelemetry",
+  "full": "OpenTelemetry (AWS Distro for OpenTelemetry)",
+  "cat": "Détection & monitoring",
+  "tagline": "Le standard ouvert pour produire traces, métriques et logs.",
+  "role": "Standard ouvert et neutre vis-à-vis des fournisseurs pour instrumenter les applications et collecter traces, métriques et logs. AWS propose une distribution (ADOT) qui envoie ces données vers X-Ray, CloudWatch ou Prometheus.",
+  "why": [
+   "Évite l'enfermement : la même instrumentation fonctionne avec plusieurs outils d'observabilité.",
+   "Le collecteur peut filtrer ou masquer des attributs sensibles avant l'envoi.",
+   "Donne des traces cohérentes sur des applications multi-services.",
+   "AWS le recommande de plus en plus pour instrumenter, notamment avec X-Ray."
+  ],
+  "how": "Le code ou un agent produit des données de télémétrie ; un collecteur OpenTelemetry les reçoit, les traite puis les exporte vers un backend comme X-Ray, CloudWatch ou Amazon Managed Service for Prometheus.",
+  "when": [
+   "Instrumenter une application de manière neutre.",
+   "Envoyer des traces vers X-Ray avec le collecteur ADOT.",
+   "Masquer des données sensibles dans la télémétrie.",
+   "Unifier métriques, logs et traces de plusieurs services."
+  ],
+  "notwhen": "C'est un standard d'instrumentation, pas un backend de stockage ni un outil de détection de menaces.",
+  "derja": "OpenTelemetry kima prise universelle: nafs el fiche tekhdem m3a barcha appareils (X-Ray, CloudWatch...). Ma tarbtech rou7ek b marka wa7da.",
+  "use": [
+   {
+    "k": "server",
+    "t": "Application instrumentée"
+   },
+   {
+    "k": "otel",
+    "t": "Collecteur OpenTelemetry"
+   },
+   {
+    "k": "xray",
+    "t": "Traces"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Métriques et logs"
+   }
+  ],
+  "vs": [
+   {
+    "k": "xray",
+    "d": "X-Ray est le backend AWS de traces ; OpenTelemetry est le standard qui y envoie les données."
+   },
+   {
+    "k": "prometheus",
+    "d": "Prometheus est un système de métriques ; OpenTelemetry peut les exporter vers lui."
+   }
+  ],
+  "exam": [
+   "Standard ouvert et neutre pour la télémétrie (traces, métriques, logs).",
+   "ADOT est la distribution AWS d'OpenTelemetry.",
+   "Le collecteur peut exporter vers X-Ray, CloudWatch ou Prometheus."
+  ],
+  "related": [
+   "xray",
+   "cloudwatch",
+   "prometheus",
+   "grafana"
+  ],
+  "match": [
+   "OpenTelemetry",
+   "OTel"
+  ]
+ },
+ {
+  "k": "codecommit",
+  "name": "AWS CodeCommit",
+  "full": "AWS CodeCommit",
+  "cat": "Outils développeur",
+  "tagline": "Un dépôt Git privé géré, contrôlé par IAM.",
+  "role": "Service de dépôts Git privés et managés, où l'accès est contrôlé par IAM et les données sont chiffrées. Il sert de source pour les pipelines CI/CD.",
+  "why": [
+   "Le contrôle d'accès repose sur IAM : un seul modèle d'identité pour code et ressources.",
+   "Données chiffrées au repos (KMS) et en transit (HTTPS ou SSH).",
+   "Règles d'approbation de pull request pour imposer une relecture avant fusion.",
+   "Intégration native avec CodePipeline, CodeBuild et EventBridge."
+  ],
+  "how": "Tu crées un dépôt, l'accès se fait par Git via HTTPS (identifiants IAM ou helper) ou SSH. Les événements déclenchent des pipelines ou notifications.",
+  "when": [
+   "Héberger du code privé dans un compte AWS maîtrisé.",
+   "Imposer deux relectures avant fusion sur la branche principale.",
+   "Restreindre l'accès aux branches par des policies IAM.",
+   "Déclencher un pipeline à chaque push."
+  ],
+  "notwhen": "La disponibilité pour de nouveaux clients a changé ces dernières années : vérifier la doc. Alternatives courantes : GitHub, GitLab.",
+  "derja": "CodeCommit kima khzena privee fil dar mta3 el code: ken elli 3andou el moftah (IAM) yod5ol. W bech ma yet7attech code jdid men ghir ma yetchouf, ta3mel pull request w review.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Développeur (IAM)"
+   },
+   {
+    "k": "codecommit",
+    "t": "Push + pull request"
+   },
+   {
+    "k": "codepipeline",
+    "t": "Pipeline déclenché"
+   },
+   {
+    "k": "codebuild",
+    "t": "Build et tests"
+   }
+  ],
+  "vs": [
+   {
+    "k": "codepipeline",
+    "d": "CodePipeline orchestre ; CodeCommit héberge le code source."
+   }
+  ],
+  "exam": [
+   "Dépôt Git managé, accès contrôlé par IAM.",
+   "Chiffrement au repos et en transit.",
+   "Règles d'approbation de pull requests avant fusion."
+  ],
+  "related": [
+   "codepipeline",
+   "codebuild",
+   "iam",
+   "kms"
+  ],
+  "match": [
+   "CodeCommit"
+  ]
+ },
+ {
+  "k": "codebuild",
+  "name": "AWS CodeBuild",
+  "full": "AWS CodeBuild",
+  "cat": "Outils développeur",
+  "tagline": "Compiler et tester dans un environnement jetable et isolé.",
+  "role": "Service de build managé : il compile le code, exécute les tests et produit des artefacts dans des conteneurs éphémères, sans serveur de build à administrer. Les étapes sont décrites dans un fichier buildspec.",
+  "why": [
+   "Chaque build s'exécute dans un environnement isolé et éphémère.",
+   "Un rôle de service limite ce que le build peut faire (moindre privilège).",
+   "Les secrets viennent de Secrets Manager ou Parameter Store, pas du code.",
+   "Peut lancer des analyses de sécurité (SAST, scan de dépendances) dans le pipeline."
+  ],
+  "how": "CodeBuild lit le buildspec.yml, démarre un conteneur, exécute les phases (install, build, post_build), publie les artefacts (par exemple sur S3) et envoie les logs vers CloudWatch ou S3.",
+  "when": [
+   "Compiler et tester à chaque commit.",
+   "Scanner le code et les dépendances avant déploiement.",
+   "Construire une image de conteneur et la pousser vers ECR.",
+   "Exécuter un build dans un VPC pour accéder à des ressources privées."
+  ],
+  "notwhen": "Éviter le mode privilégié (Docker) sauf besoin réel ; ne pas donner au rôle de build des droits d'administrateur.",
+  "derja": "CodeBuild kima atelier nadhif kol marra: yetfta7, yekhdem el khidma, w ba3d yetmsa7 kamel. Ma yab9a-ch fih athar mta3 el build li fet.",
+  "use": [
+   {
+    "k": "codecommit",
+    "t": "Source"
+   },
+   {
+    "k": "codebuild",
+    "t": "Build + tests (buildspec)"
+   },
+   {
+    "k": "secrets",
+    "t": "Secrets injectés"
+   },
+   {
+    "k": "s3",
+    "t": "Artefacts"
+   },
+   {
+    "k": "ecr",
+    "t": "Image poussée"
+   }
+  ],
+  "vs": [
+   {
+    "k": "codepipeline",
+    "d": "CodePipeline orchestre les étapes ; CodeBuild exécute l'étape de compilation et de test."
+   }
+  ],
+  "exam": [
+   "Les instructions de build sont dans buildspec.yml.",
+   "Build dans un conteneur éphémère avec un rôle de service.",
+   "Variables sensibles : Secrets Manager ou Parameter Store."
+  ],
+  "related": [
+   "codepipeline",
+   "codecommit",
+   "ecr",
+   "secrets",
+   "s3"
+  ],
+  "match": [
+   "CodeBuild"
+  ]
+ },
+ {
+  "k": "codedeploy",
+  "name": "AWS CodeDeploy",
+  "full": "AWS CodeDeploy",
+  "cat": "Outils développeur",
+  "tagline": "Déployer automatiquement, avec retour arrière si ça casse.",
+  "role": "Service de déploiement automatisé vers EC2, serveurs sur site, Lambda et ECS. Il gère les stratégies (sur place, bleu/vert) et peut revenir automatiquement en arrière en cas d'échec.",
+  "why": [
+   "Déploiements reproductibles : moins d'erreurs humaines et de modifications directes en production.",
+   "Le déploiement bleu/vert limite l'indisponibilité et le risque.",
+   "Rollback automatique si le déploiement échoue ou si une alarme se déclenche.",
+   "Rôle IAM de service et profil d'instance limitent ce que le déploiement peut faire."
+  ],
+  "how": "Un fichier appspec décrit les étapes ; sur EC2 ou sur site, un agent CodeDeploy récupère la révision (S3 ou GitHub) et l'installe. Pour Lambda et ECS, le trafic est déplacé entre versions.",
+  "when": [
+   "Déployer une nouvelle version sur un groupe d'instances.",
+   "Faire un déploiement bleu/vert pour une application critique.",
+   "Basculer progressivement le trafic d'un alias Lambda.",
+   "Revenir automatiquement à la version précédente en cas d'erreur."
+  ],
+  "notwhen": "Pour créer l'infrastructure elle-même, utilise CloudFormation ou CDK ; CodeDeploy ne déploie que le code et les applications.",
+  "derja": "CodeDeploy kima camion li yweddi el version jdida lel serveurs b tartib: ken fama ghalta, yrajja3 el version el 9dima. Aman men ennek tbaddel serveur serveur bil yed.",
+  "use": [
+   {
+    "k": "s3",
+    "t": "Révision de l'app"
+   },
+   {
+    "k": "codedeploy",
+    "t": "Déploiement (appspec)"
+   },
+   {
+    "k": "ec2",
+    "t": "Instances + agent"
+   },
+   {
+    "k": "cloudwatch",
+    "t": "Alarme = rollback"
+   }
+  ],
+  "vs": [
+   {
+    "k": "codepipeline",
+    "d": "CodePipeline orchestre ; CodeDeploy exécute l'étape de déploiement."
+   },
+   {
+    "k": "cloudformation",
+    "d": "CloudFormation crée l'infrastructure ; CodeDeploy y installe l'application."
+   }
+  ],
+  "exam": [
+   "Cibles : EC2, serveurs sur site, Lambda, ECS.",
+   "Stratégies de déploiement : sur place ou bleu/vert.",
+   "Un agent est nécessaire sur EC2 et serveurs sur site.",
+   "Rollback automatique en cas d'échec ou d'alarme."
+  ],
+  "related": [
+   "codepipeline",
+   "ec2",
+   "lambda",
+   "cloudwatch",
+   "s3"
+  ],
+  "match": [
+   "CodeDeploy"
+  ]
+ },
+ {
+  "k": "codepipeline",
+  "name": "AWS CodePipeline",
+  "full": "AWS CodePipeline",
+  "cat": "Outils développeur",
+  "tagline": "La chaîne CI/CD : source, build, test, approbation, déploiement.",
+  "role": "Service d'intégration et livraison continues qui orchestre des étapes (source, build, test, déploiement) et peut inclure des approbations manuelles. Il relie CodeBuild, CodeDeploy et d'autres services.",
+  "why": [
+   "Automatise la chaîne : moins de déploiements manuels et de modifications non tracées.",
+   "Les approbations manuelles imposent un contrôle humain avant la production.",
+   "Chaque étape utilise des rôles IAM distincts, ce qui facilite la séparation des tâches.",
+   "Artefacts stockés dans S3, chiffrés avec KMS."
+  ],
+  "how": "Un déclencheur (push Git, événement EventBridge) lance le pipeline : chaque étape exécute des actions et passe ses artefacts à la suivante. Un rôle de service autorise les actions.",
+  "when": [
+   "Déployer automatiquement après un merge sur la branche principale.",
+   "Exiger une approbation avant le déploiement en production.",
+   "Déployer dans plusieurs comptes avec des rôles inter-comptes.",
+   "Intégrer des tests de sécurité dans le flux de livraison."
+  ],
+  "notwhen": "CodePipeline orchestre seulement : le build et le déploiement sont faits par d'autres services ou outils.",
+  "derja": "CodePipeline kima chaine mta3 usine: kol machine ta3mel marhla w tbaath lil li ba3dha, w fi blassa fama moura9eb yo9olek « ykhalles » 9bal ma el produit yosel lel client.",
+  "use": [
+   {
+    "k": "codecommit",
+    "t": "Source"
+   },
+   {
+    "k": "codebuild",
+    "t": "Build + tests"
+   },
+   {
+    "k": "user",
+    "t": "Approbation manuelle"
+   },
+   {
+    "k": "codedeploy",
+    "t": "Déploiement"
+   }
+  ],
+  "vs": [
+   {
+    "k": "codebuild",
+    "d": "CodeBuild exécute la compilation ; CodePipeline enchaîne les étapes."
+   },
+   {
+    "k": "eventbridge",
+    "d": "EventBridge peut déclencher un pipeline sur un événement."
+   }
+  ],
+  "exam": [
+   "Orchestrateur CI/CD : source, build, test, déploiement.",
+   "Peut inclure une étape d'approbation manuelle.",
+   "Pipelines déclenchables via EventBridge."
+  ],
+  "related": [
+   "codebuild",
+   "codedeploy",
+   "codecommit",
+   "eventbridge",
+   "s3"
+  ],
+  "match": [
+   "CodePipeline"
+  ]
+ },
+ {
+  "k": "codeartifact",
+  "name": "AWS CodeArtifact",
+  "full": "AWS CodeArtifact",
+  "cat": "Outils développeur",
+  "tagline": "Un dépôt privé de paquets pour sécuriser la chaîne d'approvisionnement.",
+  "role": "Dépôt d'artefacts managé pour les paquets logiciels (npm, PyPI, Maven, NuGet, etc.). Il met en cache des dépôts publics, héberge des paquets privés et contrôle qui peut les publier ou les consommer.",
+  "why": [
+   "Réduit le risque de dépendances malveillantes en contrôlant leur provenance.",
+   "Les contrôles d'origine des paquets aident à prévenir les attaques de confusion de dépendance.",
+   "Accès géré par IAM, avec des jetons d'autorisation temporaires.",
+   "Chiffrement des données avec KMS."
+  ],
+  "how": "Les outils de build (npm, pip, Maven) pointent vers un dépôt CodeArtifact qui peut relayer un dépôt public via un upstream. Le client s'authentifie avec un jeton temporaire obtenu par IAM.",
+  "when": [
+   "Centraliser les dépendances d'une équipe.",
+   "Publier des bibliothèques internes privées.",
+   "Contrôler quelles versions de paquets publics sont autorisées.",
+   "Fournir des paquets à CodeBuild sans accès direct à Internet."
+  ],
+  "notwhen": "Si tu n'utilises que des paquets publics sans exigence de contrôle, un dépôt public suffit, au prix d'une moindre maîtrise.",
+  "derja": "CodeArtifact kima 9assab mte3ek el thi9a: ma tchri el lé7m men ay blassa, tchrih men 3andou. Hakka el packages yjiw men blassa m3arfa w ma yodkhol-ch fihom 7aja khayba.",
+  "use": [
+   {
+    "k": "user",
+    "t": "Développeur / build"
+   },
+   {
+    "k": "codeartifact",
+    "t": "Dépôt privé (jeton IAM)"
+   },
+   {
+    "k": "internet",
+    "t": "Dépôt public (upstream)"
+   },
+   {
+    "k": "codebuild",
+    "t": "Build avec dépendances sûres"
+   }
+  ],
+  "vs": [
+   {
+    "k": "ecr",
+    "d": "ECR stocke des images de conteneurs ; CodeArtifact stocke des paquets de bibliothèques."
+   },
+   {
+    "k": "s3",
+    "d": "S3 stocke des fichiers bruts ; CodeArtifact gère formats et versions de paquets."
+   }
+  ],
+  "exam": [
+   "Dépôt de paquets managé (npm, PyPI, Maven, NuGet...).",
+   "Supporte les dépôts amont (upstream) pour relayer des dépôts publics.",
+   "Améliore la sécurité de la chaîne d'approvisionnement logicielle."
+  ],
+  "related": [
+   "codebuild",
+   "codepipeline",
+   "iam",
+   "kms",
+   "ecr"
+  ],
+  "match": [
+   "CodeArtifact"
+  ]
+ },
+ {
+  "k": "amplify",
+  "name": "AWS Amplify",
+  "full": "AWS Amplify",
+  "cat": "Outils développeur",
+  "tagline": "Héberger et construire des applications web/mobiles full-stack.",
+  "role": "Ensemble d'outils et d'hébergement pour créer, déployer et héberger des applications web et mobiles, avec un backend connecté à des services comme Cognito, AppSync et S3.",
+  "why": [
+   "Intègre l'authentification via Cognito sans écrire soi-même la gestion des comptes.",
+   "Déploiement continu depuis un dépôt Git avec hébergement HTTPS.",
+   "Le cours cite Amplify parmi les ressources pouvant être protégées par AWS WAF.",
+   "Les variables d'environnement et secrets doivent rester hors du dépôt de code."
+  ],
+  "how": "Tu connectes un dépôt Git ; Amplify construit et déploie le frontend à chaque commit, et peut provisionner un backend (authentification, API, stockage) via des services AWS.",
+  "when": [
+   "Déployer rapidement un site web ou une application React.",
+   "Ajouter l'authentification d'utilisateurs avec Cognito.",
+   "Prototyper une application mobile avec backend managé.",
+   "Mettre en place un déploiement par branche pour tester."
+  ],
+  "notwhen": "Pour une architecture sur mesure avec contrôle réseau fin, préfère composer directement CloudFront, S3, API Gateway, etc.",
+  "derja": "Amplify kima kit mta3 bnaa jehez: tjib el dar (app web) b barcha 7ajet wa7da (login, stockage, hébergement) bech tabda khidma b sor3a. Ama lazem tfasher chnowa 7atit fil bin w el securite mta3ha.",
+  "use": [
+   {
+    "k": "codecommit",
+    "t": "Push Git"
+   },
+   {
+    "k": "amplify",
+    "t": "Build + hébergement"
+   },
+   {
+    "k": "cognito",
+    "t": "Authentification"
+   },
+   {
+    "k": "appsync",
+    "t": "API"
+   }
+  ],
+  "vs": [
+   {
+    "k": "beanstalk",
+    "d": "Elastic Beanstalk déploie des applications serveur classiques ; Amplify vise le web/mobile full-stack."
+   },
+   {
+    "k": "cloudfront",
+    "d": "CloudFront est le CDN ; Amplify Hosting l'emploie pour distribuer l'application."
+   }
+  ],
+  "exam": [
+   "Plateforme web/mobile full-stack avec hébergement et CI/CD.",
+   "S'intègre à Cognito pour l'authentification.",
+   "Cité dans le cours parmi les ressources que WAF peut protéger."
+  ],
+  "related": [
+   "cognito",
+   "appsync",
+   "s3",
+   "cloudfront",
+   "waf"
+  ],
+  "match": [
+   "Amplify"
+  ]
+ }
+]

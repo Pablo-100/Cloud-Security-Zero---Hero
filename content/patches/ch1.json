@@ -1,0 +1,3972 @@
+[
+ {
+  "id": "ch1-01",
+  "services": [
+   "ec2",
+   "beanstalk",
+   "workspaces",
+   "s3",
+   "vpn",
+   "iam",
+   "budgets"
+  ],
+  "drop": [
+   2,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10
+  ],
+  "shorten": {
+   "0": "IaaS = tebkhi fi dar'ek: el kouzina mawjouda, ama inti ta3mel kol chay. PaaS = traiteur: inti tkhtar el menu (el code mte3ek). SaaS = restaurant: tekol w tmshi. Ama 7ata fi restaurant, inti mas2oul 3la el commande mte3ek (users w données).",
+   "1": "Le cloud lance un serveur en quelques minutes mais **élargit la surface d'attaque** : exposition permanente (Internet, API, comptes privilégiés), élasticité rapide, responsabilité partagée. Conséquences : contrôles intégrés dès la conception, inventaire + logs + supervision en continu, droits, coûts, régions et preuves maîtrisés. La sécurité cloud n'est **pas un produit unique**."
+  },
+  "insert": [
+   {
+    "after": 3,
+    "block": {
+     "type": "hub",
+     "title": "5 caractéristiques du cloud = 5 risques (à connaître par paire)",
+     "center": {
+      "label": "Cloud (NIST)",
+      "sub": "5 caractéristiques",
+      "icon": "cloud"
+     },
+     "spokes": [
+      {
+       "label": "Self-service",
+       "sub": "Risque : ressources non validées",
+       "icon": "console",
+       "note": "On crée la ressource soi-même, sans ticket. Réflexe : garde-fous IAM, templates IaC approuvés.",
+       "tone": "warn"
+      },
+      {
+       "label": "Accès réseau large",
+       "sub": "Risque : exposition Internet/API",
+       "icon": "internet",
+       "note": "Services joignables à distance (Internet, API). Réflexe : réduire l'exposition, WAF, authentification forte.",
+       "tone": "warn"
+      },
+      {
+       "label": "Mutualisation",
+       "sub": "Risque : isolation et données",
+       "icon": "users",
+       "note": "Ressources partagées entre clients (multi-tenant). Réflexe : chiffrement, isolation, bon niveau de service.",
+       "tone": "warn"
+      },
+      {
+       "label": "Élasticité",
+       "sub": "Risque : actifs non durcis",
+       "icon": "autoscaling",
+       "note": "Montée et descente en charge rapides. Réflexe : images et templates durcis, scans automatiques.",
+       "tone": "warn"
+      },
+      {
+       "label": "Service mesuré",
+       "sub": "Risque : coûts et abus",
+       "icon": "budgets",
+       "note": "Usage mesuré donc facturé (ex. cryptojacking). Réflexe : budgets, quotas, alertes de facturation.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "flow",
+     "title": "Les 5 caractéristiques en action : naissance d'une VM",
+     "intro": "Suis une demande de VM de bout en bout et repère à quelle étape chaque caractéristique (et son risque) apparaît.",
+     "actors": [
+      {
+       "id": "dev",
+       "label": "Développeur",
+       "sub": "Équipe projet",
+       "kind": "user",
+       "icon": "user"
+      },
+      {
+       "id": "api",
+       "label": "Console / API / CLI",
+       "sub": "Point d'entrée",
+       "kind": "service",
+       "icon": "console"
+      },
+      {
+       "id": "aws",
+       "label": "Fournisseur cloud",
+       "sub": "Ex. AWS",
+       "kind": "aws",
+       "icon": "server"
+      },
+      {
+       "id": "meter",
+       "label": "Facturation & logs",
+       "sub": "Mesure l'usage",
+       "kind": "store",
+       "icon": "budgets"
+      }
+     ],
+     "steps": [
+      {
+       "from": "dev",
+       "to": "api",
+       "label": "1. Demande une VM",
+       "detail": "Le développeur lance une instance lui-même, sans ticket : c'est le self-service. Le risque est qu'elle soit créée sans validation sécurité.",
+       "derja": "Ma t7ebch ticket, ma t7ebch bureau: inti twelli tbni serveur fi 2 minutes.",
+       "payload": {
+        "title": "Commande CLI",
+        "fields": [
+         {
+          "k": "aws ec2 run-instances",
+          "v": "--instance-type t3.micro --count 1",
+          "note": "L'action de création, déclenchée par le client"
+         },
+         {
+          "k": "--image-id",
+          "v": "ami-0abcdef1234567890",
+          "note": "Image de départ : si elle est vulnérable, la VM l'est aussi"
+         },
+         {
+          "k": "--security-group-ids",
+          "v": "sg-0123456789abcdef0",
+          "note": "Règles réseau : à vérifier, sinon exposition Internet"
+         }
+        ]
+       }
+      },
+      {
+       "from": "api",
+       "to": "aws",
+       "label": "2. Vérifie identité et droits",
+       "detail": "Le fournisseur authentifie l'appelant et contrôle ses permissions avant de créer quoi que ce soit. Sans bonne politique d'accès, n'importe quel compte compromis peut créer des ressources."
+      },
+      {
+       "from": "aws",
+       "to": "aws",
+       "label": "3. Alloue depuis le pool partagé",
+       "detail": "La VM est créée sur du matériel mutualisé avec d'autres clients (multi-tenant). L'isolation entre clients est une garantie du fournisseur, mais elle dépend de la bonne configuration."
+      },
+      {
+       "from": "aws",
+       "to": "dev",
+       "label": "4. VM joignable par le réseau",
+       "dashed": true,
+       "detail": "La VM reçoit une adresse et devient accessible à distance. Si un port est ouvert au monde, elle est exposée à Internet.",
+       "tone": "bad"
+      },
+      {
+       "from": "aws",
+       "to": "aws",
+       "label": "5. Autoscaling : 10 copies",
+       "detail": "L'élasticité crée de nouvelles VM automatiquement. Si l'image n'est pas durcie, on multiplie la faille par 10 en quelques minutes.",
+       "tone": "bad"
+      },
+      {
+       "from": "aws",
+       "to": "meter",
+       "label": "6. Mesure l'usage",
+       "detail": "Chaque heure de VM est mesurée et facturée. C'est utile pour détecter les abus (cryptojacking) avec budgets et alertes.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "compare",
+     "title": "IaaS vs PaaS vs SaaS : qui gère quoi ?",
+     "cols": [
+      {
+       "name": "IaaS",
+       "tag": "Cuisiner chez soi",
+       "points": [
+        "Le fournisseur loue VM, réseau, stockage",
+        "Le client gère OS, middleware, applications et données",
+        "Exemple AWS : Amazon EC2"
+       ],
+       "use": "Quand tu veux un contrôle maximal (OS précis, logiciels maison) et que tu acceptes de patcher et durcir toi-même.",
+       "icon": "ec2"
+      },
+      {
+       "name": "PaaS",
+       "tag": "Traiteur",
+       "points": [
+        "Runtime et plateforme gérés par le fournisseur",
+        "Le client gère son code, ses données et ses configurations",
+        "Exemple AWS : Elastic Beanstalk"
+       ],
+       "use": "Quand tu veux déployer du code vite sans administrer les serveurs.",
+       "icon": "beanstalk"
+      },
+      {
+       "name": "SaaS",
+       "tag": "Restaurant",
+       "points": [
+        "Application complète fournie",
+        "Le client gère les accès, ses données et les paramètres",
+        "Exemple AWS (selon le cours) : Amazon WorkSpaces"
+       ],
+       "use": "Quand tu veux simplement consommer une application, sans toucher à la plateforme.",
+       "icon": "workspaces"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "cards",
+     "title": "Les 4 modèles de déploiement",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "internet",
+       "t": "Public",
+       "d": "Fournisseur public, multi-tenant. Rapide, élastique, payé à l'usage. Vigilance : contrats et configuration client.",
+       "tone": "info"
+      },
+      {
+       "icon": "building",
+       "t": "Privé",
+       "d": "Ressources dédiées à une seule organisation. Contrôle fort, coûts élevés. Hébergé chez soi ou chez un tiers.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "users",
+       "t": "Communautaire",
+       "d": "Partagé par des organisations aux besoins communs (même secteur). Exigences mutualisées ; gouvernance entre membres.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "vpn",
+       "t": "Hybride",
+       "d": "Combine plusieurs clouds ou infrastructures : données sensibles chez soi, pics dans le cloud public. Intégration complexe.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "decision",
+     "title": "Quel modèle de déploiement choisir ?",
+     "root": {
+      "q": "Une partie des données doit rester sous ton contrôle exclusif ?",
+      "yes": {
+       "q": "Tu veux aussi l'élasticité du cloud public ?",
+       "yes": {
+        "a": "Hybride",
+        "icon": "vpn",
+        "tone": "good",
+        "why": "Données sensibles chez soi, pics dans le cloud public"
+       },
+       "no": {
+        "a": "Privé",
+        "icon": "building",
+        "tone": "info",
+        "why": "Ressources dédiées à une seule organisation"
+       }
+      },
+      "no": {
+       "q": "Tu partages avec des organisations aux mêmes exigences ?",
+       "yes": {
+        "a": "Communautaire",
+        "icon": "users",
+        "tone": "info",
+        "why": "Infrastructure partagée par une communauté"
+       },
+       "no": {
+        "a": "Public",
+        "icon": "internet",
+        "tone": "neutral",
+        "why": "Multi-tenant, élastique, coût à l'usage"
+       }
+      }
+     }
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "arch",
+     "title": "Exemple d'architecture hybride",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "users",
+         "label": "Clients",
+         "sub": "Navigateur",
+         "icon": "user"
+        }
+       ]
+      },
+      {
+       "id": "pub",
+       "label": "Cloud public (AWS)",
+       "kind": "vpc",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "web",
+         "label": "Application web",
+         "sub": "EC2",
+         "icon": "ec2"
+        },
+        {
+         "id": "obj",
+         "label": "Stockage d'objets",
+         "sub": "Documents publics",
+         "icon": "s3"
+        }
+       ]
+      },
+      {
+       "id": "dc",
+       "label": "Datacenter de l'entreprise",
+       "kind": "onprem",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "vpn",
+         "label": "Passerelle VPN",
+         "sub": "Tunnel chiffré",
+         "icon": "vpn"
+        },
+        {
+         "id": "db",
+         "label": "Base clients",
+         "sub": "Données sensibles",
+         "icon": "database"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "users",
+       "to": "web",
+       "label": "1. HTTPS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "web",
+       "to": "obj",
+       "label": "2. Lit les fichiers",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "web",
+       "to": "vpn",
+       "label": "3. Tunnel VPN",
+       "style": "dashed"
+      },
+      {
+       "id": "e4",
+       "from": "vpn",
+       "to": "db",
+       "label": "4. Requête interne",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "users",
+       "to": "db",
+       "label": "Accès direct interdit",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "users",
+        "web"
+       ],
+       "caption": "Les clients arrivent sur la partie publique du cloud : élasticité et accès réseau large."
+      },
+      {
+       "edges": [
+        "e2"
+       ],
+       "nodes": [
+        "obj"
+       ],
+       "caption": "Les contenus peu sensibles restent dans le cloud public (multi-tenant, bien configuré)."
+      },
+      {
+       "edges": [
+        "e3",
+        "e4"
+       ],
+       "nodes": [
+        "vpn",
+        "db"
+       ],
+       "caption": "La base sensible reste chez l'entreprise ; l'application l'atteint via un tunnel chiffré. Il faut superviser les deux mondes."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "db"
+       ],
+       "caption": "Aucun accès direct d'Internet à la base : c'est la logique du modèle hybride."
+      }
+     ]
+    }
+   },
+   {
+    "after": 3,
+    "block": {
+     "type": "pipeline",
+     "title": "Avant d'adopter le cloud : 5 questions à poser",
+     "stages": [
+      {
+       "label": "Quelles données ?",
+       "sub": "Sensibilité, PII, secrets",
+       "icon": "database",
+       "tone": "info"
+      },
+      {
+       "label": "Services exposés ?",
+       "sub": "API publiques, admin",
+       "icon": "apigw",
+       "tone": "warn"
+      },
+      {
+       "label": "Quelle disponibilité ?",
+       "sub": "RTO/RPO, multi-AZ, backups",
+       "icon": "backup",
+       "tone": "info"
+      },
+      {
+       "label": "Quelles obligations ?",
+       "sub": "RGPD, PCI DSS, contrats",
+       "icon": "auditmgr",
+       "tone": "info"
+      },
+      {
+       "label": "Qui opère quoi ?",
+       "sub": "Rôles, fournisseur / client",
+       "icon": "users",
+       "tone": "info"
+      }
+     ],
+     "caption": "Décision cloud sécurisée = valeur métier + risque accepté + contrôles disponibles + coût maîtrisé + conformité démontrable."
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "ec2",
+       "ctx": "IaaS : le client gère l'OS et les applications ; c'est la VM créée dans le flux."
+      },
+      {
+       "k": "beanstalk",
+       "ctx": "PaaS : AWS gère la plateforme, le client déploie son code et gère ses données."
+      },
+      {
+       "k": "workspaces",
+       "ctx": "SaaS selon le cours : bureau virtuel managé, le client gère ses données et ses accès."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stockage d'objets de la partie publique de l'architecture hybride."
+      },
+      {
+       "k": "vpn",
+       "ctx": "Tunnel chiffré entre le cloud public et le datacenter de l'entreprise."
+      },
+      {
+       "k": "iam",
+       "ctx": "Authentifie l'appelant et contrôle ses droits avant toute création de ressource."
+      },
+      {
+       "k": "budgets",
+       "ctx": "Mesure l'usage et alerte sur la facture : détecte abus et cryptojacking."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-02",
+  "services": [
+   "shield",
+   "elb",
+   "autoscaling",
+   "rds",
+   "cloudtrail",
+   "budgets",
+   "kms",
+   "config"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5,
+   6
+  ],
+  "shorten": {
+   "0": "Confidentialité = el code mte3 el carte, ghirek ma ya3refou. Intégrité = ki te5ou 100 dinar, el solde yinqos 100 mech 150. Disponibilité = el distributeur ykhdem 24/24. Ba3d el cloud yzid: traçabilité (kamira), coût (facture ma tzidch), scalabilité sécurisée w conformité (el BCT).",
+   "1": "La triade **CIA** reste la base. Mais le cloud est partagé, élastique, facturé à l'usage et soumis à des lois : le cours ajoute **4 objectifs** (traçabilité, coût maîtrisé, scalabilité sécurisée, conformité) pour une sécurité opérationnelle et financière."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Les 7 objectifs de sécurité cloud : clique chaque branche",
+     "center": {
+      "label": "Sécurité cloud",
+      "sub": "3 CIA + 4 cloud",
+      "icon": "securityhub"
+     },
+     "spokes": [
+      {
+       "label": "Disponibilité",
+       "sub": "Multi-AZ, Shield, backups",
+       "icon": "elb",
+       "note": "Accès continu aux services. Menaces : DDoS, panne de zone ou de région, suppression par erreur. Contre-mesures : multi-AZ avec failover testé, Shield, sauvegardes et DRP.",
+       "tone": "info"
+      },
+      {
+       "label": "Intégrité",
+       "sub": "TLS, signatures, versioning",
+       "icon": "signer",
+       "note": "Données et configurations non altérées sans autorisation. Menaces : injection, règles réseau modifiées, images ou IaC non contrôlées. Contre-mesures : TLS, hash, versioning, revue de code.",
+       "tone": "info"
+      },
+      {
+       "label": "Confidentialité",
+       "sub": "Chiffrement, KMS, IAM, DLP",
+       "icon": "kms",
+       "note": "Protéger les données sensibles. Menaces : bucket public, clés ou secrets volés, exfiltration. Contre-mesures : chiffrement, KMS, IAM moindre privilège, DLP.",
+       "tone": "info"
+      },
+      {
+       "label": "Traçabilité",
+       "sub": "Logs immuables, SIEM",
+       "icon": "cloudtrail",
+       "note": "Preuves fiables des accès, actions et changements. Menaces : logs absents ou supprimés, détection tardive. Contre-mesures : logs centralisés immuables, horodatage fiable, SIEM, alertes.",
+       "tone": "good"
+      },
+      {
+       "label": "Coût maîtrisé",
+       "sub": "Budgets, quotas, anomalies",
+       "icon": "budgets",
+       "note": "Prévenir l'abus qui fait exploser la facture. Menaces : cryptojacking, DDoS, création massive de ressources. Contre-mesures : budgets, quotas, alertes, détection d'anomalies.",
+       "tone": "warn"
+      },
+      {
+       "label": "Scalabilité sécurisée",
+       "sub": "Templates IaC, scans CI/CD",
+       "icon": "autoscaling",
+       "note": "Monter en charge sans étendre les failles. Menaces : nouveaux nœuds non durcis, secrets mal propagés. Contre-mesures : templates IaC testés, scans en CI/CD, policies par tags.",
+       "tone": "warn"
+      },
+      {
+       "label": "Conformité",
+       "sub": "AWS Config, audits, preuves",
+       "icon": "auditmgr",
+       "note": "Aligner l'usage sur lois, contrats et standards. Menaces : données hors juridiction, non-respect RGPD ou PCI DSS, pas de preuve. Contre-mesures : AWS Config, audits, Privacy et Security by Design.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "compare",
+     "title": "La triade CIA : trois promesses différentes",
+     "cols": [
+      {
+       "name": "Confidentialité",
+       "tag": "Qui peut lire ?",
+       "points": [
+        "Seules les personnes autorisées accèdent aux données",
+        "Menace : bucket public, clé volée, exfiltration",
+        "Contrôles : chiffrement, IAM moindre privilège, DLP"
+       ],
+       "use": "Exemple : les données de cartes de tes clients ne doivent pas fuiter.",
+       "icon": "kms"
+      },
+      {
+       "name": "Intégrité",
+       "tag": "Qui peut modifier ?",
+       "points": [
+        "Rien n'est altéré sans autorisation",
+        "Menace : injection, règle réseau modifiée, image piégée",
+        "Contrôles : hash, signatures, versioning, IaC"
+       ],
+       "use": "Exemple : le montant d'une facture ne doit pas changer après émission.",
+       "icon": "signer"
+      },
+      {
+       "name": "Disponibilité",
+       "tag": "Est-ce que ça marche ?",
+       "points": [
+        "Le service reste accessible au niveau attendu",
+        "Menace : DDoS, panne de zone, suppression par erreur",
+        "Contrôles : multi-AZ, autoscaling, sauvegardes testées"
+       ],
+       "use": "Exemple : l'API de paiement doit répondre même pendant un pic de trafic.",
+       "icon": "elb"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Les 4 objectifs ajoutés par le cloud : à citer pour...",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "cloudtrail",
+       "t": "Traçabilité",
+       "d": "Prouver qui a fait quoi, quand, d'où. Logs centralisés et immuables. À citer pour investigation et preuve.",
+       "tone": "info"
+      },
+      {
+       "icon": "budgets",
+       "t": "Coût maîtrisé",
+       "d": "Facturation à l'usage : l'abus coûte cher. Budgets, quotas, alertes. À citer pour le service mesuré.",
+       "tone": "warn"
+      },
+      {
+       "icon": "autoscaling",
+       "t": "Scalabilité sécurisée",
+       "d": "Chaque nouveau nœud hérite des défauts du modèle. Templates IaC durcis, scans CI/CD. À citer pour l'élasticité.",
+       "tone": "warn"
+      },
+      {
+       "icon": "auditmgr",
+       "t": "Conformité",
+       "d": "Lois, contrats, standards ; preuves d'audit, localisation. À citer pour RGPD et PCI DSS.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "DDoS : disponibilité ET coût en même temps",
+     "intro": "Un même incident peut toucher deux objectifs. Regarde où la défense joue pour la disponibilité et où elle joue pour le coût.",
+     "actors": [
+      {
+       "id": "bot",
+       "label": "Botnet",
+       "sub": "Machines zombies",
+       "kind": "attacker",
+       "icon": "bot"
+      },
+      {
+       "id": "edge",
+       "label": "Shield + WAF",
+       "sub": "Filtrage en bordure",
+       "kind": "network",
+       "icon": "shield"
+      },
+      {
+       "id": "lb",
+       "label": "Load balancer",
+       "sub": "Autoscaling",
+       "kind": "aws",
+       "icon": "elb"
+      },
+      {
+       "id": "app",
+       "label": "Application",
+       "sub": "Instances EC2",
+       "kind": "app",
+       "icon": "ec2"
+      },
+      {
+       "id": "bill",
+       "label": "Budgets & alertes",
+       "sub": "Suivi de la facture",
+       "kind": "service",
+       "icon": "budgets"
+      }
+     ],
+     "steps": [
+      {
+       "from": "bot",
+       "to": "edge",
+       "label": "1. Inonde de requêtes",
+       "detail": "Des milliers de machines compromises envoient un trafic massif. Objectif : saturer le service (atteinte à la disponibilité).",
+       "tone": "bad"
+      },
+      {
+       "from": "edge",
+       "to": "edge",
+       "label": "2. Filtre et limite le débit",
+       "detail": "AWS Shield et des règles WAF (rate limiting) bloquent une grande partie du trafic anormal avant qu'il n'atteigne l'application.",
+       "tone": "good"
+      },
+      {
+       "from": "edge",
+       "to": "lb",
+       "label": "3. Laisse passer le reste",
+       "detail": "Le trafic restant arrive sur le load balancer, qui répartit la charge et vérifie la santé des instances (health checks)."
+      },
+      {
+       "from": "lb",
+       "to": "app",
+       "label": "4. Autoscaling : +20 instances",
+       "detail": "Pour absorber la charge, de nouvelles instances démarrent. La disponibilité est sauvée, mais chaque instance est facturée.",
+       "tone": "bad"
+      },
+      {
+       "from": "app",
+       "to": "bill",
+       "label": "5. La consommation explose",
+       "detail": "Le trafic malveillant fait grimper l'usage et donc la facture : c'est l'impact sur l'objectif coût maîtrisé.",
+       "dashed": true
+      },
+      {
+       "from": "bill",
+       "to": "edge",
+       "label": "6. Alerte, puis restriction",
+       "detail": "Une alerte budget et une détection d'anomalie déclenchent l'ajustement des règles de filtrage et des limites de débit.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "arch",
+     "title": "Disponibilité : architecture multi-AZ",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "users",
+         "label": "Utilisateurs",
+         "sub": "Navigateur / mobile",
+         "icon": "user"
+        }
+       ]
+      },
+      {
+       "id": "front",
+       "label": "Entrée",
+       "kind": "generic",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "alb",
+         "label": "Load balancer",
+         "sub": "Health checks",
+         "icon": "elb"
+        }
+       ]
+      },
+      {
+       "id": "aza",
+       "label": "Zone de disponibilité A",
+       "kind": "zone",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "wa",
+         "label": "Serveur web A",
+         "sub": "EC2",
+         "icon": "ec2"
+        },
+        {
+         "id": "dbp",
+         "label": "Base primaire",
+         "sub": "Écritures",
+         "icon": "rds"
+        }
+       ]
+      },
+      {
+       "id": "azb",
+       "label": "Zone de disponibilité B",
+       "kind": "zone",
+       "col": 2,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "wb",
+         "label": "Serveur web B",
+         "sub": "EC2",
+         "icon": "ec2"
+        },
+        {
+         "id": "dbs",
+         "label": "Base standby",
+         "sub": "Réplique",
+         "icon": "rds"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "users",
+       "to": "alb",
+       "label": "1. Requêtes",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "alb",
+       "to": "wa",
+       "label": "2a. Répartit",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "alb",
+       "to": "wb",
+       "label": "2b. Répartit",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "wa",
+       "to": "dbp",
+       "label": "3. Lit/écrit",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "dbp",
+       "to": "dbs",
+       "label": "4. Réplication",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "users",
+        "alb"
+       ],
+       "caption": "Tout le trafic passe par un point d'entrée unique qui sait vérifier l'état des serveurs."
+      },
+      {
+       "edges": [
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "wa",
+        "wb"
+       ],
+       "caption": "Les requêtes sont réparties sur deux zones : si une zone tombe, l'autre continue de servir."
+      },
+      {
+       "edges": [
+        "e4",
+        "e5"
+       ],
+       "nodes": [
+        "dbp",
+        "dbs"
+       ],
+       "caption": "La base est répliquée vers un standby : en cas de panne de la primaire, la bascule (failover) limite l'indisponibilité. N'oublie pas de tester la bascule."
+      }
+     ]
+    }
+   },
+   {
+    "after": 9,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "shield",
+       "ctx": "Protection DDoS en bordure : préserve la disponibilité face au flood."
+      },
+      {
+       "k": "elb",
+       "ctx": "Répartit le trafic entre zones et vérifie la santé des instances (health checks)."
+      },
+      {
+       "k": "autoscaling",
+       "ctx": "Absorbe la charge en ajoutant des instances : sauve la disponibilité mais augmente la facture."
+      },
+      {
+       "k": "rds",
+       "ctx": "Base primaire répliquée vers un standby dans une autre zone : bascule en cas de panne."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise qui a fait quoi, quand, d'où : l'objectif de traçabilité."
+      },
+      {
+       "k": "budgets",
+       "ctx": "Budgets et alertes de facturation : détectent tôt une consommation anormale."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffrement : répond à la confidentialité, pas à la disponibilité."
+      },
+      {
+       "k": "config",
+       "ctx": "Vérifie la conformité des configurations : preuve pour l'objectif conformité."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-03",
+  "services": [
+   "s3",
+   "iam",
+   "accessanalyzer",
+   "cloudtrail",
+   "secrets",
+   "waf"
+  ],
+  "drop": [
+   1,
+   2,
+   3,
+   5,
+   6
+  ],
+  "shorten": {
+   "0": "Vulnérabilité = el bab ma tsakkertouch. Menace = 7arami ydour w yjarreb el abwab. Attaque = el 7arami dakhal w sra9 el flouss. Fel cloud, scanner automatique ydour 24/24 3la buckets maftou7in : el bab maftou7 yetl9a besr3a."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "pipeline",
+     "title": "Chaîne du risque : de l'actif aux contrôles",
+     "stages": [
+      {
+       "label": "Actif",
+       "sub": "Données clients",
+       "icon": "database",
+       "tone": "info"
+      },
+      {
+       "label": "Vulnérabilité",
+       "sub": "Bucket public (faiblesse)",
+       "icon": "padlock",
+       "tone": "warn"
+      },
+      {
+       "label": "Menace",
+       "sub": "Scanner automatisé",
+       "icon": "bot",
+       "tone": "warn"
+      },
+      {
+       "label": "Attaque",
+       "sub": "GET anonyme du fichier",
+       "icon": "internet",
+       "tone": "bad"
+      },
+      {
+       "label": "Impact",
+       "sub": "Fuite, RGPD, réputation",
+       "icon": "document",
+       "tone": "bad"
+      },
+      {
+       "label": "Contrôles",
+       "sub": "Block Public Access, logs",
+       "icon": "accessanalyzer",
+       "tone": "good"
+      }
+     ],
+     "caption": "Un contrôle sert à casser un maillon de la chaîne. Le risque combine la probabilité qu'une menace exploite une vulnérabilité et l'impact sur l'actif."
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "compare",
+     "title": "Vulnérabilité vs menace vs attaque",
+     "cols": [
+      {
+       "name": "Vulnérabilité",
+       "tag": "Le trou",
+       "points": [
+        "Une faiblesse présente dans le système",
+        "Existe avant et sans attaquant",
+        "Exemple : bucket public, MFA absent, clé dans le code"
+       ],
+       "use": "On la corrige (patch, configuration, formation).",
+       "icon": "padlock"
+      },
+      {
+       "name": "Menace",
+       "tag": "Le danger possible",
+       "points": [
+        "Événement potentiel, malveillant ou accidentel",
+        "Peut venir d'un scanner, d'un attaquant, d'une erreur humaine ou d'une panne",
+        "Exemple : acteur externe, insider, DDoS"
+       ],
+       "use": "On l'évalue (probabilité, impact) et on la réduit.",
+       "icon": "bot"
+      },
+      {
+       "name": "Attaque",
+       "tag": "L'action",
+       "points": [
+        "Action concrète qui exploite une vulnérabilité",
+        "Se produit à un moment précis et laisse des traces",
+        "Exemple : téléchargement non autorisé du fichier clients"
+       ],
+       "use": "On la détecte (logs, alertes) et on y répond.",
+       "icon": "internet"
+      }
+     ]
+    }
+   },
+   {
+    "after": 0,
+    "block": {
+     "type": "flow",
+     "title": "Le bucket public : de la vulnérabilité à l'impact",
+     "intro": "Même exemple que dans le cours : données clients, bucket public, scanner automatisé, téléchargement non autorisé.",
+     "actors": [
+      {
+       "id": "owner",
+       "label": "Équipe projet",
+       "sub": "Propriétaire",
+       "kind": "user",
+       "icon": "user"
+      },
+      {
+       "id": "bucket",
+       "label": "Bucket S3",
+       "sub": "acme-clients-prod",
+       "kind": "store",
+       "icon": "s3"
+      },
+      {
+       "id": "scan",
+       "label": "Scanner",
+       "sub": "Acteur externe",
+       "kind": "attacker",
+       "icon": "bot"
+      },
+      {
+       "id": "logs",
+       "label": "Logs & alertes",
+       "sub": "Détection",
+       "kind": "service",
+       "icon": "cloudtrail"
+      }
+     ],
+     "steps": [
+      {
+       "from": "owner",
+       "to": "bucket",
+       "label": "1. Stocke les données clients",
+       "detail": "C'est l'actif à protéger : un fichier clients.csv contenant des données personnelles.",
+       "derja": "Hedha el kanz elli lazem n7ammiwh."
+      },
+      {
+       "from": "owner",
+       "to": "bucket",
+       "label": "2. Ouvre l'accès au public (par erreur)",
+       "tone": "bad",
+       "detail": "Une politique trop permissive autorise tout le monde à lire. C'est la VULNÉRABILITÉ : une faiblesse de configuration.",
+       "payload": {
+        "title": "Bucket policy appliquée",
+        "fields": [
+         {
+          "k": "Effect",
+          "v": "Allow",
+          "note": "Autorise"
+         },
+         {
+          "k": "Principal",
+          "v": "*",
+          "note": "Tout le monde, même sans compte AWS"
+         },
+         {
+          "k": "Action",
+          "v": "s3:GetObject",
+          "note": "Lire les objets"
+         },
+         {
+          "k": "Resource",
+          "v": "arn:aws:s3:::acme-clients-prod/*",
+          "note": "Tous les objets du bucket"
+         }
+        ]
+       }
+      },
+      {
+       "from": "scan",
+       "to": "scan",
+       "label": "3. Cherche des buckets ouverts",
+       "tone": "bad",
+       "detail": "La MENACE : un acteur externe ou un scanner automatisé qui teste en continu des noms de buckets. Pas encore d'action sur ta victime, mais le danger existe."
+      },
+      {
+       "from": "scan",
+       "to": "bucket",
+       "label": "4. GET /clients.csv",
+       "tone": "bad",
+       "detail": "L'ATTAQUE : une action concrète qui exploite la vulnérabilité. Aucune authentification n'est demandée.",
+       "payload": {
+        "title": "Requête HTTP anonyme",
+        "fields": [
+         {
+          "k": "Méthode",
+          "v": "GET",
+          "note": "Lecture"
+         },
+         {
+          "k": "URL",
+          "v": "https://acme-clients-prod.s3.eu-west-3.amazonaws.com/clients.csv",
+          "note": "Adresse publique du fichier"
+         },
+         {
+          "k": "Authorization",
+          "v": "(absent)",
+          "note": "Aucune identité : requête anonyme"
+         }
+        ]
+       }
+      },
+      {
+       "from": "bucket",
+       "to": "scan",
+       "label": "5. 200 OK : le fichier part",
+       "dashed": true,
+       "tone": "bad",
+       "detail": "L'IMPACT : fuite de données personnelles, risque RGPD, atteinte à la réputation, notification obligatoire."
+      },
+      {
+       "from": "owner",
+       "to": "bucket",
+       "label": "6. Block Public Access + policy restrictive",
+       "tone": "good",
+       "detail": "Le CONTRÔLE : on bloque l'accès public au niveau du bucket ou du compte et on limite la policy à des identités précises."
+      },
+      {
+       "from": "bucket",
+       "to": "logs",
+       "label": "7. Journaux d'accès et alertes",
+       "dashed": true,
+       "tone": "good",
+       "detail": "Les journaux d'accès et des outils comme IAM Access Analyzer détectent un accès public ou anormal et alertent l'équipe."
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "hub",
+     "title": "Vulnérabilités cloud fréquentes : surtout des erreurs de configuration",
+     "center": {
+      "label": "Vulnérabilités",
+      "sub": "souvent de la config",
+      "icon": "cloud"
+     },
+     "spokes": [
+      {
+       "label": "IAM faible",
+       "sub": "Trop de droits, MFA absent",
+       "icon": "iam",
+       "note": "Comptes trop privilégiés, MFA absent. Réflexe : moindre privilège, MFA, revues d'accès.",
+       "tone": "warn"
+      },
+      {
+       "label": "Configuration",
+       "sub": "Stockage public, ports ouverts",
+       "icon": "config",
+       "note": "Réflexe : blocage public, security groups restrictifs, contrôle de dérive.",
+       "tone": "warn"
+      },
+      {
+       "label": "API",
+       "sub": "Authentification insuffisante",
+       "icon": "apigw",
+       "note": "Authentification ou validation insuffisante. Réflexe : authentification forte, validation des entrées, WAF.",
+       "tone": "warn"
+      },
+      {
+       "label": "Images",
+       "sub": "OS, conteneurs, dépendances",
+       "icon": "inspector",
+       "note": "Composants vulnérables. Réflexe : images durcies, scans réguliers, patching.",
+       "tone": "warn"
+      },
+      {
+       "label": "Secrets",
+       "sub": "Clés dans le code",
+       "icon": "secrets",
+       "note": "Clés en clair, rotation absente. Réflexe : coffre à secrets, rotation, scan de dépôts.",
+       "tone": "bad"
+      },
+      {
+       "label": "Observabilité",
+       "sub": "Inventaire et logs incomplets",
+       "icon": "cloudwatch",
+       "note": "On ne voit pas ce qui se passe. Réflexe : inventaire, logs centralisés, alertes.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Vulnérabilités techniques et effets consécutifs",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Virtualisation",
+       "d": "Contourner les barrières de sécurité donne accès à l'hyperviseur sous-jacent.",
+       "tone": "warn"
+      },
+      {
+       "icon": "internet",
+       "t": "Protocole Internet",
+       "d": "Permet des attaques réseau : usurpation ARP, inondation SYN, DoS/DDoS.",
+       "tone": "warn"
+      },
+      {
+       "icon": "console",
+       "t": "Interface de gestion",
+       "d": "Un intrus prend le contrôle de la gestion et lance des attaques ; l'accès admin est le plus critique.",
+       "tone": "bad"
+      },
+      {
+       "icon": "database",
+       "t": "Injection",
+       "d": "Divulgation non autorisée de données privées derrière les applications.",
+       "tone": "warn"
+      },
+      {
+       "icon": "client",
+       "t": "Navigateurs et API",
+       "d": "Accès non autorisé aux services.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 8,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "s3",
+       "ctx": "Le bucket public de l'exemple : l'actif exposé par une policy trop ouverte."
+      },
+      {
+       "k": "iam",
+       "ctx": "Policies et principals : le Principal « * » est la vulnérabilité du cas."
+      },
+      {
+       "k": "accessanalyzer",
+       "ctx": "Détecte les accès publics ou externes involontaires avant qu'ils soient exploités."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise les accès et les appels : détection de l'attaque et preuve."
+      },
+      {
+       "k": "secrets",
+       "ctx": "Coffre à secrets : évite la clé en clair dans le dépôt et permet la rotation."
+      },
+      {
+       "k": "waf",
+       "ctx": "Filtre les requêtes malveillantes vers les API : réflexe de correction côté API."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-04",
+  "services": [
+   "mfa",
+   "iam",
+   "cloudtrail",
+   "guardduty",
+   "shield",
+   "backup",
+   "kms"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "shorten": {
+   "0": "Compromission de compte = ki wa7ed yser9 el CIN mte3ek w yet7arrek bismek. Fuite de données = el dossier mta3 el clients fi 3ors, el kol ychoufou. DDoS = 1000 nefar fi nafs el louage. Insider = el khdem elli 3andou el cle. Défaillance fournisseur = el louage 3attal.",
+   "1": "Les menaces prioritaires **varient selon les données, les services et le contexte**. Pour chaque menace, réponds en 3 temps : **1) l'effet, 2) les services affectés (SaaS, PaaS, IaaS), 3) la directive de solution**."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Les 6 menaces prioritaires : clique chaque branche",
+     "center": {
+      "label": "Menaces cloud",
+      "sub": "effet, services, solution",
+      "icon": "bot"
+     },
+     "spokes": [
+      {
+       "label": "Compromission de compte",
+       "sub": "Confidentialité, intégrité",
+       "icon": "iam",
+       "note": "Vol d'identifiants, phishing, MFA fatigue.",
+       "tone": "bad"
+      },
+      {
+       "label": "Fuite de données",
+       "sub": "Confidentialité, conformité",
+       "icon": "s3",
+       "note": "Partage public, exfiltration, erreur humaine.",
+       "tone": "bad"
+      },
+      {
+       "label": "DDoS",
+       "sub": "Disponibilité, coût",
+       "icon": "shield",
+       "note": "Indisponibilité et coûts réseau.",
+       "tone": "warn"
+      },
+      {
+       "label": "Ransomware",
+       "sub": "Dispo., intégrité, confid.",
+       "icon": "backup",
+       "note": "Chiffrement, suppression ou vol de données.",
+       "tone": "bad"
+      },
+      {
+       "label": "Insider",
+       "sub": "Confidentialité, traçabilité",
+       "icon": "users",
+       "note": "Abus de droits légitimes.",
+       "tone": "warn"
+      },
+      {
+       "label": "Défaillance fournisseur",
+       "sub": "Disponibilité",
+       "icon": "health",
+       "note": "Incident, panne, changement de service.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "matrix",
+     "title": "Menaces x modèles de service affectés",
+     "rows": [
+      "Changement modèle éco.",
+      "Utilisation abusive",
+      "Interfaces et API",
+      "Insiders malveillants",
+      "Technologie partagée",
+      "Perte et fuite de données",
+      "Détournement de service",
+      "Usurpation d'identité"
+     ],
+     "cols": [
+      "SaaS",
+      "PaaS",
+      "IaaS"
+     ],
+     "cells": [
+      [
+       "warn",
+       "warn",
+       "warn"
+      ],
+      [
+       "na",
+       "warn",
+       "warn"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn"
+      ],
+      [
+       "na",
+       "na",
+       "warn"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn"
+      ]
+     ],
+     "legend": {
+      "warn": "Service affecté",
+      "na": "Non concerné"
+     }
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Effets et directives de solution (1/2)",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "building",
+       "t": "Changement de modèle économique",
+       "d": "Perte de contrôle sur l'infrastructure. Solution : contrôle et surveillance des services offerts.",
+       "tone": "warn"
+      },
+      {
+       "icon": "bot",
+       "t": "Utilisation abusive du cloud",
+       "d": "Un intrus lance de grosses attaques via inscription anonyme et fraudes. Solution : inscription et authentification renforcées, surveillance du trafic.",
+       "tone": "bad"
+      },
+      {
+       "icon": "apigw",
+       "t": "Interfaces et API non sécurisées",
+       "d": "Authentification en clair, contenu non protégé, autorisations incorrectes. Solution : authentification forte, contrôle d'accès, transmission chiffrée.",
+       "tone": "warn"
+      },
+      {
+       "icon": "users",
+       "t": "Insiders malveillants",
+       "d": "Des employés contournent pare-feu et modèles de sécurité. Solution : transparence des processus, rapports de conformité, notifications de violation.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Effets et directives de solution (2/2)",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "nitro",
+       "t": "Technologie partagée (IaaS)",
+       "d": "Interférence entre utilisateurs via l'hyperviseur. Solution : authentification forte pour l'administration, inspection des vulnérabilités et configurations.",
+       "tone": "warn"
+      },
+      {
+       "icon": "s3",
+       "t": "Perte et fuite de données",
+       "d": "Données confidentielles compromises, supprimées ou modifiées. Solution : API sécurisées, chiffrement, clés protégées, rétention et sauvegarde.",
+       "tone": "bad"
+      },
+      {
+       "icon": "role",
+       "t": "Détournement de service",
+       "d": "Comptes et instances deviennent une base pour de nouvelles attaques. Solution : politiques de sécurité, authentification forte, surveillance.",
+       "tone": "bad"
+      },
+      {
+       "icon": "user",
+       "t": "Usurpation d'identité",
+       "d": "L'attaquant agit au nom d'un utilisateur valide. Solution : mots de passe forts et authentification solide.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "compare",
+     "title": "D'où vient la menace ?",
+     "cols": [
+      {
+       "name": "Compromission de compte",
+       "tag": "De l'extérieur",
+       "points": [
+        "Un attaquant vole ou devine des identifiants (phishing, MFA fatigue)",
+        "Il se connecte comme un utilisateur légitime",
+        "Solution : mots de passe forts, MFA résistant au phishing, surveillance"
+       ],
+       "use": "Difficile à repérer : l'accès a l'air normal.",
+       "icon": "user"
+      },
+      {
+       "name": "Insider malveillant",
+       "tag": "De l'intérieur",
+       "points": [
+        "Un employé abuse de droits légitimes",
+        "Il contourne pare-feu et modèles de sécurité",
+        "Solution : transparence des processus, rapports de conformité, notifications de violation"
+       ],
+       "use": "Le moindre privilège et les logs limitent les dégâts.",
+       "icon": "users"
+      },
+      {
+       "name": "Défaillance fournisseur",
+       "tag": "De la plateforme",
+       "points": [
+        "Incident, panne ou changement de service chez le fournisseur",
+        "Pas de malveillance forcée",
+        "Solution : multi-AZ, multi-région, sauvegardes, plan de reprise, clauses contractuelles"
+       ],
+       "use": "La responsabilité de la résilience est partagée.",
+       "icon": "health"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "MFA fatigue : comment une compromission de compte se joue",
+     "intro": "L'attaquant a déjà le mot de passe. Il lui manque la validation MFA : il va user la patience de la victime.",
+     "actors": [
+      {
+       "id": "att",
+       "label": "Attaquant",
+       "sub": "Mot de passe volé",
+       "kind": "attacker",
+       "icon": "bot"
+      },
+      {
+       "id": "idp",
+       "label": "Service MFA",
+       "sub": "Fournisseur d'identité",
+       "kind": "idp",
+       "icon": "mfa"
+      },
+      {
+       "id": "usr",
+       "label": "Employé",
+       "sub": "Téléphone",
+       "kind": "user",
+       "icon": "mobile"
+      },
+      {
+       "id": "aws",
+       "label": "Console cloud",
+       "sub": "Ressources",
+       "kind": "aws",
+       "icon": "console"
+      }
+     ],
+     "steps": [
+      {
+       "from": "att",
+       "to": "att",
+       "label": "1. Récupère le mot de passe",
+       "detail": "Par phishing ou fuite de base de données. Le mot de passe seul ne suffit plus si le MFA est actif.",
+       "tone": "bad"
+      },
+      {
+       "from": "att",
+       "to": "idp",
+       "label": "2. Tente de se connecter",
+       "tone": "bad",
+       "detail": "Il saisit l'identifiant et le mot de passe volés ; l'IdP déclenche l'étape MFA.",
+       "payload": {
+        "title": "Tentative de connexion",
+        "fields": [
+         {
+          "k": "Utilisateur",
+          "v": "sara@acme.example",
+          "note": "Identité ciblée"
+         },
+         {
+          "k": "Secret 1",
+          "v": "mot de passe correct",
+          "note": "Obtenu par phishing"
+         },
+         {
+          "k": "Secret 2",
+          "v": "(attendu : approbation MFA)",
+          "note": "Ce qu'il lui manque"
+         }
+        ]
+       }
+      },
+      {
+       "from": "idp",
+       "to": "usr",
+       "label": "3. Notification push : approuver ?",
+       "dashed": true,
+       "detail": "La victime reçoit une demande de validation qu'elle n'a pas initiée."
+      },
+      {
+       "from": "att",
+       "to": "idp",
+       "label": "4. Répète 20 fois en pleine nuit",
+       "tone": "bad",
+       "detail": "Il spamme les demandes pour lasser la victime : c'est la fatigue MFA."
+      },
+      {
+       "from": "usr",
+       "to": "idp",
+       "label": "5. Approuve pour que ça s'arrête",
+       "tone": "bad",
+       "detail": "La victime clique sur « Approuver » par lassitude. Le facteur humain devient la faille."
+      },
+      {
+       "from": "idp",
+       "to": "att",
+       "label": "6. Session accordée",
+       "dashed": true,
+       "tone": "bad",
+       "detail": "L'attaquant est maintenant authentifié comme l'employé : usurpation d'identité réussie."
+      },
+      {
+       "from": "att",
+       "to": "aws",
+       "label": "7. Accède aux ressources",
+       "tone": "bad",
+       "detail": "Avec les droits de l'employé, il peut lire des données, créer des ressources ou préparer un détournement de service."
+      },
+      {
+       "from": "idp",
+       "to": "idp",
+       "label": "8. Contre-mesure",
+       "tone": "good",
+       "detail": "MFA avec correspondance de numéro ou résistant au phishing (FIDO2), alerte sur les refus répétés, blocage des connexions inhabituelles et surveillance des activités."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "Insider malveillant : quand la menace est déjà dans la place",
+     "actors": [
+      {
+       "id": "ins",
+       "label": "Administrateur",
+       "sub": "Droits légitimes",
+       "kind": "user",
+       "icon": "users"
+      },
+      {
+       "id": "db",
+       "label": "Base clients",
+       "sub": "Données sensibles",
+       "kind": "store",
+       "icon": "database"
+      },
+      {
+       "id": "ext",
+       "label": "Stockage perso",
+       "sub": "Hors entreprise",
+       "kind": "network",
+       "icon": "internet"
+      },
+      {
+       "id": "siem",
+       "label": "Logs + SIEM",
+       "sub": "Détection",
+       "kind": "service",
+       "icon": "securityhub"
+      }
+     ],
+     "steps": [
+      {
+       "from": "ins",
+       "to": "db",
+       "label": "1. Se connecte avec ses droits",
+       "detail": "Aucune intrusion : c'est un compte légitime, donc le pare-feu ne voit rien d'anormal."
+      },
+      {
+       "from": "ins",
+       "to": "db",
+       "label": "2. Exporte toute la table clients",
+       "tone": "bad",
+       "detail": "Volume et horaire inhabituels : c'est l'abus de droits légitimes."
+      },
+      {
+       "from": "db",
+       "to": "siem",
+       "label": "3. Journalise l'accès",
+       "dashed": true,
+       "detail": "Chaque lecture est écrite dans des logs centralisés que l'administrateur ne peut pas modifier (immutabilité)."
+      },
+      {
+       "from": "ins",
+       "to": "ext",
+       "label": "4. Envoie les données dehors",
+       "tone": "bad",
+       "detail": "Il tente de contourner le pare-feu et les contrôles : exfiltration vers un stockage personnel."
+      },
+      {
+       "from": "siem",
+       "to": "ins",
+       "label": "5. Alerte et révocation",
+       "dashed": true,
+       "tone": "good",
+       "detail": "Une règle de détection repère le volume anormal, alerte l'équipe sécurité et permet de révoquer l'accès rapidement. Les logs servent aussi de preuve."
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "mfa",
+       "ctx": "Second facteur : un mot de passe volé ne suffit plus ; préférer FIDO2, résistant au phishing."
+      },
+      {
+       "k": "iam",
+       "ctx": "Moindre privilège et revues d'accès : limitent les dégâts d'un compte compromis ou d'un insider."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Logs immuables : preuve et détection des exports anormaux de l'insider."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détection d'anomalies sur comptes, API et trafic : alerte sur les comportements inhabituels."
+      },
+      {
+       "k": "shield",
+       "ctx": "Protection DDoS : contre-mesure à la menace DDoS."
+      },
+      {
+       "k": "backup",
+       "ctx": "Sauvegardes à restauration testée : réponse au ransomware et à la panne du fournisseur."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffrement et clés protégées : directive contre la perte et la fuite de données."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-05",
+  "services": [
+   "mfa",
+   "sts",
+   "cloudtrail",
+   "guardduty",
+   "shield",
+   "acm",
+   "ec2"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "shorten": {
+   "0": "DoS/DDoS = 1000 personnes dkhlou fi dkenet-ek, el vrai clients ma yal9ouch blasa. MITM = wa7ed bin inti w el postier yfakk el rsela. Phishing = SMS 'jetek colis' w el lien faux. Backdoor = bab sghir wara dar-ek elli ma ta3rafhech.",
+   "1": "Un attaquant peut viser **l'application ou l'API**, **les services de gestion**, **la virtualisation** (VM et hyperviseur) ou **le réseau et le stockage** : les contre-mesures dépendent de la couche. Pour chaque attaque : comment, quels services, quels effets, quelle atténuation."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Les 7 attaques cloud : comment, effet, atténuation",
+     "center": {
+      "label": "Attaques cloud",
+      "sub": "7 attaques du cours",
+      "icon": "bot"
+     },
+     "spokes": [
+      {
+       "label": "Zombie / DoS / DDoS",
+       "sub": "VM zombies inondent l'hôte",
+       "icon": "bot",
+       "note": "VM légitimes compromises inondent l'hôte. Effet : disponibilité, faux comptes. Atténuation : authentification et autorisation renforcées, IDS/IPS (l'IPS détecte et bloque).",
+       "tone": "bad"
+      },
+      {
+       "label": "Injection de service",
+       "sub": "Service piégé livré à la place",
+       "icon": "gear",
+       "note": "Service malveillant injecté via les fichiers d'identification. Effet : intégrité. Atténuation : hachage, isolation forte entre VM, sécurité des services web, navigateurs et API.",
+       "tone": "bad"
+      },
+      {
+       "label": "Évasion de VM",
+       "sub": "Contourne la virtualisation",
+       "icon": "ec2",
+       "note": "Compromission de l'hyperviseur. Effet : contrôle des VM d'un autre utilisateur. Atténuation : hyperviseur sécurisé, surveillance de son activité, isolation des VM.",
+       "tone": "bad"
+      },
+      {
+       "label": "Man-in-the-Middle",
+       "sub": "Intercepte les communications",
+       "icon": "internet",
+       "note": "Accès aux échanges entre deux parties. Effet : sécurité et confidentialité des données. Atténuation : SSL/TLS correctement configuré.",
+       "tone": "bad"
+      },
+      {
+       "label": "Metadata spoofing",
+       "sub": "Falsifie la description (WSDL)",
+       "icon": "document",
+       "note": "Modification du fichier XML (WSDL) qui décrit un service web. Effet : comportement anormal, confidentialité. Atténuation : chiffrement, authentification et autorisation fortes.",
+       "tone": "warn"
+      },
+      {
+       "label": "Phishing",
+       "sub": "Faux liens vers les victimes",
+       "icon": "email",
+       "note": "Les utilisateurs sont poussés vers de faux liens. Effet : révélation d'informations sensibles. Atténuation : identifier et filtrer les spams.",
+       "tone": "warn"
+      },
+      {
+       "label": "Backdoor (canal caché)",
+       "sub": "Canal caché dans une VM",
+       "icon": "padlock",
+       "note": "VM légitimes compromises. Effet : droits d'accès aux ressources de la victime, disponibilité et confidentialité. Atténuation : authentification, autorisation, isolation entre VM.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "matrix",
+     "title": "Quelle attaque touche quel modèle, et quel objectif ?",
+     "rows": [
+      "Zombie / DoS / DDoS",
+      "Injection de service",
+      "Évasion de VM",
+      "Man-in-the-Middle",
+      "Metadata spoofing",
+      "Phishing",
+      "Backdoor"
+     ],
+     "cols": [
+      "SaaS",
+      "PaaS",
+      "IaaS",
+      "Objectif touché"
+     ],
+     "cells": [
+      [
+       "warn",
+       "warn",
+       "warn",
+       "Disponibilité"
+      ],
+      [
+       "na",
+       "warn",
+       "na",
+       "Intégrité"
+      ],
+      [
+       "na",
+       "na",
+       "warn",
+       "Contrôle VM"
+      ],
+      [
+       "warn",
+       "warn",
+       "warn",
+       "Confid."
+      ],
+      [
+       "warn",
+       "warn",
+       "na",
+       "Confid."
+      ],
+      [
+       "warn",
+       "warn",
+       "warn",
+       "Confid."
+      ],
+      [
+       "na",
+       "na",
+       "warn",
+       "Dispo. + conf."
+      ]
+     ],
+     "legend": {
+      "warn": "Service touché",
+      "na": "Non concerné"
+     }
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "arch",
+     "title": "Attaques par couche : où frapper ?",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "atk",
+         "label": "Attaquant",
+         "sub": "Externe ou compte compromis",
+         "icon": "bot"
+        }
+       ]
+      },
+      {
+       "id": "l1",
+       "label": "Couche utilisateur cloud",
+       "kind": "generic",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "api",
+         "label": "Applications & API",
+         "sub": "Authentification",
+         "icon": "apigw"
+        },
+        {
+         "id": "br",
+         "label": "Navigateur",
+         "sub": "Poste utilisateur",
+         "icon": "client"
+        }
+       ]
+      },
+      {
+       "id": "l2",
+       "label": "Couche gestion du fournisseur",
+       "kind": "generic",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "mgmt",
+         "label": "Services de gestion",
+         "sub": "Accès, monitoring, facturation",
+         "icon": "console"
+        }
+       ]
+      },
+      {
+       "id": "l3",
+       "label": "Couche virtualisation",
+       "kind": "generic",
+       "col": 1,
+       "row": 2,
+       "nodes": [
+        {
+         "id": "vm",
+         "label": "VM invitées",
+         "sub": "Guest OS + apps",
+         "icon": "ec2"
+        },
+        {
+         "id": "hyp",
+         "label": "Hyperviseur",
+         "sub": "VMM",
+         "icon": "server"
+        }
+       ]
+      },
+      {
+       "id": "l4",
+       "label": "Stockage & réseau",
+       "kind": "generic",
+       "col": 1,
+       "row": 3,
+       "nodes": [
+        {
+         "id": "nw",
+         "label": "Réseau",
+         "sub": "Ressources réseau",
+         "icon": "vpc"
+        },
+        {
+         "id": "st",
+         "label": "Stockage & hôtes",
+         "sub": "Données au repos",
+         "icon": "disk"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "a1",
+       "from": "atk",
+       "to": "api",
+       "label": "Phishing, MITM, injection de service",
+       "style": "solid"
+      },
+      {
+       "id": "a2",
+       "from": "atk",
+       "to": "mgmt",
+       "label": "Usurpation / accès à la gestion",
+       "style": "solid"
+      },
+      {
+       "id": "a3",
+       "from": "atk",
+       "to": "vm",
+       "label": "Backdoor",
+       "style": "dashed"
+      },
+      {
+       "id": "a4",
+       "from": "atk",
+       "to": "hyp",
+       "label": "Évasion de VM",
+       "style": "solid"
+      },
+      {
+       "id": "a5",
+       "from": "atk",
+       "to": "nw",
+       "label": "DoS / DDoS, zombies",
+       "style": "solid"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "a1"
+       ],
+       "nodes": [
+        "api",
+        "br"
+       ],
+       "caption": "Couche utilisateur : sécurité de l'application, du navigateur et des API, authentification."
+      },
+      {
+       "edges": [
+        "a2"
+       ],
+       "nodes": [
+        "mgmt"
+       ],
+       "caption": "Couche gestion : authentification et autorisation, contrôle d'identité et d'accès, données en transit, niveau de confiance, audit et conformité."
+      },
+      {
+       "edges": [
+        "a3",
+        "a4"
+       ],
+       "nodes": [
+        "vm",
+        "hyp"
+       ],
+       "caption": "Couche virtualisation : isolation des VM, intégrité des images virtuelles, sécurité de l'hyperviseur, authentification et accès."
+      },
+      {
+       "edges": [
+        "a5"
+       ],
+       "nodes": [
+        "nw",
+        "st"
+       ],
+       "caption": "Couche stockage et réseau : DoS/DDoS, sécurité physique et logique des données au repos, intégrité, confidentialité, disponibilité, intrusions dans les bases de données."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "Chaîne d'attaque simplifiée : de l'accès initial à l'impact",
+     "intro": "Quatre étapes : accès initial, élévation, mouvement, action. L'objectif défensif est de casser la chaîne le plus tôt possible.",
+     "actors": [
+      {
+       "id": "att",
+       "label": "Attaquant",
+       "sub": "Externe",
+       "kind": "attacker",
+       "icon": "bot"
+      },
+      {
+       "id": "usr",
+       "label": "Employé",
+       "sub": "Cible du phishing",
+       "kind": "user",
+       "icon": "user"
+      },
+      {
+       "id": "aws",
+       "label": "Console / API",
+       "sub": "Compte cloud",
+       "kind": "aws",
+       "icon": "console"
+      },
+      {
+       "id": "iam",
+       "label": "Rôle IAM",
+       "sub": "Permissions",
+       "kind": "key",
+       "icon": "role"
+      },
+      {
+       "id": "data",
+       "label": "Données & calcul",
+       "sub": "S3, EC2",
+       "kind": "store",
+       "icon": "s3"
+      },
+      {
+       "id": "siem",
+       "label": "Logs + alertes",
+       "sub": "Détection",
+       "kind": "service",
+       "icon": "guardduty"
+      }
+     ],
+     "steps": [
+      {
+       "from": "att",
+       "to": "usr",
+       "label": "1. Accès initial : email de phishing",
+       "tone": "bad",
+       "detail": "Premier maillon : un faux lien « vérifiez votre compte » envoyé à un employé. Sur d'autres chaînes : clé exposée ou API vulnérable.",
+       "derja": "Awel khatwa: lien faux elli yokhrejlek 3la kdhb."
+      },
+      {
+       "from": "usr",
+       "to": "att",
+       "label": "2. Saisit ses identifiants",
+       "dashed": true,
+       "tone": "bad",
+       "detail": "La victime remplit la fausse page de connexion : l'attaquant récupère les identifiants."
+      },
+      {
+       "from": "att",
+       "to": "aws",
+       "label": "3. Se connecte au compte",
+       "tone": "bad",
+       "detail": "Sans MFA, les identifiants volés suffisent. Contrôle qui casserait la chaîne ici : MFA et détection de connexion inhabituelle."
+      },
+      {
+       "from": "att",
+       "to": "iam",
+       "label": "4. Élévation : assume un rôle trop permissif",
+       "tone": "bad",
+       "detail": "Il découvre qu'il peut endosser un rôle très puissant, ou récupère un jeton. Contrôle : moindre privilège et rôles à durée courte.",
+       "payload": {
+        "title": "Appel d'API sts:AssumeRole",
+        "fields": [
+         {
+          "k": "RoleArn",
+          "v": "arn:aws:iam::111122223333:role/DevOpsAdmin",
+          "note": "Rôle trop permissif : c'est la vulnérabilité exploitée"
+         },
+         {
+          "k": "RoleSessionName",
+          "v": "maintenance",
+          "note": "Nom de session, choisi par l'appelant"
+         },
+         {
+          "k": "DurationSeconds",
+          "v": "3600",
+          "note": "Durée de la session temporaire (1 h)"
+         }
+        ]
+       }
+      },
+      {
+       "from": "att",
+       "to": "aws",
+       "label": "5. Mouvement : explore comptes et régions",
+       "tone": "bad",
+       "detail": "Il liste les buckets, instances et rôles dans plusieurs régions pour trouver les actifs de valeur. Contrôle : segmentation, restriction de régions, alertes sur les appels de reconnaissance."
+      },
+      {
+       "from": "att",
+       "to": "data",
+       "label": "6. Action : exfiltration et cryptomining",
+       "tone": "bad",
+       "detail": "Dernier maillon : vol de données, minage de cryptomonnaie ou chiffrement des données (ransomware). Impact sur confidentialité, coût, disponibilité."
+      },
+      {
+       "from": "aws",
+       "to": "siem",
+       "label": "7. Chaque appel est journalisé",
+       "dashed": true,
+       "detail": "Les journaux d'API enregistrent connexion, AssumeRole et reconnaissance : sans eux, on ne verrait rien. La traçabilité rend l'enquête possible."
+      },
+      {
+       "from": "siem",
+       "to": "iam",
+       "label": "8. Alerte puis révocation",
+       "dashed": true,
+       "tone": "good",
+       "detail": "Une détection d'anomalie déclenche l'alerte, la révocation des sessions et la rotation des identifiants. Plus c'est tôt dans la chaîne, plus l'impact est faible."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "pipeline",
+     "title": "Chaîne d'attaque simplifiée : où la casser ?",
+     "stages": [
+      {
+       "label": "Accès initial",
+       "sub": "MFA, anti-spam, secrets protégés",
+       "icon": "email",
+       "tone": "warn"
+      },
+      {
+       "label": "Élévation",
+       "sub": "Moindre privilège, rôles courts",
+       "icon": "role",
+       "tone": "warn"
+      },
+      {
+       "label": "Mouvement",
+       "sub": "Segmentation, alertes recon.",
+       "icon": "vpc",
+       "tone": "bad"
+      },
+      {
+       "label": "Action",
+       "sub": "Chiffrement, budgets, backups",
+       "icon": "s3",
+       "tone": "bad"
+      }
+     ],
+     "caption": "Plus on casse la chaîne tôt, plus l'impact est faible. Références pour décrire les chaînes : MITRE ATT&CK et les menaces cloud de la CSA."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "À savoir citer (questions d'examen)",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "gear",
+       "t": "Intégrité du service",
+       "d": "Injection de service (PaaS) : hachage, isolation forte, sécurité des services web.",
+       "tone": "warn"
+      },
+      {
+       "icon": "ec2",
+       "t": "IaaS uniquement",
+       "d": "Évasion de VM / attaque d'hyperviseur et backdoor : hyperviseur sécurisé, isolation des VM.",
+       "tone": "warn"
+      },
+      {
+       "icon": "acm",
+       "t": "Atténuation du MITM",
+       "d": "Configuration correcte de SSL/TLS.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 10,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "mfa",
+       "ctx": "Casse l'accès initial : un mot de passe volé par phishing ne suffit plus."
+      },
+      {
+       "k": "sts",
+       "ctx": "Rôles temporaires : l'AssumeRole de l'élévation doit viser un rôle à privilèges minimaux et durée courte."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journalise connexion, AssumeRole et reconnaissance : sans lui, la chaîne reste invisible."
+      },
+      {
+       "k": "guardduty",
+       "ctx": "Détecte les comportements anormaux (reconnaissance, accès inhabituels) avant l'action finale."
+      },
+      {
+       "k": "shield",
+       "ctx": "Atténue le DoS/DDoS sur la couche réseau."
+      },
+      {
+       "k": "acm",
+       "ctx": "Certificats TLS : base de l'atténuation du Man-in-the-Middle."
+      },
+      {
+       "k": "ec2",
+       "ctx": "VM de la couche virtualisation : cible de l'évasion de VM et du backdoor."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-06",
+  "services": [
+   "iam",
+   "vpc",
+   "kms",
+   "cloudtrail",
+   "config",
+   "backup",
+   "ec2",
+   "artifact"
+  ],
+  "drop": [
+   1,
+   2,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "AWS = sa7ib el 3imara: matériel, datacenter, réseau. Inti = el moukri: el bab (IAM), el données, el kfoul (pare-feu). Kol ma tkri dar moujhza (PaaS, SaaS), sa7ib el dar ya3mel akther, ama el cle w chkoun yod5ol dima 3lik. 'Partagée' ma3neha mouch 'ma 7ad mas2oul'.",
+   "3": "Deux responsabilités complémentaires. **Sécurité DU cloud** (fournisseur) : matériel, serveurs hôtes, stockage, bases de données, réseau. **Sécurité DANS le cloud** (client) : OS, chiffrement, règles pare-feu, données. **Toujours client** : identités, données, usages, configurations, exigences métier. Partagée, mais **jamais déléguée entièrement**."
+  },
+  "insert": [
+   {
+    "after": 0,
+    "block": {
+     "type": "hub",
+     "title": "Les 6 familles de contrôles de base (mémo I-R-D-S-C-R)",
+     "center": {
+      "label": "Contrôles de base",
+      "sub": "minimum à mettre en place",
+      "icon": "securityhub"
+     },
+     "spokes": [
+      {
+       "label": "Identité",
+       "sub": "MFA, moindre privilège, rôles",
+       "icon": "iam",
+       "note": "Exemples AWS : IAM, MFA, rôles IAM avec sessions temporaires (STS).",
+       "tone": "info"
+      },
+      {
+       "label": "Réseau",
+       "sub": "Segmentation, WAF, anti-DDoS",
+       "icon": "vpc",
+       "note": "Exemples AWS : VPC et sous-réseaux, security groups, AWS WAF, AWS Shield.",
+       "tone": "info"
+      },
+      {
+       "label": "Données",
+       "sub": "Chiffrement, classification",
+       "icon": "kms",
+       "note": "Exemples AWS : AWS KMS, chiffrement S3 et EBS, AWS Backup.",
+       "tone": "info"
+      },
+      {
+       "label": "Surveillance",
+       "sub": "Logs centralisés, alertes, SIEM",
+       "icon": "cloudtrail",
+       "note": "Exemples AWS : CloudTrail, CloudWatch, GuardDuty.",
+       "tone": "info"
+      },
+      {
+       "label": "Configuration",
+       "sub": "IaC, policies, dérive",
+       "icon": "config",
+       "note": "Exemples AWS : CloudFormation, AWS Config.",
+       "tone": "info"
+      },
+      {
+       "label": "Réponse",
+       "sub": "Runbooks, restauration testée",
+       "icon": "backup",
+       "note": "Exemples AWS : snapshots, procédures d'incident, restauration testée, post-mortem.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "matrix",
+     "title": "Qui est responsable de quelle couche ? (OS/Runtime en PaaS : la frontière dépend du service)",
+     "rows": [
+      "Données",
+      "Identités",
+      "Application",
+      "OS / Runtime",
+      "Infrastructure"
+     ],
+     "cols": [
+      "IaaS",
+      "PaaS",
+      "SaaS"
+     ],
+     "cells": [
+      [
+       "Client",
+       "Client",
+       "Client"
+      ],
+      [
+       "Client",
+       "Client",
+       "Client"
+      ],
+      [
+       "Client",
+       "Client",
+       "Fournisseur"
+      ],
+      [
+       "Client",
+       "Partagé",
+       "Fournisseur"
+      ],
+      [
+       "Fournisseur",
+       "Fournisseur",
+       "Fournisseur"
+      ]
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "cards",
+     "title": "Un exemple AWS par modèle de service",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "ec2",
+       "t": "Amazon EC2 : IaaS",
+       "d": "AWS gère l'infrastructure sous-jacente. Le client gère l'OS, les applications et la configuration réseau.",
+       "tone": "info"
+      },
+      {
+       "icon": "beanstalk",
+       "t": "Elastic Beanstalk : PaaS",
+       "d": "AWS gère la plateforme. Le client gère ses applications et ses données.",
+       "tone": "good"
+      },
+      {
+       "icon": "workspaces",
+       "t": "WorkSpaces : SaaS (cours)",
+       "d": "AWS gère presque tout. Le client gère ses données et les accès utilisateurs.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "arch",
+     "title": "Sécurité DU cloud (AWS) et sécurité DANS le cloud (client)",
+     "groups": [
+      {
+       "id": "aws",
+       "label": "AWS : sécurité DU cloud",
+       "kind": "generic",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "hw",
+         "label": "Matériel et datacenters",
+         "sub": "Hôtes, stockage, réseau",
+         "icon": "server"
+        },
+        {
+         "id": "rep",
+         "label": "Rapports d'audit",
+         "sub": "Preuves du fournisseur",
+         "icon": "artifact"
+        }
+       ]
+      },
+      {
+       "id": "cli",
+       "label": "Client : sécurité DANS le cloud",
+       "kind": "account",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "iam",
+         "label": "Identités et accès",
+         "sub": "IAM, MFA, rôles",
+         "icon": "iam"
+        },
+        {
+         "id": "os",
+         "label": "OS et applications",
+         "sub": "Patchs, durcissement",
+         "icon": "ec2"
+        },
+        {
+         "id": "fw",
+         "label": "Règles pare-feu",
+         "sub": "Security groups",
+         "icon": "firewall"
+        },
+        {
+         "id": "dat",
+         "label": "Données",
+         "sub": "Chiffrement, classification",
+         "icon": "encdata"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "hw",
+       "to": "os",
+       "label": "1. Fournit la capacité",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "iam",
+       "to": "dat",
+       "label": "2. Autorise l'accès",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "fw",
+       "to": "os",
+       "label": "3. Filtre le trafic",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "os",
+       "to": "dat",
+       "label": "4. Traite les données",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "rep",
+       "to": "dat",
+       "label": "5. Ne remplacent pas tes contrôles",
+       "style": "dashed"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1"
+       ],
+       "nodes": [
+        "hw"
+       ],
+       "caption": "AWS sécurise le matériel physique et les couches inférieures. Le client n'a pas à surveiller les portes du datacenter."
+      },
+      {
+       "edges": [
+        "e2",
+        "e3"
+       ],
+       "nodes": [
+        "iam",
+        "fw"
+       ],
+       "caption": "Le client décide qui accède à quoi (IAM) et quels flux réseau sont autorisés (security groups)."
+      },
+      {
+       "edges": [
+        "e4"
+       ],
+       "nodes": [
+        "os",
+        "dat"
+       ],
+       "caption": "Le client patche l'OS en IaaS, protège ses applications et chiffre ses données : c'est la sécurité dans le cloud."
+      },
+      {
+       "edges": [
+        "e5"
+       ],
+       "nodes": [
+        "rep"
+       ],
+       "caption": "Les rapports d'audit prouvent la sécurité d'AWS, pas la conformité de ton application."
+      }
+     ]
+    }
+   },
+   {
+    "after": 4,
+    "block": {
+     "type": "flow",
+     "title": "Qui fait quoi quand on lance une EC2 ?",
+     "intro": "Suis les actions et demande-toi à chaque étape : fournisseur ou client ?",
+     "actors": [
+      {
+       "id": "cli",
+       "label": "Équipe client",
+       "sub": "Administrateurs",
+       "kind": "user",
+       "icon": "users"
+      },
+      {
+       "id": "aws",
+       "label": "AWS",
+       "sub": "Fournisseur",
+       "kind": "aws",
+       "icon": "server"
+      },
+      {
+       "id": "ec2",
+       "label": "Instance EC2",
+       "sub": "IaaS",
+       "kind": "app",
+       "icon": "ec2"
+      },
+      {
+       "id": "soc",
+       "label": "Rapport SOC 2",
+       "sub": "Attestation",
+       "kind": "store",
+       "icon": "artifact"
+      }
+     ],
+     "steps": [
+      {
+       "from": "cli",
+       "to": "aws",
+       "label": "1. Lance une instance",
+       "detail": "Le client choisit l'image, le type et le réseau. Ces choix de configuration sont de sa responsabilité."
+      },
+      {
+       "from": "aws",
+       "to": "aws",
+       "label": "2. Sécurise le datacenter et l'hyperviseur",
+       "tone": "good",
+       "detail": "Matériel, hôtes, réseau physique : responsabilité du fournisseur (sécurité du cloud)."
+      },
+      {
+       "from": "aws",
+       "to": "aws",
+       "label": "3. Un disque physique tombe en panne",
+       "tone": "good",
+       "detail": "Le fournisseur remplace le matériel défaillant : cas typique de responsabilité du fournisseur."
+      },
+      {
+       "from": "cli",
+       "to": "ec2",
+       "label": "4. N'applique pas les patchs de l'OS",
+       "tone": "bad",
+       "detail": "En IaaS, l'OS est géré par le client. Une VM EC2 non patchée est une faille dont le client est responsable."
+      },
+      {
+       "from": "cli",
+       "to": "ec2",
+       "label": "5. Ouvre le port 22 à tout Internet",
+       "tone": "bad",
+       "detail": "Les règles de pare-feu réseau relèvent du client. AWS fournit le mécanisme (security group), pas la décision.",
+       "payload": {
+        "title": "Règle de security group",
+        "fields": [
+         {
+          "k": "Protocole",
+          "v": "tcp",
+          "note": "Trafic TCP"
+         },
+         {
+          "k": "Port",
+          "v": "22",
+          "note": "SSH : accès administrateur"
+         },
+         {
+          "k": "Source",
+          "v": "0.0.0.0/0",
+          "note": "Tout Internet : trop permissif, restreindre à des IP connues"
+         }
+        ]
+       }
+      },
+      {
+       "from": "aws",
+       "to": "soc",
+       "label": "6. Publie un rapport SOC 2",
+       "dashed": true,
+       "detail": "Le fournisseur démontre la sécurité de ses propres contrôles par un audit indépendant."
+      },
+      {
+       "from": "soc",
+       "to": "cli",
+       "label": "7. Preuve pour le fournisseur, pas pour toi",
+       "dashed": true,
+       "tone": "good",
+       "detail": "Le rapport est utile pour ta due diligence, mais il ne rend pas ton OS, tes règles ni tes données conformes."
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "matrix",
+     "title": "Corrigé des mini-cas : qui est responsable ?",
+     "rows": [
+      "Bucket public par erreur",
+      "Disque physique en panne",
+      "OS d'une EC2 non patché",
+      "App SaaS mal paramétrée",
+      "Rapport SOC 2 publié"
+     ],
+     "cols": [
+      "Client",
+      "Fournisseur"
+     ],
+     "cells": [
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "ok",
+       "no"
+      ],
+      [
+       "no",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Responsable",
+      "no": "Pas responsable"
+     }
+    }
+   },
+   {
+    "after": 12,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Famille identité : MFA, moindre privilège ; toujours à la charge du client."
+      },
+      {
+       "k": "vpc",
+       "ctx": "Segmentation et security groups : le client décide quels flux réseau sont autorisés."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffrement des données : sécurité DANS le cloud, donc client."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Logs centralisés : base de la famille surveillance."
+      },
+      {
+       "k": "config",
+       "ctx": "Contrôle de configuration et de dérive (famille configuration)."
+      },
+      {
+       "k": "backup",
+       "ctx": "Sauvegardes et restauration testée : famille réponse."
+      },
+      {
+       "k": "ec2",
+       "ctx": "Exemple IaaS : AWS sécurise le matériel, le client patche l'OS."
+      },
+      {
+       "k": "artifact",
+       "ctx": "Rapports d'audit d'AWS : preuves du fournisseur, pas de ta conformité."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-07",
+  "services": [
+   "artifact",
+   "orgs",
+   "kms",
+   "iam",
+   "cloudtrail",
+   "config",
+   "macie",
+   "backup"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "shorten": {
+   "0": "Conformité = nbayen b'dalil elli na3mel el 7aja kima el 9anoun yo9ol. AWS yjibelek rapports (ISO, SOC, PCI) 3la datacenters mte3ou. Ama inti lazem tbayen elli application mte3ek conforme. T9ol 'ana conforme 5ater AWS certifié' = 'karhbti mli7a 5ater el garage 3andou chhada'.",
+   "1": "Une architecture solide peut quand même **échouer à un audit** (données hors juridiction, preuves absentes). La **conformité** consiste à respecter les exigences légales, réglementaires et les normes applicables, et à le **démontrer**. Le fournisseur prouve la sécurité de ce qu'il contrôle ; le client reste responsable de la conformité de **son usage**."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Les trois sources d'exigences",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "auditmgr",
+       "t": "Réglementaire : la loi",
+       "d": "Données personnelles, paiement, secteurs régulés. Sanctions et notification en cas de non-respect. Quelles lois s'appliquent ?",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "Contractuelle : le contrat",
+       "d": "Localisation des données, SLA, notification d'incident, sous-traitants. Qu'ai-je signé ?",
+       "tone": "info"
+      },
+      {
+       "icon": "artifact",
+       "t": "Normative : les standards",
+       "d": "ISO, SOC, CSA STAR : bonnes pratiques reconnues et preuves de maturité du fournisseur.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "callout",
+     "tone": "exam",
+     "title": "Idée clé",
+     "text": "Une attestation du fournisseur (ISO, SOC, PCI) prouve SES contrôles, pas les tiens : le client doit démontrer son propre usage."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "stack",
+     "title": "La famille ISO : du cadre général au plus spécifique",
+     "layers": [
+      {
+       "label": "ISO 27001",
+       "sub": "SMSI : management global",
+       "icon": "auditmgr",
+       "tone": "info",
+       "tags": [
+        "Base organisationnelle"
+       ]
+      },
+      {
+       "label": "ISO 27017",
+       "sub": "Bonnes pratiques services cloud",
+       "icon": "cloud",
+       "tone": "info",
+       "tags": [
+        "Responsabilités cloud"
+       ]
+      },
+      {
+       "label": "ISO 27018",
+       "sub": "PII dans les clouds publics",
+       "icon": "padlock",
+       "tone": "good",
+       "tags": [
+        "Vie privée"
+       ]
+      }
+     ],
+     "side": "27001 donne le cadre, 27017 l'adapte au cloud, 27018 cible les données personnelles"
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "SOC et CSA STAR : évaluer la confiance dans un fournisseur",
+     "cols": 4,
+     "items": [
+      {
+       "icon": "document",
+       "t": "SOC 1",
+       "d": "Rapport d'attestation sur les contrôles liés au reporting financier.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "artifact",
+       "t": "SOC 2",
+       "d": "Sécurité, disponibilité, confidentialité, intégrité, vie privée. Type 1 : à une date ; type 2 : sur une période.",
+       "tone": "info"
+      },
+      {
+       "icon": "document",
+       "t": "SOC 3",
+       "d": "Synthèse publique du rapport.",
+       "tone": "neutral"
+      },
+      {
+       "icon": "auditmgr",
+       "t": "CSA STAR",
+       "d": "Programme de transparence de la CSA. Level 1 : auto-évaluation ; Level 2 : audit par un tiers.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "compare",
+     "title": "PCI DSS vs RGPD",
+     "cols": [
+      {
+       "name": "PCI DSS",
+       "tag": "Cartes de paiement",
+       "points": [
+        "Pour les environnements qui stockent, traitent ou transmettent des données de cartes",
+        "Contrôles : réseau protégé, chiffrement, contrôle d'accès, logs, tests de vulnérabilité, segmentation",
+        "S'applique au périmètre qui touche les données de carte"
+       ],
+       "use": "Application de paiement, e-commerce.",
+       "icon": "padlock"
+      },
+      {
+       "name": "RGPD",
+       "tag": "Données personnelles",
+       "points": [
+        "Pour le traitement de données personnelles de personnes dans l'UE",
+        "Contrôles : base légale, minimisation, localisation, droits des personnes, sécurité, notification, preuves",
+        "La région d'hébergement ne suffit pas à elle seule"
+       ],
+       "use": "Toute application qui manipule des données clients.",
+       "icon": "users"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Traduire la conformité en contrôles cloud : pas de preuve, pas de conformité",
+     "center": {
+      "label": "Conformité",
+      "sub": "contrôle + preuve",
+      "icon": "auditmgr"
+     },
+     "spokes": [
+      {
+       "label": "Confidentialité",
+       "sub": "KMS, IAM, Macie",
+       "icon": "kms",
+       "note": "Contrôles : chiffrement, KMS, IAM, DLP. Preuve : config des clés, policies, résultats de scan.",
+       "tone": "info"
+      },
+      {
+       "label": "Traçabilité",
+       "sub": "CloudTrail, CloudWatch Logs",
+       "icon": "cloudtrail",
+       "note": "Contrôles : logs, SIEM, conservation. Preuve : journaux conservés, durée de rétention.",
+       "tone": "info"
+      },
+      {
+       "label": "Résilience",
+       "sub": "Backup, multi-AZ, réplication",
+       "icon": "backup",
+       "note": "Contrôles : sauvegardes, réplication, tests DRP. Preuve : rapports de tests de restauration.",
+       "tone": "info"
+      },
+      {
+       "label": "Localisation",
+       "sub": "Région, régions autorisées",
+       "icon": "orgs",
+       "note": "Contrôles : choix de région, restriction des régions autorisées. Preuve : inventaire des ressources par région.",
+       "tone": "info"
+      },
+      {
+       "label": "Auditabilité",
+       "sub": "Artifact, Config, revues",
+       "icon": "artifact",
+       "note": "Contrôles : rapports, preuves, revues périodiques. Preuve : rapports, comptes rendus de revue.",
+       "tone": "info"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "L'audit : qui prouve quoi ?",
+     "intro": "Un auditeur vérifie la conformité PCI DSS d'une application de paiement hébergée sur AWS.",
+     "actors": [
+      {
+       "id": "aud",
+       "label": "Auditeur",
+       "sub": "PCI DSS",
+       "kind": "user",
+       "icon": "user"
+      },
+      {
+       "id": "team",
+       "label": "Équipe client",
+       "sub": "Responsable de l'application",
+       "kind": "app",
+       "icon": "users"
+      },
+      {
+       "id": "art",
+       "label": "AWS Artifact",
+       "sub": "Rapports du fournisseur",
+       "kind": "aws",
+       "icon": "artifact"
+      },
+      {
+       "id": "ctl",
+       "label": "Contrôles du client",
+       "sub": "KMS, IAM, CloudTrail, Config",
+       "kind": "service",
+       "icon": "securityhub"
+      }
+     ],
+     "steps": [
+      {
+       "from": "aud",
+       "to": "team",
+       "label": "1. Demande les preuves",
+       "detail": "L'auditeur veut voir comment l'application protège les données de carte. Il demande attestations et preuves techniques."
+      },
+      {
+       "from": "team",
+       "to": "art",
+       "label": "2. Télécharge l'attestation d'AWS",
+       "detail": "Les rapports et attestations d'AWS prouvent les contrôles de l'infrastructure : ce sont des contrôles hérités."
+      },
+      {
+       "from": "art",
+       "to": "team",
+       "label": "3. Rapport sur l'infrastructure",
+       "dashed": true,
+       "detail": "Le rapport couvre le datacenter, la virtualisation, le matériel. Il ne dit rien de ton application, de tes règles IAM ou de tes données."
+      },
+      {
+       "from": "team",
+       "to": "ctl",
+       "label": "4. Rassemble ses propres preuves",
+       "detail": "Le client collecte ce qui démontre son usage : chiffrement, accès, journaux, configuration.",
+       "payload": {
+        "title": "Dossier de preuves du client",
+        "fields": [
+         {
+          "k": "Chiffrement",
+          "v": "Config KMS et rotation",
+          "note": "Confidentialité des données de carte"
+         },
+         {
+          "k": "Accès",
+          "v": "Policies IAM, revue des accès, MFA",
+          "note": "Moindre privilège démontré"
+         },
+         {
+          "k": "Traçabilité",
+          "v": "Journaux CloudTrail conservés",
+          "note": "Qui a fait quoi, quand"
+         },
+         {
+          "k": "Configuration",
+          "v": "Règles AWS Config conformes",
+          "note": "Posture contrôlée régulièrement"
+         }
+        ]
+       }
+      },
+      {
+       "from": "ctl",
+       "to": "team",
+       "label": "5. Fournit les exports",
+       "dashed": true,
+       "detail": "Chaque contrôle produit une preuve exploitable : configuration, rapports, journaux."
+      },
+      {
+       "from": "team",
+       "to": "aud",
+       "label": "6. Présente attestation + preuves",
+       "tone": "good",
+       "detail": "Le dossier combine les contrôles hérités d'AWS et les contrôles propres du client."
+      },
+      {
+       "from": "aud",
+       "to": "aud",
+       "label": "7. Verdict",
+       "tone": "bad",
+       "detail": "Si le client n'avait présenté que l'attestation du fournisseur, la conformité de son application ne serait pas démontrée."
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "artifact",
+       "ctx": "Rapports et attestations d'AWS (ISO, SOC, PCI) : preuves héritées du fournisseur."
+      },
+      {
+       "k": "orgs",
+       "ctx": "SCP : restreint les régions autorisées, donc la localisation des données."
+      },
+      {
+       "k": "kms",
+       "ctx": "Chiffrement et rotation : contrôle de confidentialité et preuve de configuration."
+      },
+      {
+       "k": "iam",
+       "ctx": "Accès, MFA, revues : démontre le moindre privilège à l'auditeur."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Journaux conservés : preuve de traçabilité exigée par l'auditeur."
+      },
+      {
+       "k": "config",
+       "ctx": "Vérifie en continu la conformité des configurations et produit des preuves."
+      },
+      {
+       "k": "macie",
+       "ctx": "Repère les données sensibles dans S3 : contrôle de confidentialité (DLP)."
+      },
+      {
+       "k": "backup",
+       "ctx": "Sauvegardes : contrôle de résilience, avec rapports de tests de restauration."
+      }
+     ]
+    }
+   }
+  ]
+ },
+ {
+  "id": "ch1-08",
+  "services": [
+   "iam",
+   "apigw",
+   "waf",
+   "kms",
+   "s3",
+   "rds",
+   "cloudtrail",
+   "backup"
+  ],
+  "drop": [
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9
+  ],
+  "shorten": {
+   "0": "Tsawwer el cas kima ta7dhir 3ors: el flous (données clients), el bab el kbir (API publiques), el ghorfa mta3 el fawatir (stockage). Lazem tfakker: chkoun yod5ol (IAM), chkoun yet7akem (API), chnowa n9afloh (chiffrement), w ken tsir 7aja nchoufou (logs). Hedhom el 5 contrôles.",
+   "1": "**Cas** : une application web de paiement migre vers le cloud (base de données clients, API publiques, stockage d'objets pour les factures). **À faire** : 3 risques prioritaires ; le responsable de chacun (fournisseur, client, partagé) ; 5 contrôles ; au moins 1 exigence de conformité. **Livrable** : réponse courte avec risques, responsabilités, contrôles, justification."
+  },
+  "insert": [
+   {
+    "after": 1,
+    "block": {
+     "type": "pipeline",
+     "title": "Méthode en 4 étapes pour répondre à ce type de cas",
+     "stages": [
+      {
+       "label": "Cartographier",
+       "sub": "Actifs, flux, expositions",
+       "icon": "document",
+       "tone": "info"
+      },
+      {
+       "label": "3 risques + responsable",
+       "sub": "Lien scénario, frontière",
+       "icon": "users",
+       "tone": "warn"
+      },
+      {
+       "label": "5 contrôles",
+       "sub": "Reliés aux risques + preuve",
+       "icon": "securityhub",
+       "tone": "good"
+      },
+      {
+       "label": "Conformité",
+       "sub": "PCI DSS, RGPD, justification",
+       "icon": "auditmgr",
+       "tone": "info"
+      }
+     ],
+     "caption": "Chaque risque : une phrase de lien avec le scénario, puis le responsable et la justification de la frontière. Chaque contrôle : cohérent, vérifiable, avec une preuve possible."
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "facts",
+     "title": "Barème indicatif sur 10",
+     "items": [
+      {
+       "icon": "finding",
+       "big": "3",
+       "label": "Risques",
+       "sub": "3 risques liés au scénario ; autres acceptés si justifiés"
+      },
+      {
+       "icon": "role",
+       "big": "2",
+       "label": "Responsabilités",
+       "sub": "Justifiées, un propriétaire explicite"
+      },
+      {
+       "icon": "securityhub",
+       "big": "3",
+       "label": "Cinq contrôles",
+       "sub": "Cohérents, vérifiables, reliés aux risques"
+      },
+      {
+       "icon": "auditmgr",
+       "big": "1",
+       "label": "Conformité",
+       "sub": "PCI DSS et/ou RGPD bien situés"
+      },
+      {
+       "icon": "document",
+       "big": "1",
+       "label": "Justification",
+       "sub": "Chaque contrôle réduit un risque et produit une preuve"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Réponse modèle (1/3) : 3 risques prioritaires et responsables",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "database",
+       "t": "1. Données clients compromises",
+       "d": "Responsable : client (IAM, API, base, code applicatif). AWS reste responsable de l'infrastructure sous-jacente.",
+       "tone": "bad"
+      },
+      {
+       "icon": "s3",
+       "t": "2. Factures exposées",
+       "d": "Responsable : client. Stockage public ou policy trop permissive ; le chiffrement seul ne corrige pas une autorisation publique.",
+       "tone": "bad"
+      },
+      {
+       "icon": "health",
+       "t": "3. Service indisponible",
+       "d": "Responsabilité partagée. AWS : résilience de la plateforme. Client : architecture, filtrage, débit, sauvegarde, reprise.",
+       "tone": "warn"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "hub",
+     "title": "Réponse modèle (2/3) : les 5 contrôles, mesures et preuves",
+     "center": {
+      "label": "5 contrôles",
+      "sub": "reliés aux 3 risques",
+      "icon": "securityhub"
+     },
+     "spokes": [
+      {
+       "label": "IAM",
+       "sub": "MFA, privilèges minimaux",
+       "icon": "iam",
+       "note": "Rôles temporaires, revues périodiques des accès. Preuves : politiques IAM, rapports de revue, journaux d'authentification.",
+       "tone": "good"
+      },
+      {
+       "label": "API",
+       "sub": "Auth, validation, WAF, débit",
+       "icon": "apigw",
+       "note": "Authentification, autorisation, validation des entrées, WAF, limitation de débit. Preuves : règles WAF, config de la passerelle, journaux.",
+       "tone": "good"
+      },
+      {
+       "label": "Données",
+       "sub": "TLS, KMS, secrets, rotation",
+       "icon": "kms",
+       "note": "TLS en transit, chiffrement au repos (KMS), secrets hors du code avec rotation, droits sur la clé gouvernés. Preuves : config KMS, rotation, inventaire des secrets.",
+       "tone": "good"
+      },
+      {
+       "label": "Stockage",
+       "sub": "Accès public bloqué",
+       "icon": "s3",
+       "note": "Blocage de l'accès public, politiques restrictives, contrôle de posture. Preuves : config du bucket, rapports d'analyse d'accès.",
+       "tone": "good"
+      },
+      {
+       "label": "Détection et reprise",
+       "sub": "Logs, alertes, restauration",
+       "icon": "cloudwatch",
+       "note": "Logs centralisés, alertes, versioning, restauration testée (une sauvegarde non testée n'est pas une garantie). Preuves : journaux, alertes, rapports de test.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "matrix",
+     "title": "Quels risques chaque contrôle couvre-t-il ?",
+     "rows": [
+      "1. IAM",
+      "2. API",
+      "3. Données",
+      "4. Stockage",
+      "5. Détection et reprise"
+     ],
+     "cols": [
+      "R1 Données clients",
+      "R2 Factures",
+      "R3 Indispo."
+     ],
+     "cells": [
+      [
+       "ok",
+       "na",
+       "na"
+      ],
+      [
+       "ok",
+       "na",
+       "ok"
+      ],
+      [
+       "ok",
+       "ok",
+       "na"
+      ],
+      [
+       "na",
+       "ok",
+       "na"
+      ],
+      [
+       "ok",
+       "ok",
+       "ok"
+      ]
+     ],
+     "legend": {
+      "ok": "Risque couvert",
+      "na": "Non couvert"
+     }
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Réponse modèle (3/3) : conformité et justification",
+     "cols": 2,
+     "items": [
+      {
+       "icon": "padlock",
+       "t": "PCI DSS",
+       "d": "Périmètre qui stocke, traite ou transmet des données de carte : réseau protégé, chiffrement, accès, logs, tests, segmentation.",
+       "tone": "info"
+      },
+      {
+       "icon": "users",
+       "t": "RGPD",
+       "d": "Données personnelles : base légale, minimisation, localisation, droits, sécurité, notification, preuves. La région ne suffit pas.",
+       "tone": "info"
+      },
+      {
+       "icon": "artifact",
+       "t": "Attestation fournisseur",
+       "d": "ISO, SOC, PCI prouvent les contrôles d'AWS, pas ton application : prouve les tiens (logs, configs, revues).",
+       "tone": "warn"
+      },
+      {
+       "icon": "apigw",
+       "t": "Tokenisation",
+       "d": "Déléguer les données de carte à un prestataire de paiement réduit le périmètre PCI DSS.",
+       "tone": "good"
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "arch",
+     "title": "Architecture de paiement sécurisée",
+     "groups": [
+      {
+       "id": "net",
+       "label": "Internet",
+       "kind": "internet",
+       "col": 0,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "users",
+         "label": "Clients",
+         "sub": "Navigateur / mobile",
+         "icon": "user"
+        }
+       ]
+      },
+      {
+       "id": "edge",
+       "label": "Bordure",
+       "kind": "zone",
+       "col": 1,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "waf",
+         "label": "WAF + protection DDoS",
+         "sub": "Règles, rate limiting",
+         "icon": "waf"
+        },
+        {
+         "id": "api",
+         "label": "API Gateway",
+         "sub": "Authentification, quotas",
+         "icon": "apigw"
+        }
+       ]
+      },
+      {
+       "id": "vpc",
+       "label": "VPC : sous-réseau privé",
+       "kind": "vpc",
+       "col": 2,
+       "row": 0,
+       "nodes": [
+        {
+         "id": "app",
+         "label": "Service de paiement",
+         "sub": "Validation des entrées",
+         "icon": "ec2"
+        },
+        {
+         "id": "db",
+         "label": "Base clients chiffrée",
+         "sub": "TLS + chiffrement au repos",
+         "icon": "rds"
+        }
+       ]
+      },
+      {
+       "id": "obs",
+       "label": "Observabilité",
+       "kind": "generic",
+       "col": 1,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "logs",
+         "label": "Logs centralisés",
+         "sub": "CloudTrail, alertes",
+         "icon": "cloudtrail"
+        }
+       ]
+      },
+      {
+       "id": "dat",
+       "label": "Stockage et clés",
+       "kind": "generic",
+       "col": 2,
+       "row": 1,
+       "nodes": [
+        {
+         "id": "bkt",
+         "label": "Bucket factures",
+         "sub": "Accès public bloqué",
+         "icon": "s3"
+        },
+        {
+         "id": "kms",
+         "label": "Gestion des clés",
+         "sub": "KMS, rotation",
+         "icon": "kms"
+        }
+       ]
+      }
+     ],
+     "edges": [
+      {
+       "id": "e1",
+       "from": "users",
+       "to": "waf",
+       "label": "1. HTTPS",
+       "style": "solid"
+      },
+      {
+       "id": "e2",
+       "from": "waf",
+       "to": "api",
+       "label": "2. Requêtes filtrées",
+       "style": "solid"
+      },
+      {
+       "id": "e3",
+       "from": "api",
+       "to": "app",
+       "label": "3. Requêtes authentifiées",
+       "style": "solid"
+      },
+      {
+       "id": "e4",
+       "from": "app",
+       "to": "db",
+       "label": "4. TLS",
+       "style": "solid"
+      },
+      {
+       "id": "e5",
+       "from": "app",
+       "to": "bkt",
+       "label": "5. Rôle dédié",
+       "style": "solid"
+      },
+      {
+       "id": "e6",
+       "from": "kms",
+       "to": "db",
+       "label": "6. Clé de chiffrement",
+       "style": "dashed"
+      },
+      {
+       "id": "e7",
+       "from": "kms",
+       "to": "bkt",
+       "label": "7. Clé de chiffrement",
+       "style": "dashed"
+      },
+      {
+       "id": "e8",
+       "from": "api",
+       "to": "logs",
+       "label": "8. Journaux API",
+       "style": "dashed"
+      },
+      {
+       "id": "e9",
+       "from": "app",
+       "to": "logs",
+       "label": "9. Journaux applicatifs",
+       "style": "dashed"
+      },
+      {
+       "id": "e10",
+       "from": "users",
+       "to": "bkt",
+       "label": "Accès public bloqué",
+       "style": "deny"
+      }
+     ],
+     "steps": [
+      {
+       "edges": [
+        "e1",
+        "e2"
+       ],
+       "nodes": [
+        "waf",
+        "api"
+       ],
+       "caption": "Contrôle API : le WAF filtre et limite le débit, la passerelle authentifie et applique des quotas. Risques 1 et 3."
+      },
+      {
+       "edges": [
+        "e3"
+       ],
+       "nodes": [
+        "app"
+       ],
+       "caption": "L'application est dans un sous-réseau privé, sans exposition directe : segmentation et validation des entrées."
+      },
+      {
+       "edges": [
+        "e4",
+        "e6"
+       ],
+       "nodes": [
+        "db",
+        "kms"
+       ],
+       "caption": "Contrôle données : TLS en transit, chiffrement au repos par KMS. Les droits sur la clé restent à gouverner (moindre privilège)."
+      },
+      {
+       "edges": [
+        "e5",
+        "e10"
+       ],
+       "nodes": [
+        "bkt"
+       ],
+       "caption": "Contrôle stockage : seul le service dédié lit les factures par rôle ; l'accès public est bloqué. Le chiffrement seul ne suffirait pas. Risque 2."
+      },
+      {
+       "edges": [
+        "e7"
+       ],
+       "nodes": [
+        "kms",
+        "bkt"
+       ],
+       "caption": "Les factures sont aussi chiffrées avec une clé gouvernée : confidentialité renforcée."
+      },
+      {
+       "edges": [
+        "e8",
+        "e9"
+       ],
+       "nodes": [
+        "logs"
+       ],
+       "caption": "Contrôle détection et reprise : logs centralisés et alertes, avec sauvegardes et restauration testées. Risques 1, 2 et 3."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "flow",
+     "title": "Un paiement traverse les contrôles, une attaque est stoppée",
+     "intro": "Même architecture, vue en mouvement : un paiement légitime et un flood malveillant.",
+     "actors": [
+      {
+       "id": "cust",
+       "label": "Client",
+       "sub": "Paiement légitime",
+       "kind": "user",
+       "icon": "user"
+      },
+      {
+       "id": "atk",
+       "label": "Attaquant",
+       "sub": "Bot",
+       "kind": "attacker",
+       "icon": "bot"
+      },
+      {
+       "id": "waf",
+       "label": "WAF",
+       "sub": "Rate limiting",
+       "kind": "network",
+       "icon": "waf"
+      },
+      {
+       "id": "api",
+       "label": "API de paiement",
+       "sub": "Authentification",
+       "kind": "app",
+       "icon": "apigw"
+      },
+      {
+       "id": "db",
+       "label": "Base chiffrée",
+       "sub": "KMS",
+       "kind": "store",
+       "icon": "rds"
+      },
+      {
+       "id": "siem",
+       "label": "Logs + alertes",
+       "sub": "Détection",
+       "kind": "service",
+       "icon": "cloudwatch"
+      }
+     ],
+     "steps": [
+      {
+       "from": "cust",
+       "to": "waf",
+       "label": "1. POST /payments en HTTPS",
+       "detail": "Le client envoie sa demande, chiffrée en transit par TLS, avec un jeton d'authentification.",
+       "payload": {
+        "title": "Requête de paiement",
+        "fields": [
+         {
+          "k": "Méthode et chemin",
+          "v": "POST /v1/payments",
+          "note": "Création d'un paiement"
+         },
+         {
+          "k": "Authorization",
+          "v": "Bearer <jeton>",
+          "note": "Identité prouvée, vérifiée par l'API"
+         },
+         {
+          "k": "Transport",
+          "v": "TLS",
+          "note": "Confidentialité et intégrité en transit"
+         }
+        ]
+       }
+      },
+      {
+       "from": "waf",
+       "to": "api",
+       "label": "2. Requête saine transmise",
+       "tone": "good",
+       "detail": "Aucune règle WAF ne détecte d'anomalie ni de dépassement de débit : la requête passe."
+      },
+      {
+       "from": "api",
+       "to": "api",
+       "label": "3. Authentifie, autorise, valide",
+       "tone": "good",
+       "detail": "L'API distingue authentification et autorisation, et valide chaque champ reçu pour éviter les injections."
+      },
+      {
+       "from": "api",
+       "to": "db",
+       "label": "4. Écrit la commande",
+       "detail": "L'écriture se fait par un lien chiffré et les données sont chiffrées au repos avec une clé gérée."
+      },
+      {
+       "from": "atk",
+       "to": "waf",
+       "label": "5. Rafale de requêtes malveillantes",
+       "tone": "bad",
+       "detail": "Un bot envoie des milliers de requêtes pour saturer l'API : risque de service indisponible."
+      },
+      {
+       "from": "waf",
+       "to": "atk",
+       "label": "6. Bloque et limite le débit",
+       "dashed": true,
+       "tone": "good",
+       "detail": "Le WAF et la protection DDoS bloquent ou ralentissent le trafic abusif avant l'API."
+      },
+      {
+       "from": "api",
+       "to": "siem",
+       "label": "7. Journalise les événements",
+       "dashed": true,
+       "detail": "Les journaux API et WAF sont centralisés avec horodatage fiable : preuves pour l'audit."
+      },
+      {
+       "from": "siem",
+       "to": "siem",
+       "label": "8. Alerte et runbook",
+       "tone": "good",
+       "detail": "Une alerte déclenche la procédure de réponse. La restauration a été testée : la reprise est possible si besoin."
+      }
+     ]
+    }
+   },
+   {
+    "after": 1,
+    "block": {
+     "type": "cards",
+     "title": "Points de vigilance du correcteur",
+     "cols": 3,
+     "items": [
+      {
+       "icon": "users",
+       "t": "Propriétaire explicite",
+       "d": "Partagée ne veut pas dire indéterminée : un propriétaire explicite par contrôle.",
+       "tone": "info"
+      },
+      {
+       "icon": "kms",
+       "t": "Chiffrement insuffisant",
+       "d": "Il ne corrige pas à lui seul une autorisation publique.",
+       "tone": "warn"
+      },
+      {
+       "icon": "backup",
+       "t": "Sauvegarde testée",
+       "d": "Une sauvegarde non testée n'est pas une garantie de reprise.",
+       "tone": "warn"
+      },
+      {
+       "icon": "localzones",
+       "t": "Région n'est pas RGPD",
+       "d": "La région d'hébergement ne suffit pas pour le RGPD.",
+       "tone": "warn"
+      },
+      {
+       "icon": "artifact",
+       "t": "Attestation n'est pas conformité",
+       "d": "L'attestation du fournisseur ne rend pas l'application conforme.",
+       "tone": "bad"
+      }
+     ]
+    }
+   },
+   {
+    "after": 11,
+    "block": {
+     "type": "svc",
+     "title": "Services en jeu",
+     "items": [
+      {
+       "k": "iam",
+       "ctx": "Contrôle 1 : MFA, moindre privilège, rôles temporaires pour protéger les données clients."
+      },
+      {
+       "k": "apigw",
+       "ctx": "Contrôle 2 : authentification, quotas et validation à l'entrée de l'API de paiement."
+      },
+      {
+       "k": "waf",
+       "ctx": "Filtre les requêtes, limite le débit et bloque la rafale malveillante."
+      },
+      {
+       "k": "kms",
+       "ctx": "Contrôle 3 : chiffrement au repos des données et des factures, droits sur la clé gouvernés."
+      },
+      {
+       "k": "s3",
+       "ctx": "Stockage des factures : accès public bloqué, accès par rôle dédié."
+      },
+      {
+       "k": "rds",
+       "ctx": "Base clients chiffrée dans un sous-réseau privé."
+      },
+      {
+       "k": "cloudtrail",
+       "ctx": "Contrôle 5 : journaux centralisés, preuves pour l'audit."
+      },
+      {
+       "k": "backup",
+       "ctx": "Sauvegardes avec restauration testée : reprise après incident."
+      }
+     ]
+    }
+   }
+  ]
+ }
+]
